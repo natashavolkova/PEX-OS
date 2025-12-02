@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AthenaPeX - ENTJ Productivity System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'pex-dark': '#0f111a',
+                        'pex-panel': '#1e2330',
+                        'pex-secondary': '#13161c',
+                        'pex-tertiary': '#252b3b',
+                        'pex-primary': '#2979ff',
+                        'pex-primary-hover': '#2264d1',
+                        'pex-purple': '#5b4eff',
+                        'pex-success': '#10b981',
+                        'pex-warning': '#f59e0b',
+                        'pex-error': '#ef4444',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-pex-dark text-gray-100 font-sans min-h-screen">
+    <!-- Top Bar -->
+    <header class="fixed top-0 left-0 right-0 h-12 bg-pex-secondary border-b border-gray-800 z-50 flex items-center px-4">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-gradient-to-br from-pex-primary to-pex-purple rounded-lg flex items-center justify-center">
+                <i class="fas fa-bolt text-white text-sm"></i>
+            </div>
+            <span class="font-bold text-lg tracking-tight">AthenaPeX</span>
+            <span class="text-xs bg-pex-purple/20 text-pex-purple px-2 py-0.5 rounded-full font-medium">ENTJ</span>
+        </div>
+        
+        <div class="flex-1 flex justify-center">
+            <div class="relative w-96">
+                <input type="text" placeholder="Search everything... (Ctrl+K)" 
+                       class="w-full bg-pex-tertiary border border-gray-700 rounded-lg px-4 py-1.5 text-sm focus:outline-none focus:border-pex-primary transition-colors"
+                       id="globalSearch">
+                <kbd class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 bg-pex-dark px-1.5 py-0.5 rounded">⌘K</kbd>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <div id="agentStatus" class="flex items-center gap-2 px-3 py-1 rounded-full bg-pex-tertiary cursor-pointer hover:bg-pex-panel transition-colors">
+                <span class="w-2 h-2 rounded-full bg-gray-500" id="agentDot"></span>
+                <span class="text-xs text-gray-400" id="agentText">Agent Offline</span>
+            </div>
+            <button class="w-8 h-8 rounded-lg bg-pex-tertiary hover:bg-pex-panel flex items-center justify-center transition-colors">
+                <i class="fas fa-bell text-gray-400"></i>
+            </button>
+            <button class="w-8 h-8 rounded-lg bg-pex-tertiary hover:bg-pex-panel flex items-center justify-center transition-colors">
+                <i class="fas fa-cog text-gray-400"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="fixed top-12 left-0 w-56 h-[calc(100vh-48px)] bg-pex-secondary border-r border-gray-800 z-40">
+        <nav class="p-3 space-y-1">
+            <div class="text-xs text-gray-500 uppercase tracking-wider px-3 py-2 font-medium">Main</div>
+            
+            <button onclick="showModule('analytics')" class="nav-item active" data-module="analytics">
+                <i class="fas fa-chart-line w-5"></i>
+                <span>Analytics</span>
+            </button>
+            
+            <button onclick="showModule('projects')" class="nav-item" data-module="projects">
+                <i class="fas fa-folder-open w-5"></i>
+                <span>Projects Hub</span>
+            </button>
+            
+            <button onclick="showModule('tasks')" class="nav-item" data-module="tasks">
+                <i class="fas fa-tasks w-5"></i>
+                <span>Task Manager</span>
+            </button>
+            
+            <button onclick="showModule('prompts')" class="nav-item" data-module="prompts">
+                <i class="fas fa-terminal w-5"></i>
+                <span>Prompt Manager</span>
+            </button>
+            
+            <button onclick="showModule('battleplan')" class="nav-item" data-module="battleplan">
+                <i class="fas fa-crosshairs w-5"></i>
+                <span>Battle Plan</span>
+            </button>
+            
+            <div class="text-xs text-gray-500 uppercase tracking-wider px-3 py-2 mt-4 font-medium">Resources</div>
+            
+            <button onclick="showModule('youtube')" class="nav-item" data-module="youtube">
+                <i class="fab fa-youtube w-5"></i>
+                <span>YouTube Refs</span>
+            </button>
+            
+            <button onclick="showModule('templates')" class="nav-item" data-module="templates">
+                <i class="fas fa-file-code w-5"></i>
+                <span>Templates</span>
+            </button>
+            
+            <button onclick="showModule('neovim')" class="nav-item" data-module="neovim">
+                <i class="fas fa-keyboard w-5"></i>
+                <span>Neovim Config</span>
+            </button>
+            
+            <div class="text-xs text-gray-500 uppercase tracking-wider px-3 py-2 mt-4 font-medium">System</div>
+            
+            <button onclick="showModule('agent')" class="nav-item" data-module="agent">
+                <i class="fas fa-robot w-5"></i>
+                <span>AI Agent</span>
+            </button>
+            
+            <button onclick="showModule('rules')" class="nav-item" data-module="rules">
+                <i class="fas fa-shield-alt w-5"></i>
+                <span>ENTJ Rules</span>
+            </button>
+        </nav>
+        
+        <!-- Quick Stats -->
+        <div class="absolute bottom-0 left-0 right-0 p-3 border-t border-gray-800">
+            <div class="bg-pex-tertiary rounded-lg p-3 space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-gray-400">Today's ROI</span>
+                    <span class="text-sm font-bold text-pex-success" id="todayRoi">2.4x</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-gray-400">Focus Hours</span>
+                    <span class="text-sm font-bold text-pex-primary" id="focusHours">4.5h</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-gray-400">Tasks Done</span>
+                    <span class="text-sm font-bold text-pex-warning" id="tasksDone">7/12</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="ml-56 mt-12 min-h-[calc(100vh-48px)] bg-pex-dark">
+        <!-- Analytics Dashboard -->
+        <div id="module-analytics" class="module p-6">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold">Productivity Analytics</h1>
+                    <p class="text-gray-400 text-sm">Track your ENTJ performance metrics</p>
+                </div>
+                <div class="flex gap-2">
+                    <select class="bg-pex-tertiary border border-gray-700 rounded-lg px-3 py-2 text-sm">
+                        <option>This Week</option>
+                        <option>Last Week</option>
+                        <option>This Month</option>
+                    </select>
+                    <button onclick="startFocusSession()" class="bg-pex-primary hover:bg-pex-primary-hover px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
+                        <i class="fas fa-play"></i> Start Focus
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-4 gap-4 mb-6">
+                <div class="bg-pex-panel rounded-xl p-4 border border-gray-800 animate-slide-up">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 bg-pex-primary/20 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-bolt text-pex-primary"></i>
+                        </div>
+                        <span class="text-gray-400 text-sm">Velocity Score</span>
+                    </div>
+                    <div class="text-3xl font-bold" id="velocityScore">87</div>
+                    <div class="text-xs text-pex-success mt-1">↑ 12% from last week</div>
+                </div>
+                
+                <div class="bg-pex-panel rounded-xl p-4 border border-gray-800 animate-slide-up" style="animation-delay: 0.1s">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 bg-pex-success/20 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-check-circle text-pex-success"></i>
+                        </div>
+                        <span class="text-gray-400 text-sm">Tasks Completed</span>
+                    </div>
+                    <div class="text-3xl font-bold" id="tasksCompleted">24</div>
+                    <div class="text-xs text-gray-400 mt-1">This week</div>
+                </div>
+                
+                <div class="bg-pex-panel rounded-xl p-4 border border-gray-800 animate-slide-up" style="animation-delay: 0.2s">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 bg-pex-warning/20 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-clock text-pex-warning"></i>
+                        </div>
+                        <span class="text-gray-400 text-sm">Focus Time</span>
+                    </div>
+                    <div class="text-3xl font-bold" id="totalFocusTime">32h</div>
+                    <div class="text-xs text-pex-warning mt-1">4.6h daily avg</div>
+                </div>
+                
+                <div class="bg-pex-panel rounded-xl p-4 border border-gray-800 animate-slide-up" style="animation-delay: 0.3s">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 bg-pex-purple/20 rounded-lg flex items-center justify-center">
+                            <i class="fas fa-chart-pie text-pex-purple"></i>
+                        </div>
+                        <span class="text-gray-400 text-sm">Avg ROI</span>
+                    </div>
+                    <div class="text-3xl font-bold" id="avgRoi">2.1x</div>
+                    <div class="text-xs text-pex-success mt-1">Above target</div>
+                </div>
+            </div>
+            
+            <!-- Weekly Heatmap -->
+            <div class="grid grid-cols-3 gap-6 mb-6">
+                <div class="col-span-2 bg-pex-panel rounded-xl p-5 border border-gray-800">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-th text-pex-primary"></i>
+                        Weekly Productivity Heatmap
+                    </h3>
+                    <div id="heatmapContainer" class="space-y-2">
+                        <!-- Heatmap will be rendered here -->
+                    </div>
+                    <div class="flex items-center justify-between mt-4 text-xs text-gray-400">
+                        <span>Less Productive</span>
+                        <div class="flex gap-1">
+                            <div class="w-4 h-4 rounded bg-gray-800"></div>
+                            <div class="w-4 h-4 rounded bg-pex-primary/20"></div>
+                            <div class="w-4 h-4 rounded bg-pex-primary/40"></div>
+                            <div class="w-4 h-4 rounded bg-pex-primary/60"></div>
+                            <div class="w-4 h-4 rounded bg-pex-primary"></div>
+                        </div>
+                        <span>More Productive</span>
+                    </div>
+                </div>
+                
+                <div class="bg-pex-panel rounded-xl p-5 border border-gray-800">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-lightbulb text-pex-warning"></i>
+                        AI Insights
+                    </h3>
+                    <div id="insightsContainer" class="space-y-3">
+                        <!-- Insights will be rendered here -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Peak Hours & Focus Windows -->
+            <div class="grid grid-cols-2 gap-6">
+                <div class="bg-pex-panel rounded-xl p-5 border border-gray-800">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-sun text-pex-warning"></i>
+                        Peak Hours Analysis
+                    </h3>
+                    <div id="peakHoursChart" class="h-48">
+                        <!-- Chart will be rendered here -->
+                    </div>
+                </div>
+                
+                <div class="bg-pex-panel rounded-xl p-5 border border-gray-800">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-brain text-pex-purple"></i>
+                        Focus Windows Today
+                    </h3>
+                    <div id="focusWindowsList" class="space-y-2">
+                        <!-- Focus windows will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Projects Hub -->
+        <div id="module-projects" class="module p-6 hidden">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold">Projects Hub</h1>
+                    <p class="text-gray-400 text-sm">Manage projects with ENTJ prioritization</p>
+                </div>
+                <button onclick="openProjectModal()" class="bg-pex-primary hover:bg-pex-primary-hover px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
+                    <i class="fas fa-plus"></i> New Project
+                </button>
+            </div>
+            
+            <!-- Project Filters -->
+            <div class="flex gap-2 mb-6">
+                <button class="project-filter active" data-filter="all">All</button>
+                <button class="project-filter" data-filter="active">Active</button>
+                <button class="project-filter" data-filter="completed">Completed</button>
+                <button class="project-filter" data-filter="archived">Archived</button>
+            </div>
+            
+            <!-- Projects Grid -->
+            <div id="projectsGrid" class="grid grid-cols-3 gap-4">
+                <!-- Projects will be rendered here -->
+            </div>
+        </div>
+
+        <!-- Task Manager -->
+        <div id="module-tasks" class="module p-6 hidden">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold">Task Manager</h1>
+                    <p class="text-gray-400 text-sm">ROI-based task execution tracking</p>
+                </div>
+                <button onclick="openTaskModal()" class="bg-pex-primary hover:bg-pex-primary-hover px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
+                    <i class="fas fa-plus"></i> New Task
+                </button>
+            </div>
+            
+            <!-- Task Board -->
+            <div class="grid grid-cols-4 gap-4">
+                <div class="task-column" data-status="pending">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-semibold text-gray-300 flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-gray-500"></span>
+                            Pending
+                        </h3>
+                        <span class="text-xs bg-pex-tertiary px-2 py-1 rounded-full" id="pendingCount">0</span>
+                    </div>
+                    <div id="pendingTasks" class="space-y-3 min-h-[200px]">
+                        <!-- Tasks will be rendered here -->
+                    </div>
+                </div>
+                
+                <div class="task-column" data-status="in_progress">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-semibold text-gray-300 flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-pex-primary"></span>
+                            In Progress
+                        </h3>
+                        <span class="text-xs bg-pex-tertiary px-2 py-1 rounded-full" id="progressCount">0</span>
+                    </div>
+                    <div id="progressTasks" class="space-y-3 min-h-[200px]">
+                        <!-- Tasks will be rendered here -->
+                    </div>
+                </div>
+                
+                <div class="task-column" data-status="blocked">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-semibold text-gray-300 flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-pex-error"></span>
+                            Blocked
+                        </h3>
+                        <span class="text-xs bg-pex-tertiary px-2 py-1 rounded-full" id="blockedCount">0</span>
+                    </div>
+                    <div id="blockedTasks" class="space-y-3 min-h-[200px]">
+                        <!-- Tasks will be rendered here -->
+                    </div>
+                </div>
+                
+                <div class="task-column" data-status="completed">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-semibold text-gray-300 flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-pex-success"></span>
+                            Completed
+                        </h3>
+                        <span class="text-xs bg-pex-tertiary px-2 py-1 rounded-full" id="completedCount">0</span>
+                    </div>
+                    <div id="completedTasks" class="space-y-3 min-h-[200px]">
+                        <!-- Tasks will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prompt Manager -->
+        <div id="module-prompts" class="module p-6 hidden">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold">Prompt Manager</h1>
+                    <p class="text-gray-400 text-sm">Create and refine prompts with version tracking</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="openFolderModal()" class="bg-pex-tertiary hover:bg-pex-panel px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
+                        <i class="fas fa-folder-plus"></i> New Folder
+                    </button>
+                    <button onclick="openPromptModal()" class="bg-pex-primary hover:bg-pex-primary-hover px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
+                        <i class="fas fa-plus"></i> New Prompt
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Miller Columns View -->
+            <div class="flex gap-4 h-[calc(100vh-200px)]">
+                <!-- Folders Column -->
+                <div class="w-64 bg-pex-panel rounded-xl border border-gray-800 overflow-hidden flex flex-col">
+                    <div class="p-3 border-b border-gray-800 flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-400">Folders</span>
+                        <span class="text-xs bg-pex-tertiary px-2 py-0.5 rounded-full" id="folderCount">0</span>
+                    </div>
+                    <div id="promptFolders" class="flex-1 overflow-y-auto p-2 space-y-1">
+                        <!-- Folders will be rendered here -->
+                    </div>
+                </div>
+                
+                <!-- Prompts Column -->
+                <div class="w-80 bg-pex-panel rounded-xl border border-gray-800 overflow-hidden flex flex-col">
+                    <div class="p-3 border-b border-gray-800 flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-400">Prompts</span>
+                        <span class="text-xs bg-pex-tertiary px-2 py-0.5 rounded-full" id="promptCount">0</span>
+                    </div>
+                    <div id="promptsList" class="flex-1 overflow-y-auto p-2 space-y-1">
+                        <!-- Prompts will be rendered here -->
+                    </div>
+                </div>
+                
+                <!-- Prompt Editor -->
+                <div class="flex-1 bg-pex-panel rounded-xl border border-gray-800 overflow-hidden flex flex-col">
+                    <div class="p-3 border-b border-gray-800 flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-400" id="editorTitle">Select a prompt</span>
+                        <div class="flex gap-2">
+                            <button onclick="analyzePrompt()" class="text-xs bg-pex-tertiary hover:bg-pex-dark px-2 py-1 rounded flex items-center gap-1 transition-colors">
+                                <i class="fas fa-magic"></i> Analyze
+                            </button>
+                            <button onclick="savePrompt()" class="text-xs bg-pex-primary hover:bg-pex-primary-hover px-2 py-1 rounded flex items-center gap-1 transition-colors">
+                                <i class="fas fa-save"></i> Save
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1 p-4" id="promptEditorContainer">
+                        <textarea id="promptEditor" class="w-full h-full bg-pex-dark border border-gray-700 rounded-lg p-4 font-mono text-sm resize-none focus:outline-none focus:border-pex-primary transition-colors" placeholder="Select a prompt to edit or create a new one..."></textarea>
+                    </div>
+                    
+                    <!-- Version History -->
+                    <div class="border-t border-gray-800 p-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs text-gray-400">Version History</span>
+                            <button onclick="toggleVersions()" class="text-xs text-pex-primary hover:text-pex-primary-hover">
+                                <i class="fas fa-history"></i> View All
+                            </button>
+                        </div>
+                        <div id="versionHistory" class="flex gap-2 overflow-x-auto">
+                            <!-- Versions will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Battle Plan -->
+        <div id="module-battleplan" class="module p-6 hidden">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold">ENTJ Battle Plan</h1>
+                    <p class="text-gray-400 text-sm">Aggressive sprint planning for maximum impact</p>
+                </div>
+                <button onclick="openBattlePlanModal()" class="bg-pex-primary hover:bg-pex-primary-hover px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
+                    <i class="fas fa-plus"></i> New Battle Plan
+                </button>
+            </div>
+            
+            <!-- Active Battle Plan -->
+            <div id="activeBattlePlan" class="bg-gradient-to-r from-pex-panel to-pex-tertiary rounded-xl p-6 border border-gray-800 mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-pex-primary/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-crosshairs text-pex-primary text-xl"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold" id="battlePlanName">No Active Plan</h2>
+                            <p class="text-sm text-gray-400" id="battlePlanDates">Create a battle plan to get started</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-4">
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-pex-success" id="velocityActual">0</div>
+                            <div class="text-xs text-gray-400">Velocity</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-pex-warning" id="velocityTarget">0</div>
+                            <div class="text-xs text-gray-400">Target</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Objectives -->
+                <div class="mt-4">
+                    <h3 class="text-sm font-medium text-gray-400 mb-3">Sprint Objectives</h3>
+                    <div id="battleObjectives" class="space-y-2">
+                        <p class="text-gray-500 text-sm">No objectives defined</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- High ROI Tasks & Blockers -->
+            <div class="grid grid-cols-2 gap-6">
+                <div class="bg-pex-panel rounded-xl p-5 border border-gray-800">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-rocket text-pex-success"></i>
+                        High-ROI Tasks
+                    </h3>
+                    <div id="highRoiTasks" class="space-y-3">
+                        <!-- Tasks will be rendered here -->
+                    </div>
+                </div>
+                
+                <div class="bg-pex-panel rounded-xl p-5 border border-gray-800">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-exclamation-triangle text-pex-error"></i>
+                        Blockers & Pivot Triggers
+                    </h3>
+                    <div id="blockersList" class="space-y-3">
+                        <!-- Blockers will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- YouTube References -->
+        <div id="module-youtube" class="module p-6 hidden">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold">YouTube References</h1>
+                    <p class="text-gray-400 text-sm">Track videos and extract insights</p>
+                </div>
+                <button onclick="openYouTubeModal()" class="bg-pex-primary hover:bg-pex-primary-hover px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
+                    <i class="fas fa-plus"></i> Add Video
+                </button>
+            </div>
+            
+            <!-- Watch Status Tabs -->
+            <div class="flex gap-2 mb-6">
+                <button class="youtube-filter active" data-filter="all">All</button>
+                <button class="youtube-filter" data-filter="unwatched">Unwatched</button>
+                <button class="youtube-filter" data-filter="watching">Watching</button>
+                <button class="youtube-filter" data-filter="watched">Watched</button>
+                <button class="youtube-filter" data-filter="revisit">To Revisit</button>
+            </div>
+            
+            <!-- Video Grid -->
+            <div id="youtubeGrid" class="grid grid-cols-3 gap-4">
+                <!-- Videos will be rendered here -->
+            </div>
+        </div>
+
+        <!-- Templates Library -->
+        <div id="module-templates" class="module p-6 hidden">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold">Strategic Templates</h1>
+                    <p class="text-gray-400 text-sm">ENTJ-optimized templates for rapid execution</p>
+                </div>
+            </div>
+            
+            <!-- Template Categories -->
+            <div class="flex gap-2 mb-6">
+                <button class="template-filter active" data-filter="all">All</button>
+                <button class="template-filter" data-filter="mvp">Micro-MVP</button>
+                <button class="template-filter" data-filter="landing-page">Landing Page</button>
+                <button class="template-filter" data-filter="cold-email">Cold Email</button>
+                <button class="template-filter" data-filter="impact-matrix">Impact Matrix</button>
+                <button class="template-filter" data-filter="execution-blueprint">Execution</button>
+            </div>
+            
+            <!-- Templates Grid -->
+            <div id="templatesGrid" class="grid grid-cols-2 gap-4">
+                <!-- Templates will be rendered here -->
+            </div>
+        </div>
+
+        <!-- Neovim Config Generator -->
+        <div id="module-neovim" class="module p-6 hidden">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold">Neovim Config Generator</h1>
+                    <p class="text-gray-400 text-sm">Generate ENTJ-optimized development environment</p>
+                </div>
+                <button onclick="generateNeovimConfig()" class="bg-pex-primary hover:bg-pex-primary-hover px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
+                    <i class="fas fa-cog"></i> Generate Config
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-6">
+                <!-- Configuration Options -->
+                <div class="space-y-4">
+                    <div class="bg-pex-panel rounded-xl p-5 border border-gray-800">
+                        <h3 class="font-semibold mb-4">Base Configuration</h3>
+                        <div class="space-y-3">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="radio" name="nvim-base" value="lazyvim" checked class="form-radio text-pex-primary">
+                                <span>LazyVim (Recommended)</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="radio" name="nvim-base" value="astronvim" class="form-radio text-pex-primary">
+                                <span>AstroNvim</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="radio" name="nvim-base" value="custom" class="form-radio text-pex-primary">
+                                <span>Custom (Minimal)</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-pex-panel rounded-xl p-5 border border-gray-800">
+                        <h3 class="font-semibold mb-4">LSP Configurations</h3>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" checked class="form-checkbox text-pex-primary" data-lsp="typescript">
+                                <span>TypeScript/JavaScript</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" checked class="form-checkbox text-pex-primary" data-lsp="python">
+                                <span>Python</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" class="form-checkbox text-pex-primary" data-lsp="rust">
+                                <span>Rust</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" class="form-checkbox text-pex-primary" data-lsp="go">
+                                <span>Go</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" checked class="form-checkbox text-pex-primary" data-lsp="bash">
+                                <span>Bash/Shell</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-pex-panel rounded-xl p-5 border border-gray-800">
+                        <h3 class="font-semibold mb-4">ENTJ Plugins</h3>
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" checked class="form-checkbox text-pex-primary" data-plugin="telescope">
+                                <span>Telescope (ENTJ presets)</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" checked class="form-checkbox text-pex-primary" data-plugin="harpoon">
+                                <span>Harpoon v2</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" checked class="form-checkbox text-pex-primary" data-plugin="copilot">
+                                <span>GitHub Copilot</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" checked class="form-checkbox text-pex-primary" data-plugin="nvim-cmp">
+                                <span>Aggressive Autocomplete</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Generated Config Preview -->
+                <div class="bg-pex-panel rounded-xl border border-gray-800 overflow-hidden">
+                    <div class="p-3 border-b border-gray-800 flex items-center justify-between">
+                        <span class="text-sm font-medium text-gray-400">Generated init.lua</span>
+                        <button onclick="copyNeovimConfig()" class="text-xs bg-pex-tertiary hover:bg-pex-dark px-2 py-1 rounded flex items-center gap-1 transition-colors">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                    </div>
+                    <pre id="neovimConfigPreview" class="p-4 text-sm font-mono text-gray-300 overflow-auto h-[500px] bg-pex-dark">-- Select options and click "Generate Config"</pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Agent -->
+        <div id="module-agent" class="module p-6 hidden">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold">Local AI Agent</h1>
+                    <p class="text-gray-400 text-sm">Fara-7B integration via Magentic-UI</p>
+                </div>
+                <button onclick="connectAgent()" class="bg-pex-primary hover:bg-pex-primary-hover px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors" id="agentConnectBtn">
+                    <i class="fas fa-plug"></i> Connect
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-6">
+                <!-- Connection Status -->
+                <div class="bg-pex-panel rounded-xl p-5 border border-gray-800">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-server text-pex-primary"></i>
+                        Connection Status
+                    </h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between p-3 bg-pex-tertiary rounded-lg">
+                            <span class="text-gray-400">Status</span>
+                            <span id="agentConnectionStatus" class="text-pex-error">Disconnected</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-pex-tertiary rounded-lg">
+                            <span class="text-gray-400">Endpoint</span>
+                            <input type="text" id="agentEndpoint" value="ws://localhost:8765" class="bg-transparent text-right text-sm focus:outline-none w-40">
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-pex-tertiary rounded-lg">
+                            <span class="text-gray-400">Model</span>
+                            <span class="text-gray-300">Fara-7B</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Available Macros -->
+                <div class="bg-pex-panel rounded-xl p-5 border border-gray-800">
+                    <h3 class="font-semibold mb-4 flex items-center gap-2">
+                        <i class="fas fa-magic text-pex-purple"></i>
+                        Available Macros
+                    </h3>
+                    <div class="space-y-2" id="agentMacros">
+                        <div class="p-3 bg-pex-tertiary rounded-lg flex items-center justify-between">
+                            <div>
+                                <div class="font-medium">Create React Component</div>
+                                <div class="text-xs text-gray-400">Generate component with TypeScript</div>
+                            </div>
+                            <button class="text-xs bg-pex-primary/20 text-pex-primary px-2 py-1 rounded">Run</button>
+                        </div>
+                        <div class="p-3 bg-pex-tertiary rounded-lg flex items-center justify-between">
+                            <div>
+                                <div class="font-medium">Generate API Route</div>
+                                <div class="text-xs text-gray-400">Create REST API endpoint</div>
+                            </div>
+                            <button class="text-xs bg-pex-primary/20 text-pex-primary px-2 py-1 rounded">Run</button>
+                        </div>
+                        <div class="p-3 bg-pex-tertiary rounded-lg flex items-center justify-between">
+                            <div>
+                                <div class="font-medium">CRUD Operations</div>
+                                <div class="text-xs text-gray-400">Generate full CRUD boilerplate</div>
+                            </div>
+                            <button class="text-xs bg-pex-primary/20 text-pex-primary px-2 py-1 rounded">Run</button>
+                        </div>
+                        <div class="p-3 bg-pex-tertiary rounded-lg flex items-center justify-between">
+                            <div>
+                                <div class="font-medium">MVP Boilerplate</div>
+                                <div class="text-xs text-gray-400">Generate micro-MVP structure</div>
+                            </div>
+                            <button class="text-xs bg-pex-primary/20 text-pex-primary px-2 py-1 rounded">Run</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Command Interface -->
+            <div class="mt-6 bg-pex-panel rounded-xl p-5 border border-gray-800">
+                <h3 class="font-semibold mb-4 flex items-center gap-2">
+                    <i class="fas fa-terminal text-pex-success"></i>
+                    Command Interface
+                </h3>
+                <div class="flex gap-4">
+                    <textarea id="agentCommand" class="flex-1 bg-pex-dark border border-gray-700 rounded-lg p-4 font-mono text-sm resize-none h-32 focus:outline-none focus:border-pex-primary" placeholder="Enter command for the agent..."></textarea>
+                    <div class="flex flex-col gap-2">
+                        <button onclick="sendAgentCommand()" class="bg-pex-primary hover:bg-pex-primary-hover px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                            <i class="fas fa-paper-plane"></i> Send
+                        </button>
+                        <button class="bg-pex-tertiary hover:bg-pex-dark px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                            <i class="fas fa-history"></i> History
+                        </button>
+                    </div>
+                </div>
+                <div id="agentResponse" class="mt-4 p-4 bg-pex-dark rounded-lg font-mono text-sm text-gray-400 min-h-[100px]">
+                    <span class="text-gray-500">// Agent response will appear here</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ENTJ Rules -->
+        <div id="module-rules" class="module p-6 hidden">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold">ENTJ Productivity Rules</h1>
+                    <p class="text-gray-400 text-sm">Core principles enforced system-wide</p>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    <div class="rule-card">
+                        <div class="rule-number">01</div>
+                        <div class="rule-content">
+                            <h3>Maximum Productivity Over Comfort</h3>
+                            <p>Prioritize output, not convenience. Discomfort drives growth.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="rule-card">
+                        <div class="rule-number">02</div>
+                        <div class="rule-content">
+                            <h3>Aggressive Velocity Over Perfection</h3>
+                            <p>Ship fast, iterate faster. Perfect is the enemy of done.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="rule-card">
+                        <div class="rule-number">03</div>
+                        <div class="rule-content">
+                            <h3>Real Impact Over Work Quantity</h3>
+                            <p>Measure outcomes, not hours. Results trump effort.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="rule-card">
+                        <div class="rule-number">04</div>
+                        <div class="rule-content">
+                            <h3>Ruthless Elimination of Weak Ideas</h3>
+                            <p>Kill low-ROI ideas fast. No emotional attachment.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="rule-card">
+                        <div class="rule-number">05</div>
+                        <div class="rule-content">
+                            <h3>Automatic Pivot Recommendations</h3>
+                            <p>System suggests pivots when progress stalls. Adapt or die.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="space-y-4">
+                    <div class="rule-card">
+                        <div class="rule-number">06</div>
+                        <div class="rule-content">
+                            <h3>Comprehensive Automation</h3>
+                            <p>Automate everything possible. Manual work is technical debt.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="rule-card">
+                        <div class="rule-number">07</div>
+                        <div class="rule-content">
+                            <h3>Travamento Monitoring</h3>
+                            <p>Detect and correct procrastination patterns automatically.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="rule-card">
+                        <div class="rule-number">08</div>
+                        <div class="rule-content">
+                            <h3>ROI Optimization</h3>
+                            <p>Always optimize for return on investment in time and effort.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="rule-card">
+                        <div class="rule-number">09</div>
+                        <div class="rule-content">
+                            <h3>Technical Simplicity</h3>
+                            <p>Prefer simple, working solutions over complex elegance.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="rule-card">
+                        <div class="rule-number">10</div>
+                        <div class="rule-content">
+                            <h3>100% Platform Utilization</h3>
+                            <p>Use all available capabilities without exceeding limits.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Auto-Triggered Rules -->
+            <div class="mt-8 bg-pex-panel rounded-xl p-6 border border-gray-800">
+                <h3 class="font-semibold mb-4 flex items-center gap-2">
+                    <i class="fas fa-bolt text-pex-warning"></i>
+                    Auto-Triggered Rules
+                </h3>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="p-4 bg-pex-tertiary rounded-lg">
+                        <div class="text-pex-warning font-medium mb-1">Low ROI Alert</div>
+                        <div class="text-sm text-gray-400">Flag tasks with ROI &lt; 1.5 after 48 hours</div>
+                    </div>
+                    <div class="p-4 bg-pex-tertiary rounded-lg">
+                        <div class="text-pex-error font-medium mb-1">Velocity Warning</div>
+                        <div class="text-sm text-gray-400">Alert on 3+ consecutive low-velocity days</div>
+                    </div>
+                    <div class="p-4 bg-pex-tertiary rounded-lg">
+                        <div class="text-pex-primary font-medium mb-1">Pivot Suggestion</div>
+                        <div class="text-sm text-gray-400">Suggest pivots for blockers &gt; 24 hours</div>
+                    </div>
+                    <div class="p-4 bg-pex-tertiary rounded-lg">
+                        <div class="text-pex-purple font-medium mb-1">Procrastination Detection</div>
+                        <div class="text-sm text-gray-400">Detect patterns and suggest corrections</div>
+                    </div>
+                    <div class="p-4 bg-pex-tertiary rounded-lg">
+                        <div class="text-pex-success font-medium mb-1">High-ROI Switch</div>
+                        <div class="text-sm text-gray-400">Recommend switching to higher ROI tasks</div>
+                    </div>
+                    <div class="p-4 bg-pex-tertiary rounded-lg">
+                        <div class="text-pex-warning font-medium mb-1">Dead Zone Alert</div>
+                        <div class="text-sm text-gray-400">Warn when working during low-productivity hours</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modals -->
+    <div id="modalOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center">
+        <div id="modalContent" class="bg-pex-panel rounded-2xl border border-gray-800 shadow-premium max-w-lg w-full mx-4 animate-modal-bounce">
+            <!-- Modal content will be injected here -->
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+
+    <!-- Focus Session Overlay -->
+    <div id="focusOverlay" class="fixed inset-0 bg-pex-dark/95 backdrop-blur-md z-[100] hidden flex flex-col items-center justify-center">
+        <div class="text-center">
+            <div class="text-8xl font-bold text-pex-primary mb-4" id="focusTimer">25:00</div>
+            <div class="text-xl text-gray-400 mb-8" id="focusTaskName">Deep Work Session</div>
+            <div class="flex gap-4">
+                <button onclick="pauseFocusSession()" class="bg-pex-tertiary hover:bg-pex-panel px-6 py-3 rounded-xl font-medium transition-colors" id="focusPauseBtn">
+                    <i class="fas fa-pause mr-2"></i> Pause
+                </button>
+                <button onclick="endFocusSession()" class="bg-pex-error/20 text-pex-error hover:bg-pex-error/30 px-6 py-3 rounded-xl font-medium transition-colors">
+                    <i class="fas fa-stop mr-2"></i> End Session
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/components.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

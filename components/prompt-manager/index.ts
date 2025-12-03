@@ -7,7 +7,7 @@
 export { PromptManager, default } from './PromptManager';
 
 // Core Components
-export { Header } from './Header';
+
 export { ActionsToolbar, FloatingActionButton } from './ActionsToolbar';
 export { SequentialView } from './SequentialView';
 export { MillerColumns } from './MillerColumns';

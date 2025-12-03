@@ -38,20 +38,12 @@ export function Sidebar() {
     const pathname = usePathname();
 
     return (
-<<<<<<< HEAD
         <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-athena-navy/95 backdrop-blur-md border-r border-athena-gold/20 transition-transform shadow-gold">
-=======
-        <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-athena-navy/90 backdrop-blur-md border-r border-athena-gold/20 transition-transform">
->>>>>>> fd5f221ce7e254cc7edfd92821cee2c739f40424
             <div className="flex h-full flex-col">
                 {/* Logo Area - Athena Styled */}
                 <div className="flex h-16 items-center border-b border-athena-gold/20 px-6">
                     <div className="flex items-center gap-3 font-cinzel font-bold text-xl tracking-wide">
-<<<<<<< HEAD
                         <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-athena-gold to-athena-gold-dark flex items-center justify-center shadow-lg shadow-athena-gold/20 animate-pulse-gold">
-=======
-                        <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-athena-gold to-athena-gold-dark flex items-center justify-center shadow-lg shadow-athena-gold/20">
->>>>>>> fd5f221ce7e254cc7edfd92821cee2c739f40424
                             <Sparkles className="h-5 w-5 text-athena-navy-deep" />
                         </div>
                         <span className="text-athena-platinum">
@@ -98,11 +90,7 @@ export function Sidebar() {
                 </nav>
 
                 {/* Footer / Settings - Athena Styled */}
-<<<<<<< HEAD
                 <div className="border-t border-athena-gold/20 p-3 bg-athena-navy-deep/30">
-=======
-                <div className="border-t border-athena-gold/20 p-3">
->>>>>>> fd5f221ce7e254cc7edfd92821cee2c739f40424
                     <Link
                         href="/pex-os/settings"
                         className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-athena-silver hover:bg-athena-navy-light hover:text-athena-platinum transition-all duration-200"
@@ -110,11 +98,7 @@ export function Sidebar() {
                         <Settings className="h-5 w-5 text-athena-silver group-hover:text-athena-gold transition-colors" />
                         <span>Settings</span>
                     </Link>
-<<<<<<< HEAD
 
-=======
-                    
->>>>>>> fd5f221ce7e254cc7edfd92821cee2c739f40424
                     {/* Version Badge */}
                     <div className="mt-3 px-3">
                         <div className="flex items-center justify-between text-[10px] text-athena-silver/40">

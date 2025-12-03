@@ -15,11 +15,11 @@ import {
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
-    { label: 'Prompts', icon: Command, href: '/prompts', shortcut: '1' },
-    { label: 'Projects', icon: FolderKanban, href: '/projects', shortcut: '2' },
-    { label: 'Tasks', icon: CheckSquare, href: '/tasks', shortcut: '3' },
-    { label: 'Battle Plan', icon: Target, href: '/battle-plan', shortcut: '4' },
-    { label: 'Analytics', icon: BarChart2, href: '/analytics', shortcut: '5' },
+    { label: 'Prompts', icon: Command, href: '/pex-os/prompts', shortcut: '1' },
+    { label: 'Projects', icon: FolderKanban, href: '/pex-os/projects', shortcut: '2' },
+    { label: 'Tasks', icon: CheckSquare, href: '/pex-os/tasks', shortcut: '3' },
+    { label: 'Battle Plan', icon: Target, href: '/pex-os/battle-plan', shortcut: '4' },
+    { label: 'Analytics', icon: BarChart2, href: '/pex-os/analytics', shortcut: '5' },
 ];
 
 export function Sidebar() {
@@ -75,7 +75,7 @@ export function Sidebar() {
                 {/* Footer / Settings */}
                 <div className="border-t border-[var(--pex-border)] p-3">
                     <Link
-                        href="/settings"
+                        href="/pex-os/settings"
                         className="group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-gray-400 hover:bg-[var(--pex-bg-tertiary)] hover:text-white transition-colors"
                     >
                         <Settings className="h-5 w-5 text-gray-400 group-hover:text-white" />

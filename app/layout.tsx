@@ -4,8 +4,8 @@ import { AthenaThemeProvider } from '@/components/providers/AthenaThemeProvider'
 import { KeyboardShortcutHandler } from '@/components/providers/KeyboardShortcutHandler';
 
 export const metadata: Metadata = {
-  title: 'PEX-OS Productivity Manager',
-  description: 'ENTJ-Style Productivity & Project Management System',
+  title: 'AthenaPeX Productivity Manager',
+  description: 'ENTJ-Style Productivity & Project Management System - Olympian Excellence',
 };
 
 export default function RootLayout({
@@ -19,12 +19,12 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body className="bg-[#0f111a] text-gray-300 font-sans antialiased">
-        <AthenaThemeProvider defaultTheme="dark" storageKey="pex-ui-theme">
+      <body className="bg-athena-navy-deep text-athena-platinum font-inter antialiased">
+        <AthenaThemeProvider defaultTheme="dark" storageKey="athenapex-ui-theme">
           <KeyboardShortcutHandler />
           {children}
         </AthenaThemeProvider>

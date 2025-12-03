@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS PRODUCTIVITY MANAGER - AGENT API
+// ATHENAPEX PRODUCTIVITY MANAGER - AGENT API
 // ATHENA Architecture | Local AI Agent Communication
 // ============================================================================
 

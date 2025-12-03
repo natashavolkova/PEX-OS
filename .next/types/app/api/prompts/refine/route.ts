@@ -1,4 +1,4 @@
-// File: C:\Users\Luke\Documents\WORKSPACE\FFWORKSPACEALL\FFWORKSPACE\AthenaPeX\app\api\prompts\refine\route.ts
+// File: /home/user/webapp/app/api/prompts/refine/route.ts
 import * as entry from '../../../../../../app/api/prompts/refine/route.js'
 import type { NextRequest } from 'next/server.js'
 

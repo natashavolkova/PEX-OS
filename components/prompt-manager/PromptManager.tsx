@@ -1,12 +1,11 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - MAIN COMPONENT
+// AthenaPeX PROMPT MANAGER - MAIN COMPONENT
 // ATHENA Architecture | Integrates All Modules | Premium Dark Theme
 // ============================================================================
 
 import React, { useEffect, useState } from 'react';
-import { Header } from './Header';
 import { ActionsToolbar, FloatingActionButton } from './ActionsToolbar';
 import { SequentialView } from './SequentialView';
 import { MillerColumns } from './MillerColumns';
@@ -23,6 +22,8 @@ import { DeleteModal, useDeleteModal } from './modals/DeleteModal';
 import { Toast } from './Toast';
 import { TagBar } from './TagBar';
 import { usePromptManagerStore } from '@/stores/promptManager';
+import { Tooltip } from './TooltipWrapper';
+import { Lock, Unlock, List, Columns, Network, Users } from 'lucide-react';
 
 // Import animations CSS
 import '@/styles/animations.css';
@@ -39,17 +40,7 @@ const globalStyles = `
   .custom-scrollbar::-webkit-scrollbar-thumb { background: #2a3040; border-radius: 2px; }
 
   /* Selection */
-  ::selection { background: rgba(41, 121, 255, 0.3); color: white; }
-
-  /* Ensure correct colors - ATHENA Theme */
-  :root {
-    --color-primary: #2979ff;
-    --color-primary-hover: #2264d1;
-    --color-bg-dark: #0f111a;
-    --color-bg-panel: #1e2330;
-    --color-bg-secondary: #13161c;
-    --color-border: rgba(255, 255, 255, 0.1);
-  }
+  ::selection { background: rgba(212, 175, 55, 0.3); color: #F5F5F5; }
 `;
 
 // --- VIEW LABELS ---
@@ -69,7 +60,7 @@ export const PromptManager: React.FC = () => {
   const toast = usePromptManagerStore((s) => s.toast);
   const isLocked = usePromptManagerStore((s) => s.isLocked);
   const selectedFolder = usePromptManagerStore((s) => s.selectedFolder);
-  const { setSearchQuery, setIsLocked, showToast, setActiveView } = 
+  const { setSearchQuery, setIsLocked, showToast, setActiveView } =
     usePromptManagerStore((s) => s.actions);
 
   // Create Modal State
@@ -106,7 +97,7 @@ export const PromptManager: React.FC = () => {
       // Ctrl+F: Focus search
       if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault();
-        const searchInput = document.getElementById('search-input');
+        const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement;
         if (searchInput) {
           searchInput.focus();
           showToast('Busca rápida ativada', 'info');
@@ -191,24 +182,70 @@ export const PromptManager: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#0f111a] text-gray-300 font-sans overflow-hidden antialiased">
+    <div className="flex flex-col h-full bg-athena-navy-deep text-athena-platinum font-sans overflow-hidden antialiased">
       {/* Inject Global Styles */}
       <style dangerouslySetInnerHTML={{ __html: globalStyles }} />
 
-      {/* Header */}
-      <Header />
-
-      {/* Secondary Toolbar */}
-      <div className="h-12 bg-[#13161c] border-b border-white/5 flex items-center justify-between px-4 shrink-0">
+      {/* Secondary Toolbar - Now includes View Switcher and Lock */}
+      <div className="h-12 bg-athena-navy border-b border-athena-gold/20 flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-4">
-          <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-            {VIEW_LABELS[activeView] || 'Vista'}
-          </span>
-          
+          {/* View Switcher */}
+          <div className="flex items-center gap-1 bg-athena-navy-deep/50 p-1 rounded-lg border border-athena-gold/10">
+            <Tooltip content="Sequencial (Ctrl+1)" position="bottom">
+              <button
+                onClick={() => setActiveView('sequential')}
+                className={`p-1.5 rounded transition-all ${activeView === 'sequential' ? 'bg-athena-gold text-athena-navy-deep shadow-lg' : 'text-athena-silver hover:text-athena-platinum hover:bg-athena-navy-light'}`}
+              >
+                <List size={14} />
+              </button>
+            </Tooltip>
+            <Tooltip content="Colunas (Ctrl+2)" position="bottom">
+              <button
+                onClick={() => setActiveView('miller')}
+                className={`p-1.5 rounded transition-all ${activeView === 'miller' ? 'bg-athena-gold text-athena-navy-deep shadow-lg' : 'text-athena-silver hover:text-athena-platinum hover:bg-athena-navy-light'}`}
+              >
+                <Columns size={14} />
+              </button>
+            </Tooltip>
+            <Tooltip content="Hierarquia (Ctrl+3)" position="bottom">
+              <button
+                onClick={() => setActiveView('mindmap')}
+                className={`p-1.5 rounded transition-all ${activeView === 'mindmap' ? 'bg-athena-gold text-athena-navy-deep shadow-lg' : 'text-athena-silver hover:text-athena-platinum hover:bg-athena-navy-light'}`}
+              >
+                <Network size={14} />
+              </button>
+            </Tooltip>
+            <div className="w-px h-4 bg-athena-gold/10 mx-1" />
+            <Tooltip content="Compartilhados" position="bottom">
+              <button
+                onClick={() => setActiveView('shared')}
+                className={`p-1.5 rounded transition-all ${activeView === 'shared' ? 'bg-athena-info text-white shadow-lg' : 'text-athena-silver hover:text-athena-platinum hover:bg-athena-navy-light'}`}
+              >
+                <Users size={14} />
+              </button>
+            </Tooltip>
+          </div>
+
+          <div className="w-px h-4 bg-athena-gold/10" />
+
+          {/* Lock Toggle */}
+          <Tooltip content={isLocked ? 'Desbloquear Edição (Ctrl+L)' : 'Bloquear Edição (Ctrl+L)'} position="bottom">
+            <button
+              onClick={() => setIsLocked(!isLocked)}
+              className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${isLocked
+                  ? 'text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20'
+                  : 'text-green-400 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20'
+                }`}
+            >
+              {isLocked ? <Lock size={12} /> : <Unlock size={12} />}
+              <span>{isLocked ? 'Locked' : 'Editable'}</span>
+            </button>
+          </Tooltip>
+
           {/* Tag Filter - Show for non-shared views */}
           {activeView !== 'shared' && (
             <>
-              <div className="w-px h-4 bg-white/10" />
+              <div className="w-px h-4 bg-athena-gold/10" />
               <TagBar
                 variant="compact"
                 maxVisible={5}
@@ -221,7 +258,7 @@ export const PromptManager: React.FC = () => {
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 bg-[#0f111a] overflow-hidden relative">
+      <main className="flex-1 bg-athena-navy-deep overflow-hidden relative">
         <div key={activeView} className="w-full h-full animate-in fade-in duration-300">
           {renderView()}
         </div>
@@ -240,7 +277,7 @@ export const PromptManager: React.FC = () => {
       <NotificationsModal />
       <MasterKeyModal />
       <MoveSelectorModal />
-      
+
       {/* Create Modal */}
       <CreateModal
         isOpen={isCreateOpen}
@@ -248,7 +285,7 @@ export const PromptManager: React.FC = () => {
         type={createType}
         parentId={createParentId}
       />
-      
+
       {/* Delete Modal */}
       <DeleteModal
         isOpen={isDeleteOpen}

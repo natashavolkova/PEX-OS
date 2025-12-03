@@ -1,13 +1,13 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PRODUCTIVITY MANAGER - MAIN APP PAGE
-// ATHENA Architecture | Entry Point
+// ATHENAPEX PRODUCTIVITY MANAGER - COMMAND CENTER
+// Athena Architecture | Premium Dark Theme | Main Dashboard
 // ============================================================================
 
 import React from 'react';
-import { MainShell } from '@/components/shared/MainShell';
+import { PromptManager } from '@/components/prompt-manager/PromptManager';
 
-export default function PexOSPage() {
-  return <MainShell />;
+export default function CommandCenterPage() {
+  return <PromptManager />;
 }

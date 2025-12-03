@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - NOTIFICATIONS MODAL
+// AthenaPeX PROMPT MANAGER - NOTIFICATIONS MODAL
 // ATHENA Architecture | Premium Dark Theme
 // ============================================================================
 

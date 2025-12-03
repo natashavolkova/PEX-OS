@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - HIERARCHY VIEW
+// AthenaPeX PROMPT MANAGER - HIERARCHY VIEW
 // ATHENA Architecture | Mindmap/Tree View | Premium Dark Theme
 // Refactored: Modular components for better maintainability
 // ============================================================================

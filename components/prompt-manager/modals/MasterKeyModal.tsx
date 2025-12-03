@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - MASTER KEY GENERATOR MODAL
+// AthenaPeX PROMPT MANAGER - MASTER KEY GENERATOR MODAL
 // ATHENA Architecture | Premium Dark Theme | Access Control
 // ============================================================================
 

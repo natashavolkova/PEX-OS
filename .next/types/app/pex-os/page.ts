@@ -1,4 +1,4 @@
-// File: C:\Users\Luke\Documents\WORKSPACE\FFWORKSPACEALL\FFWORKSPACE\AthenaPeX\app\pex-os\page.tsx
+// File: /home/user/webapp/app/pex-os/page.tsx
 import * as entry from '../../../../app/pex-os/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

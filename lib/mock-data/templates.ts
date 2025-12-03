@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS - MOCK DATA: STRATEGIC TEMPLATES
+// AthenaPeX - MOCK DATA: STRATEGIC TEMPLATES
 // ATHENA Architecture | Sample Data for Development
 // ============================================================================
 

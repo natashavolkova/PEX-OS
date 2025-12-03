@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS - NEOVIM CONFIGURATION GENERATOR
+// AthenaPeX - NEOVIM CONFIGURATION GENERATOR
 // ATHENA Architecture | ENTJ Omega Builder Config Generator
 // ============================================================================
 
@@ -124,7 +124,7 @@ const generateInitLua = (
   const enabledMacros = macros.filter(m => m.enabled);
 
   return `-- ============================================================================
--- PEX-OS NEOVIM CONFIGURATION
+-- AthenaPeX NEOVIM CONFIGURATION
 -- ATHENA Architecture | ENTJ Omega Builder
 -- Generated: ${new Date().toISOString()}
 -- ============================================================================
@@ -249,7 +249,7 @@ ${enabledMacros.map(m => `-- ${m.name}: ${m.keybinding}
 -- ROI > 2.0 = EXECUTE | ROI < 0.5 = ELIMINATE
 -- ============================================================================
 
-print('PEX-OS Neovim loaded - ENTJ Mode Active')
+print('AthenaPeX Neovim loaded - ENTJ Mode Active')
 `;
 };
 
@@ -537,7 +537,7 @@ export const NeovimConfig: React.FC = () => {
           <div className="h-full overflow-auto p-4 space-y-2">
             <div className="mb-4 p-4 bg-pex-tertiary/50 rounded-lg border border-white/5">
               <p className="text-gray-400 text-sm">
-                Code generation macros for rapid development. Connected to PEX-OS agent system.
+                Code generation macros for rapid development. Connected to AthenaPeX agent system.
               </p>
             </div>
             {macros.map((macro, index) => (

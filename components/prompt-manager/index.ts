@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS PROMPT MANAGER - BARREL EXPORTS
+// AthenaPeX PROMPT MANAGER - BARREL EXPORTS
 // ATHENA Architecture | Clean Module Exports
 // ============================================================================
 

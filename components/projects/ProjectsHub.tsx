@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PRODUCTIVITY MANAGER - PROJECTS HUB
+// ATHENAPEX PRODUCTIVITY MANAGER - PROJECTS HUB
 // ATHENA Architecture | Premium Dark Theme | ENTJ Project Management
 // ============================================================================
 

@@ -1,7 +1,7 @@
 {
-  "name": "pex-os-productivity-manager",
+  "name": "athenapex-productivity-manager",
   "version": "2.0.0",
-  "description": "PEX-OS Comprehensive Productivity & Project Management System - ATHENA Architecture (ENTJ)",
+  "description": "AthenaPeX Comprehensive Productivity & Project Management System - Olympian Architecture (ENTJ)",
   "private": true,
   "scripts": {
     "dev": "next dev",

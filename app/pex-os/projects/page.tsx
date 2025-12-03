@@ -1,20 +1,13 @@
 'use client';
 
 // ============================================================================
-// PEX-OS - PROJECTS PAGE
-// ATHENA Architecture | Projects Hub Module
+// ATHENAPEX - PROJECTS PAGE
+// Athena Architecture | Projects Hub Module
 // ============================================================================
 
-import React, { useEffect } from 'react';
-import { MainShell } from '@/components/shared/MainShell';
-import { useProductivityStore } from '@/stores/productivityStore';
+import React from 'react';
+import { ProjectsHub } from '@/components/projects/ProjectsHub';
 
 export default function ProjectsPage() {
-  const { setActiveSection } = useProductivityStore((s) => s.actions);
-
-  useEffect(() => {
-    setActiveSection('projects');
-  }, [setActiveSection]);
-
-  return <MainShell />;
+  return <ProjectsHub />;
 }

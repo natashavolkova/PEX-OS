@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS API - YOUTUBE TRANSCRIPT ROUTE
+// AthenaPeX API - YOUTUBE TRANSCRIPT ROUTE
 // ATHENA Architecture | Mock Implementation
 // ============================================================================
 

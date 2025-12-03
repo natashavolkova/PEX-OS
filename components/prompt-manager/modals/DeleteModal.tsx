@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - DELETE MODAL
+// AthenaPeX PROMPT MANAGER - DELETE MODAL
 // ATHENA Architecture | Confirmation Modal | Premium Dark Theme
 // ============================================================================
 

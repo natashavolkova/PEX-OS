@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - CREATE MODAL
+// AthenaPeX PROMPT MANAGER - CREATE MODAL
 // ATHENA Architecture | Create Folder/Prompt Modal | Premium Dark Theme
 // ============================================================================
 

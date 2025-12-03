@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS PROMPT MANAGER - ZUSTAND STORE
+// AthenaPeX PROMPT MANAGER - ZUSTAND STORE
 // ATHENA Architecture | State Management
 // ============================================================================
 

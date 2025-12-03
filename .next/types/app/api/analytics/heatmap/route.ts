@@ -1,4 +1,4 @@
-// File: C:\Users\Luke\Documents\WORKSPACE\FFWORKSPACEALL\FFWORKSPACE\AthenaPeX\app\api\analytics\heatmap\route.ts
+// File: /home/user/webapp/app/api/analytics/heatmap/route.ts
 import * as entry from '../../../../../../app/api/analytics/heatmap/route.js'
 import type { NextRequest } from 'next/server.js'
 

@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS PRODUCTIVITY MANAGER - ZUSTAND STORE
+// ATHENAPEX PRODUCTIVITY MANAGER - ZUSTAND STORE
 // ATHENA Architecture | ENTJ Productivity System | State Management
 // ============================================================================
 
@@ -42,8 +42,8 @@ const getTodayKey = () => new Date().toISOString().split('T')[0];
 const initialProjects: Project[] = [
   {
     id: 'proj-demo-1',
-    name: 'PEX-OS Core Development',
-    description: 'Main development of the PEX-OS productivity platform',
+    name: 'AthenaPeX Core Development',
+    description: 'Main development of the AthenaPeX productivity platform',
     emoji: '🚀',
     status: 'active',
     priority: 'critical',

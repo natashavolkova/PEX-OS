@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - CONTEXT MENU
+// AthenaPeX PROMPT MANAGER - CONTEXT MENU
 // ATHENA Architecture | Right-Click Context Menu | Premium Dark Theme
 // ============================================================================
 

@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - PROMPT VIEWER MODAL
+// AthenaPeX PROMPT MANAGER - PROMPT VIEWER MODAL
 // ATHENA Architecture | Premium Dark Theme | Focus Reading Mode
 // ============================================================================
 

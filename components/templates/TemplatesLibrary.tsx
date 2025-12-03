@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PRODUCTIVITY MANAGER - STRATEGIC TEMPLATES LIBRARY
+// ATHENAPEX PRODUCTIVITY MANAGER - STRATEGIC TEMPLATES LIBRARY
 // ATHENA Architecture | Premium Dark Theme | ENTJ Templates
 // ============================================================================
 

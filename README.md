@@ -1,13 +1,29 @@
 # AthenaPeX - ENTJ Productivity System
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/lukecaelum369-cmyk/Athena-PeX)
+[![Version](https://img.shields.io/badge/version-2.0.0-gold.svg)](https://github.com/lukecaelum369-cmyk/Athena-PeX)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
 
-## 🎯 Overview
+## 🏛️ Overview
 
-**AthenaPeX** is a comprehensive productivity and project management web application built on the ATHENA Architecture (ENTJ-style). It enables users to manage prompts, projects, tasks, YouTube references, and productivity analytics with optional local AI agent integration for automation.
+**AthenaPeX** is a comprehensive productivity and project management web application built on the Athena Olympian Architecture (ENTJ-style). It enables users to manage prompts, projects, tasks, YouTube references, and productivity analytics with optional local AI agent integration for automation.
 
-Built with aggressive velocity and maximum impact in mind — the ENTJ way.
+Built with aggressive velocity and maximum impact in mind — the ENTJ way. Themed with the Olympian Athena aesthetic featuring golden accents and deep navy backgrounds.
+
+---
+
+## ✨ Athena Theme
+
+| Color | Hex | Usage |
+|-------|-----|-------|
+| **Olympian Gold** | `#D4AF37` | Primary accent, buttons, highlights |
+| **Navy Deep** | `#0a0e1a` | Main background |
+| **Navy** | `#1a1f35` | Panels, cards |
+| **Silver** | `#C0C0C0` | Secondary text |
+| **Platinum** | `#F5F5F5` | Primary text |
+
+### Fonts
+- **Cinzel**: Headers, titles (serif, olympian feel)
+- **Inter**: Body text, UI elements
 
 ---
 
@@ -31,28 +47,38 @@ Built with aggressive velocity and maximum impact in mind — the ENTJ way.
 
 ## 🚀 Quick Start
 
-### Entry Points
+### Installation
+
+```bash
+npm install
+npm run dev
+```
+
+### Routes
 
 | Path | Description |
 |------|-------------|
-| `index.html` | Main application entry point |
-| `#analytics` | Analytics Dashboard (default view) |
-| `#projects` | Projects Hub |
-| `#tasks` | Task Manager |
-| `#prompts` | Prompt Manager with Miller Columns |
-| `#battleplan` | Battle Plan Generator |
-| `#youtube` | YouTube Reference Manager |
-| `#templates` | Strategic Templates Library |
-| `#neovim` | Neovim Configuration Generator |
-| `#agent` | AI Agent Interface |
-| `#rules` | ENTJ Productivity Rules |
+| `/pex-os` | Command Center (Prompt Manager) |
+| `/pex-os/prompts` | Prompt Manager |
+| `/pex-os/projects` | Projects Hub |
+| `/pex-os/tasks` | Task Manager |
+| `/pex-os/battle-plan` | Battle Plan Generator |
+| `/pex-os/analytics` | Analytics Dashboard |
+| `/pex-os/youtube` | YouTube References |
+| `/pex-os/templates` | Templates Library |
+| `/pex-os/neovim` | Neovim Config |
+| `/pex-os/settings` | System Settings |
 
 ### Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
-| `1-5` | Quick module navigation |
+| `1-8` | Quick module navigation |
 | `Ctrl+K` | Global search |
+| `Ctrl+F` | Search prompts |
+| `Ctrl+L` | Toggle lock mode |
+| `Ctrl+N` | New folder |
+| `Ctrl+P` | New prompt |
 | `Esc` | Close modal |
 
 ---
@@ -60,138 +86,107 @@ Built with aggressive velocity and maximum impact in mind — the ENTJ way.
 ## 📁 Project Structure
 
 ```
-athenaPex/
-├── index.html              # Main application
-├── css/
-│   └── styles.css          # ATHENA theme styles
-├── js/
-│   ├── api.js              # RESTful API client
-│   ├── store.js            # State management & rules engine
-│   ├── components.js       # UI component library
-│   └── app.js              # Application logic
-├── reference/
-│   └── tailwind.config.js  # Design system reference
-└── README.md               # This documentation
+athenapex/
+├── app/
+│   ├── layout.tsx              # Root layout
+│   ├── page.tsx                # Redirect to /pex-os
+│   ├── globals.css             # Athena theme styles
+│   └── pex-os/
+│       ├── layout.tsx          # AthenaPeX layout (sidebar + header)
+│       ├── page.tsx            # Command Center
+│       ├── prompts/page.tsx    # Prompt Manager
+│       ├── projects/page.tsx   # Projects Hub
+│       ├── tasks/page.tsx      # Task Manager
+│       ├── battle-plan/page.tsx # Battle Plan
+│       ├── analytics/page.tsx  # Analytics Dashboard
+│       ├── youtube/page.tsx    # YouTube Manager
+│       ├── templates/page.tsx  # Templates Library
+│       ├── neovim/page.tsx     # Neovim Config
+│       └── settings/page.tsx   # Settings
+├── components/
+│   ├── layout/
+│   │   ├── Header.tsx          # Athena-themed header
+│   │   └── Sidebar.tsx         # Athena-themed sidebar
+│   ├── analytics/
+│   ├── battle-plan/
+│   ├── projects/
+│   ├── prompt-manager/
+│   ├── tasks/
+│   ├── templates/
+│   └── youtube/
+├── lib/
+├── stores/
+├── styles/
+├── types/
+├── tailwind.config.ts          # Athena colors config
+└── package.json
 ```
 
 ---
 
-## 🗄️ Data Models
+## 🎨 Design System (Athena Theme)
 
-### Database Schema
+### CSS Variables
 
-| Table | Description | Fields |
-|-------|-------------|--------|
-| `projects` | Project records | id, name, description, status, priority, impact_score, roi_score, owner, tags, progress |
-| `tasks` | Task records | id, project_id, title, description, status, priority, impact_score, effort_score, roi_score, blockers |
-| `task_logs` | Activity logs | id, task_id, action, details, timestamp |
-| `prompts` | Prompt content | id, folder_id, name, content, category, version, efficiency_score, usage_count, is_template |
-| `prompt_versions` | Version history | id, prompt_id, version_number, content, changes, created_at |
-| `prompt_folders` | Folder organization | id, name, parent_id, color, icon |
-| `youtube_refs` | Video references | id, url, title, channel, thumbnail, duration, notes, insights, tags, watch_status |
-| `focus_windows` | Focus sessions | id, start_time, end_time, duration_minutes, productivity_score, task_ids, interruptions |
-| `daily_metrics` | Daily analytics | id, date, tasks_completed, focus_hours, productivity_score, peak_hour, dead_zones |
-| `battle_plans` | Sprint plans | id, name, start_date, end_date, objectives, high_roi_tasks, status, velocity_target, velocity_actual |
-| `templates` | Strategic templates | id, name, category, content, variables, usage_count, success_rate |
-| `neovim_configs` | Neovim configs | id, name, base, lsp_configs, plugins, macros, keymaps, config_lua |
-| `insights` | AI-generated insights | id, type, title, content, severity, related_entity, is_resolved, created_at |
-| `settings` | System settings | id, key, value, category |
+```css
+:root {
+  --athena-gold: #D4AF37;
+  --athena-gold-dark: #C19B2F;
+  --athena-gold-light: #E5C454;
+  --athena-navy: #1a1f35;
+  --athena-navy-deep: #0a0e1a;
+  --athena-navy-light: #252d4a;
+  --athena-silver: #C0C0C0;
+  --athena-platinum: #F5F5F5;
+}
+```
 
----
+### Tailwind Classes
 
-## 🛣️ API Endpoints
+| Class | Usage |
+|-------|-------|
+| `bg-athena-gradient` | Main gradient background |
+| `text-athena-gold` | Golden text |
+| `border-athena-gold/20` | Golden border with opacity |
+| `font-cinzel` | Olympian serif font |
+| `font-inter` | Body text font |
 
-All data operations use the RESTful Table API:
+### Component Classes
 
-### Generic Endpoints
+```css
+.athena-card {
+  @apply bg-athena-navy/80 border border-athena-gold/20 rounded-lg backdrop-blur-sm;
+}
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `tables/{table}` | List records with pagination |
-| GET | `tables/{table}/{id}` | Get single record |
-| POST | `tables/{table}` | Create record |
-| PUT | `tables/{table}/{id}` | Full update |
-| PATCH | `tables/{table}/{id}` | Partial update |
-| DELETE | `tables/{table}/{id}` | Delete record |
+.athena-button {
+  @apply bg-athena-gold hover:bg-athena-gold-dark text-athena-navy-deep px-4 py-2 rounded-lg;
+}
 
-### Query Parameters
+.athena-sidebar {
+  @apply w-64 bg-athena-navy/90 backdrop-blur-md border-r border-athena-gold/20;
+}
 
-| Parameter | Description |
-|-----------|-------------|
-| `page` | Page number (default: 1) |
-| `limit` | Records per page (default: 100) |
-| `search` | Search query |
-| `sort` | Sort field |
-
----
-
-## 🎨 Design System (ATHENA Theme)
-
-### Colors
-
-| Name | Hex | CSS Variable | Usage |
-|------|-----|--------------|-------|
-| Background Primary | `#0f111a` | `pex-dark` | Main background |
-| Background Panel | `#1e2330` | `pex-panel` | Cards, panels |
-| Background Secondary | `#13161c` | `pex-secondary` | Toolbar, sidebar |
-| Background Tertiary | `#252b3b` | `pex-tertiary` | Dropdowns, hover |
-| Accent Primary | `#2979ff` | `pex-primary` | Primary actions |
-| Accent Hover | `#2264d1` | `pex-primary-hover` | Hover states |
-| Accent Purple | `#5b4eff` | `pex-purple` | Secondary accent |
-| Success | `#10b981` | `pex-success` | Success states |
-| Warning | `#f59e0b` | `pex-warning` | Warnings |
-| Error | `#ef4444` | `pex-error` | Errors |
-
-### Typography
-
-- **Primary Font**: Inter (sans-serif)
-- **Monospace Font**: JetBrains Mono
-
-### Animations
-
-| Animation | Usage |
-|-----------|-------|
-| `animate-slide-up` | Card entry animations |
-| `animate-modal-bounce` | Modal opening |
-| `animate-toast-in/out` | Toast notifications |
-| `animate-pulse` | Loading states |
-| `animate-spin` | Spinners |
+.athena-header {
+  @apply h-16 bg-athena-navy/80 backdrop-blur-md border-b border-athena-gold/20;
+}
+```
 
 ---
 
 ## ⚙️ ENTJ Rules Engine
 
-### Core Principles (Always Enforced)
+### Core Principles
 
-1. **Maximum Productivity Over Comfort** - Prioritize output, not convenience
-2. **Aggressive Velocity Over Perfection** - Ship fast, iterate faster
-3. **Real Impact Over Work Quantity** - Measure outcomes, not hours
-4. **Ruthless Elimination of Weak Ideas** - Kill low-ROI ideas fast
-5. **Automatic Pivot Recommendations** - Suggest pivots when stalled
-6. **Comprehensive Automation** - Automate everything possible
-7. **Travamento Monitoring** - Detect and correct procrastination
-8. **ROI Optimization** - Always optimize for return on investment
-9. **Technical Simplicity** - Prefer simple, working solutions
-10. **100% Platform Utilization** - Use all available capabilities
-
-### Auto-Triggered Rules
-
-| Rule | Trigger Condition | Action |
-|------|-------------------|--------|
-| Low ROI Alert | ROI < 1.5 after 48 hours | Flag task for elimination |
-| Velocity Warning | 3+ low-velocity days | System alert |
-| Pivot Suggestion | Blocker > 24 hours | Recommend pivot |
-| Procrastination Detection | Pattern detected | Suggest corrections |
-| High-ROI Switch | High-ROI task available | Recommend switch |
-| Dead Zone Alert | Working during low-productivity hours | Warn user |
+1. **Maximum Productivity Over Comfort**
+2. **Aggressive Velocity Over Perfection**
+3. **Real Impact Over Work Quantity**
+4. **Ruthless Elimination of Weak Ideas**
+5. **ROI Optimization Always**
 
 ### ROI Calculation
 
 ```javascript
 ROI = Impact Score / Effort Score
-
-// Priority Scoring
-priorityScore = (roi × 0.4) + (impact × 0.3) + (urgency × 0.2) + (effort × 0.1)
 
 // ROI Thresholds
 ROI > 2.0  → DO FIRST (Quick Wins)
@@ -202,141 +197,14 @@ ROI < 0.5  → ELIMINATE (Time Sinks)
 
 ---
 
-## 📋 Strategic Templates
+## 🔧 Technologies
 
-### Pre-built Templates
-
-| Template | Category | Success Rate |
-|----------|----------|--------------|
-| React Micro-MVP | mvp | 85% |
-| HTML/CSS Micro-MVP | mvp | 90% |
-| High-Conversion Landing Page | landing-page | 78% |
-| Cold Email Sequence | cold-email | 12% |
-| Impact vs Effort Matrix | impact-matrix | 95% |
-| High-ROI Execution Blueprint | execution-blueprint | 88% |
-
----
-
-## ⌨️ Neovim Configuration
-
-### Generated Config Includes
-
-- **Base**: LazyVim (recommended)
-- **LSP Support**: TypeScript, Python, Rust, Go, Bash
-- **Plugins**: Telescope, Harpoon v2, GitHub Copilot, nvim-cmp
-- **ENTJ Keymaps**: Quick save, quick quit, component generators
-- **Macros**: React component, API route, CRUD operations
-
----
-
-## 🤖 Local AI Agent Integration
-
-### Connection
-
-```javascript
-// Default endpoint
-ws://localhost:8765
-
-// Connect via UI or programmatically
-AgentAPI.connect('ws://localhost:8765')
-```
-
-### Available Macros
-
-| Macro | Description |
-|-------|-------------|
-| Create React Component | Generate TypeScript component |
-| Generate API Route | Create REST endpoint |
-| CRUD Operations | Full CRUD boilerplate |
-| MVP Boilerplate | Micro-MVP structure |
-| Landing Page Skeleton | Landing page structure |
-| Database Model | Model and migrations |
-
-### Communication Protocol
-
-```json
-// Send command
-{
-  "type": "command",
-  "action": "create_component",
-  "params": { "name": "MyComponent" }
-}
-
-// Receive response
-{
-  "success": true,
-  "response": "Component created successfully"
-}
-```
-
----
-
-## 📊 Productivity Analytics
-
-### Heatmap
-
-- **Days**: Monday - Sunday
-- **Hours**: 6 AM - 10 PM
-- **Levels**: 0-5 (productivity intensity)
-
-### Peak Hours Detection
-
-- Automatically identifies optimal work windows
-- Suggests scheduling high-ROI tasks during peak hours
-- Warns about dead zones
-
-### Focus Sessions
-
-- Pomodoro-style focus timer (25 min default)
-- Tracks duration, interruptions, productivity score
-- Logs to focus_windows table
-
----
-
-## 🔮 Future Roadmap
-
-### High Priority
-- [ ] Real-time collaboration
-- [ ] Advanced search with filters
-- [ ] Export/import functionality
-- [ ] Mobile responsive improvements
-
-### Medium Priority
-- [ ] YouTube API integration for auto-metadata
-- [ ] AI-powered prompt suggestions
-- [ ] Team sharing and permissions
-- [ ] PWA support
-
-### Low Priority
-- [ ] Light theme option
-- [ ] Custom keyboard shortcuts
-- [ ] Advanced reporting
-- [ ] Integration webhooks
-- [ ] Slack/Discord notifications
-
----
-
-## 🔧 Development
-
-### Technologies Used
-
-- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
-- **Styling**: Tailwind CSS (CDN)
-- **Icons**: Font Awesome 6
-- **Fonts**: Google Fonts (Inter, JetBrains Mono)
-- **Data**: RESTful Table API
-- **State**: Custom store with localStorage persistence
-
-### File Overview
-
-| File | Lines | Purpose |
-|------|-------|---------|
-| `index.html` | ~1000 | Main HTML structure |
-| `css/styles.css` | ~650 | ATHENA theme styles |
-| `js/api.js` | ~300 | API client layer |
-| `js/store.js` | ~400 | State management & rules |
-| `js/components.js` | ~500 | UI components |
-| `js/app.js` | ~1200 | Application logic |
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **State**: Zustand
+- **Icons**: Lucide React
+- **Fonts**: Google Fonts (Cinzel, Inter, JetBrains Mono)
 
 ---
 
@@ -346,14 +214,17 @@ Proprietary - AthenaPeX Team
 
 ---
 
-**Developed with the ATHENA Architecture (ENTJ)**
+**Developed with the Athena Olympian Architecture (ENTJ)**
 *Maximum efficiency, aggressive velocity, real impact.*
 
 ---
 
-## 🎯 ENTJ Manifesto
+## 🏛️ Athena Manifesto
 
-> "We don't wait for perfect conditions. We create them.
+> "Like Athena, goddess of wisdom and strategy,
+> We approach every challenge with divine precision.
+> 
+> We don't wait for perfect conditions. We create them.
 > We don't hope for results. We engineer them.
 > We don't manage time. We dominate it.
 > 
@@ -365,4 +236,4 @@ Proprietary - AthenaPeX Team
 > Impact is our currency.
 > Velocity is our lifestyle.
 > 
-> We are ENTJ. We execute."
+> We are ENTJ. We execute with Olympian excellence."

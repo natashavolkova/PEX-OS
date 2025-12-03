@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PRODUCTIVITY MANAGER - ENTJ BATTLE PLAN GENERATOR
+// ATHENAPEX PRODUCTIVITY MANAGER - ENTJ BATTLE PLAN GENERATOR
 // ATHENA Architecture | Premium Dark Theme | Aggressive Sprint Planning
 // ============================================================================
 

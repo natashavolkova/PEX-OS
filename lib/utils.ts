@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS PRODUCTIVITY MANAGER - UTILITY FUNCTIONS
+// ATHENAPEX PRODUCTIVITY MANAGER - UTILITY FUNCTIONS
 // ATHENA Architecture | ENTJ Productivity System
 // ============================================================================
 

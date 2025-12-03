@@ -1,20 +1,13 @@
 'use client';
 
 // ============================================================================
-// PEX-OS - ANALYTICS PAGE
-// ATHENA Architecture | Productivity Analytics Module
+// ATHENAPEX - ANALYTICS PAGE
+// Athena Architecture | Productivity Analytics Module
 // ============================================================================
 
-import React, { useEffect } from 'react';
-import { MainShell } from '@/components/shared/MainShell';
-import { useProductivityStore } from '@/stores/productivityStore';
+import React from 'react';
+import { AnalyticsDashboard } from '@/components/analytics/AnalyticsDashboard';
 
 export default function AnalyticsPage() {
-  const { setActiveSection } = useProductivityStore((s) => s.actions);
-
-  useEffect(() => {
-    setActiveSection('analytics');
-  }, [setActiveSection]);
-
-  return <MainShell />;
+  return <AnalyticsDashboard />;
 }

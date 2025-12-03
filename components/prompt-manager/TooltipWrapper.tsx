@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - TOOLTIP WRAPPER
+// AthenaPeX PROMPT MANAGER - TOOLTIP WRAPPER
 // ATHENA Architecture | Premium Dark Theme
 // ============================================================================
 

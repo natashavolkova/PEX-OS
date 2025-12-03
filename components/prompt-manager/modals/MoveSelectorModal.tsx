@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - MOVE SELECTOR MODAL
+// AthenaPeX PROMPT MANAGER - MOVE SELECTOR MODAL
 // ATHENA Architecture | Smart Drop Target Selection
 // ============================================================================
 

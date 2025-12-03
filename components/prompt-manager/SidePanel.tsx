@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - SIDE PANEL
+// AthenaPeX PROMPT MANAGER - SIDE PANEL
 // ATHENA Architecture | Folder Navigation Panel | Premium Dark Theme
 // ============================================================================
 

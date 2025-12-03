@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS PRODUCTIVITY MANAGER - COMPREHENSIVE TYPE DEFINITIONS
+// ATHENAPEX PRODUCTIVITY MANAGER - COMPREHENSIVE TYPE DEFINITIONS
 // ATHENA Architecture | TypeScript Strict Mode | ENTJ Productivity System
 // ============================================================================
 

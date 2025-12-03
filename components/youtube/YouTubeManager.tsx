@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PRODUCTIVITY MANAGER - YOUTUBE REFERENCE MANAGER
+// ATHENAPEX PRODUCTIVITY MANAGER - YOUTUBE REFERENCE MANAGER
 // ATHENA Architecture | Premium Dark Theme | Video Reference Tracking
 // ============================================================================
 

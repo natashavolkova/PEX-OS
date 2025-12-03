@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - FOLDER TREE (HIERARCHY VIEW)
+// AthenaPeX PROMPT MANAGER - FOLDER TREE (HIERARCHY VIEW)
 // ATHENA Architecture | Tree Navigation | Premium Dark Theme
 // ============================================================================
 

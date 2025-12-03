@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - ACTIONS TOOLBAR
+// AthenaPeX PROMPT MANAGER - ACTIONS TOOLBAR
 // ATHENA Architecture | All Buttons Visible | Premium Dark Theme
 // ============================================================================
 

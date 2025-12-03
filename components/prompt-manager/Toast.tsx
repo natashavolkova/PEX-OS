@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - TOAST COMPONENT
+// AthenaPeX PROMPT MANAGER - TOAST COMPONENT
 // ATHENA Architecture | Premium Dark Theme
 // ============================================================================
 

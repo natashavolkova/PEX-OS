@@ -1,20 +1,13 @@
 'use client';
 
 // ============================================================================
-// PEX-OS - DASHBOARD PAGE
-// ATHENA Architecture | Main Dashboard
+// ATHENAPEX - DASHBOARD PAGE
+// Athena Architecture | Main Dashboard
 // ============================================================================
 
-import React, { useEffect } from 'react';
-import { MainShell } from '@/components/shared/MainShell';
-import { useProductivityStore } from '@/stores/productivityStore';
+import React from 'react';
+import { AnalyticsDashboard } from '@/components/analytics/AnalyticsDashboard';
 
 export default function DashboardPage() {
-  const { setActiveSection } = useProductivityStore((s) => s.actions);
-
-  useEffect(() => {
-    setActiveSection('analytics');
-  }, [setActiveSection]);
-
-  return <MainShell />;
+  return <AnalyticsDashboard />;
 }

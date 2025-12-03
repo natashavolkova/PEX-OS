@@ -1,68 +1,108 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ============================================================================
-   PEX-OS PRODUCTIVITY MANAGER - GLOBAL STYLES
-   ATHENA Architecture | Premium Dark Theme
+   ATHENAPEX PRODUCTIVITY MANAGER - GLOBAL STYLES
+   Athena Architecture | Olympian Premium Theme
    ============================================================================ */
 
-/* --- BASE VARIABLES --- */
+/* --- ATHENA COLOR VARIABLES --- */
 :root {
-  --pex-primary: #2979ff;
-  --pex-primary-hover: #2264d1;
-  --pex-bg-dark: #0f111a;
-  --pex-bg-panel: #1e2330;
-  --pex-bg-secondary: #13161c;
-  --pex-bg-tertiary: #252b3b;
-  --pex-border: rgba(255, 255, 255, 0.1);
-  --pex-text-primary: #ffffff;
-  --pex-text-secondary: #9ca3af;
-  --pex-text-muted: #6b7280;
+  /* Primary Athena Colors */
+  --athena-gold: #D4AF37;
+  --athena-gold-dark: #C19B2F;
+  --athena-gold-light: #E5C454;
+  --athena-navy: #1a1f35;
+  --athena-navy-deep: #0a0e1a;
+  --athena-navy-light: #252d4a;
+  --athena-silver: #C0C0C0;
+  --athena-platinum: #F5F5F5;
+  --athena-bronze: #CD7F32;
+  
+  /* Legacy PEX Variables - Mapped to Athena */
+  --pex-primary: #D4AF37;
+  --pex-primary-hover: #C19B2F;
+  --pex-bg-dark: #0a0e1a;
+  --pex-bg-panel: #1a1f35;
+  --pex-bg-secondary: #0f1422;
+  --pex-bg-tertiary: #252d4a;
+  --pex-border: rgba(212, 175, 55, 0.2);
+  --pex-text-primary: #F5F5F5;
+  --pex-text-secondary: #C0C0C0;
+  --pex-text-muted: #8892a8;
+  
+  /* Status Colors */
+  --athena-success: #10b981;
+  --athena-warning: #f59e0b;
+  --athena-error: #ef4444;
+  --athena-info: #3b82f6;
+  
   --pex-success: #10b981;
   --pex-warning: #f59e0b;
   --pex-error: #ef4444;
-  --pex-purple: #5b4eff;
+  --pex-purple: #8B5CF6;
+}
+
+/* --- BASE STYLES --- */
+body {
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(135deg, #0a0e1a 0%, #1a1f35 100%);
+  color: #F5F5F5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- ATHENA TYPOGRAPHY --- */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Cinzel', serif;
+  color: #D4AF37;
+  letter-spacing: 0.02em;
 }
 
 /* --- SCROLLBAR STYLING --- */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #0a0e1a;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2a3040;
-  border-radius: 3px;
+  background: #D4AF37;
+  border-radius: 5px;
+  border: 2px solid #0a0e1a;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3e4559;
+  background: #E5C454;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #2a3040;
-  border-radius: 2px;
+  background: rgba(212, 175, 55, 0.4);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.6);
 }
 
 /* --- SELECTION --- */
 ::selection {
-  background: rgba(41, 121, 255, 0.3);
-  color: white;
-}
-
-/* --- FONT SMOOTHING --- */
-body {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  background: rgba(212, 175, 55, 0.3);
+  color: #F5F5F5;
 }
 
 /* --- FOCUS STYLES --- */
@@ -71,7 +111,7 @@ body {
 }
 
 *:focus-visible {
-  outline: 2px solid var(--pex-primary);
+  outline: 2px solid var(--athena-gold);
   outline-offset: 2px;
 }
 
@@ -79,9 +119,35 @@ body {
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px #1e2330 inset !important;
-  -webkit-text-fill-color: #e5e7eb !important;
+  -webkit-box-shadow: 0 0 0 1000px #1a1f35 inset !important;
+  -webkit-text-fill-color: #F5F5F5 !important;
   transition: background-color 5000s ease-in-out 0s;
+  border-color: rgba(212, 175, 55, 0.3) !important;
+}
+
+/* --- ATHENA COMPONENT CLASSES --- */
+.athena-card {
+  @apply bg-athena-navy/80 border border-athena-gold/20 rounded-lg backdrop-blur-sm;
+}
+
+.athena-button {
+  @apply bg-athena-gold hover:bg-athena-gold-dark text-athena-navy-deep px-4 py-2 rounded-lg transition-all duration-200 font-medium;
+}
+
+.athena-button-secondary {
+  @apply bg-athena-navy border border-athena-gold/30 hover:border-athena-gold/60 text-athena-platinum px-4 py-2 rounded-lg transition-all duration-200;
+}
+
+.athena-input {
+  @apply bg-athena-navy-deep/80 border border-athena-gold/20 focus:border-athena-gold rounded-lg px-3 py-2 text-athena-platinum placeholder:text-athena-silver/50 transition-colors;
+}
+
+.athena-sidebar {
+  @apply w-64 bg-athena-navy/90 backdrop-blur-md border-r border-athena-gold/20;
+}
+
+.athena-header {
+  @apply h-16 bg-athena-navy/80 backdrop-blur-md border-b border-athena-gold/20;
 }
 
 /* --- ANIMATIONS --- */
@@ -132,6 +198,24 @@ input:-webkit-autofill:focus {
   }
 }
 
+@keyframes goldShimmer {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+@keyframes pulseGold {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px 5px rgba(212, 175, 55, 0.2);
+  }
+}
+
 .animate-slide-up-fade {
   animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -148,13 +232,27 @@ input:-webkit-autofill:focus {
   animation: toastSlideIn 0.3s ease-out forwards;
 }
 
+.animate-gold-shimmer {
+  animation: goldShimmer 2s infinite;
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.2), transparent);
+  background-size: 200% 100%;
+}
+
+.animate-pulse-gold {
+  animation: pulseGold 2s ease-in-out infinite;
+}
+
 /* --- UTILITY CLASSES --- */
+.bg-athena-gradient {
+  background: linear-gradient(135deg, #0a0e1a 0%, #1a1f35 100%);
+}
+
 .bg-gradient-premium {
   background: linear-gradient(
     135deg,
-    var(--pex-bg-dark) 0%,
-    var(--pex-bg-panel) 50%,
-    var(--pex-bg-dark) 100%
+    var(--athena-navy-deep) 0%,
+    var(--athena-navy) 50%,
+    var(--athena-navy-deep) 100%
   );
 }
 
@@ -163,8 +261,23 @@ input:-webkit-autofill:focus {
     0 10px 10px -5px rgba(0, 0, 0, 0.2);
 }
 
-.shadow-blue {
-  box-shadow: 0 10px 25px -5px rgba(41, 121, 255, 0.3);
+.shadow-gold {
+  box-shadow: 0 10px 25px -5px rgba(212, 175, 55, 0.3);
+}
+
+.shadow-glow-gold {
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+}
+
+.border-athena {
+  border-color: rgba(212, 175, 55, 0.2);
+}
+
+.text-athena-gradient {
+  background: linear-gradient(135deg, #D4AF37 0%, #E5C454 50%, #D4AF37 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 /* --- LINE CLAMP --- */
@@ -187,4 +300,17 @@ input:-webkit-autofill:focus {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* --- GLASS MORPHISM --- */
+.glass-athena {
+  background: rgba(26, 31, 53, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(212, 175, 55, 0.1);
+}
+
+.glass-gold {
+  background: rgba(212, 175, 55, 0.1);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(212, 175, 55, 0.2);
 }

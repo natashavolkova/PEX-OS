@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS API - ANALYTICS HEATMAP ROUTE
+// AthenaPeX API - ANALYTICS HEATMAP ROUTE
 // ATHENA Architecture | Mock Implementation
 // ============================================================================
 

@@ -1,4 +1,4 @@
-// File: C:\Users\Luke\Documents\WORKSPACE\FFWORKSPACEALL\FFWORKSPACE\AthenaPeX\app\api\youtube\transcript\route.ts
+// File: /home/user/webapp/app/api/youtube/transcript/route.ts
 import * as entry from '../../../../../../app/api/youtube/transcript/route.js'
 import type { NextRequest } from 'next/server.js'
 

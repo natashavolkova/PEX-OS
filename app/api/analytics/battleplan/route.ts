@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS API - ANALYTICS BATTLE PLAN ROUTE
+// AthenaPeX API - ANALYTICS BATTLE PLAN ROUTE
 // ATHENA Architecture | Mock Implementation
 // ============================================================================
 

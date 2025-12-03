@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PRODUCTIVITY MANAGER - TASK MANAGER
+// ATHENAPEX PRODUCTIVITY MANAGER - TASK MANAGER
 // ATHENA Architecture | Premium Dark Theme | ENTJ Task Execution
 // ============================================================================
 

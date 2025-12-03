@@ -1,12 +1,12 @@
 // ============================================================================
-// PEX-OS - MOCK DATA: TASKS
+// AthenaPeX - MOCK DATA: TASKS
 // ATHENA Architecture | Sample Data for Development
 // ============================================================================
 
 import type { Task } from '@/types';
 
 export const mockTasks: Task[] = [
-  // PEX-OS Core Platform Tasks
+  // AthenaPeX Core Platform Tasks
   {
     id: 'task-001',
     projectId: 'proj-001',

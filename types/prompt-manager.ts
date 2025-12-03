@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS PROMPT MANAGER - TYPE DEFINITIONS
+// AthenaPeX PROMPT MANAGER - TYPE DEFINITIONS
 // ATHENA Architecture | TypeScript Strict Mode
 // ============================================================================
 

@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - EMOJI PICKER
+// AthenaPeX PROMPT MANAGER - EMOJI PICKER
 // ATHENA Architecture | Premium Dark Theme
 // ============================================================================
 

@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS PRODUCTIVITY MANAGER - PROJECT BY ID API
+// ATHENAPEX PRODUCTIVITY MANAGER - PROJECT BY ID API
 // ATHENA Architecture | REST API Endpoints (Next.js 15 Compatible)
 // ============================================================================
 

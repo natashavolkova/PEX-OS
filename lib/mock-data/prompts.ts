@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS - MOCK DATA: PROMPTS
+// AthenaPeX - MOCK DATA: PROMPTS
 // ATHENA Architecture | Sample Data for Development
 // ============================================================================
 

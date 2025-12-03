@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PRODUCTIVITY MANAGER - ANALYTICS DASHBOARD
+// ATHENAPEX PRODUCTIVITY MANAGER - ANALYTICS DASHBOARD
 // ATHENA Architecture | Premium Dark Theme | ENTJ Productivity Metrics
 // ============================================================================
 

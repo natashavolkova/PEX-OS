@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - MILLER COLUMNS VIEW
+// AthenaPeX PROMPT MANAGER - MILLER COLUMNS VIEW
 // ATHENA Architecture | Four Column Navigation | Premium Dark Theme
 // Refactored: Modular components for maintainability
 // ============================================================================

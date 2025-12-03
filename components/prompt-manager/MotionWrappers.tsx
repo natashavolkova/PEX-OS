@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - MOTION WRAPPERS
+// AthenaPeX PROMPT MANAGER - MOTION WRAPPERS
 // ATHENA Architecture | Animation Components
 // ============================================================================
 

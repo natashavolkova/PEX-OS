@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - SHARED VIEW
+// AthenaPeX PROMPT MANAGER - SHARED VIEW
 // ATHENA Architecture | Premium Dark Theme
 // ============================================================================
 

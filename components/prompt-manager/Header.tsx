@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - HEADER COMPONENT
+// AthenaPeX PROMPT MANAGER - HEADER COMPONENT
 // ATHENA Architecture | Premium Dark Theme | All Actions Visible
 // ============================================================================
 

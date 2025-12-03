@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS API - FARA AGENT RECEIVE ROUTE
+// AthenaPeX API - FARA AGENT RECEIVE ROUTE
 // ATHENA Architecture | Mock Implementation
 // ============================================================================
 

@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS PRODUCTIVITY MANAGER - PROJECTS API
+// ATHENAPEX PRODUCTIVITY MANAGER - PROJECTS API
 // ATHENA Architecture | REST API Endpoints
 // ============================================================================
 

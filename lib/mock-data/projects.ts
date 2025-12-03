@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS - MOCK DATA: PROJECTS
+// AthenaPeX - MOCK DATA: PROJECTS
 // ATHENA Architecture | Sample Data for Development
 // ============================================================================
 
@@ -8,8 +8,8 @@ import type { Project } from '@/types';
 export const mockProjects: Project[] = [
   {
     id: 'proj-001',
-    name: 'PEX-OS Core Platform',
-    description: 'Main development of the PEX-OS productivity system with all core modules',
+    name: 'AthenaPeX Core Platform',
+    description: 'Main development of the AthenaPeX productivity system with all core modules',
     emoji: '🚀',
     status: 'active',
     priority: 'critical',
@@ -87,7 +87,7 @@ export const mockProjects: Project[] = [
   {
     id: 'proj-005',
     name: 'Documentation Hub',
-    description: 'Comprehensive documentation for all PEX-OS modules',
+    description: 'Comprehensive documentation for all AthenaPeX modules',
     emoji: '📚',
     status: 'completed',
     priority: 'medium',

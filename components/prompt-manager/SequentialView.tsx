@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - SEQUENTIAL VIEW
+// AthenaPeX PROMPT MANAGER - SEQUENTIAL VIEW
 // ATHENA Architecture | Stack Navigation | Premium Dark Theme
 // ============================================================================
 

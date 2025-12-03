@@ -1,7 +1,7 @@
 'use client';
 
 // ============================================================================
-// PEX-OS PROMPT MANAGER - TAG BAR
+// AthenaPeX PROMPT MANAGER - TAG BAR
 // ATHENA Architecture | Tag Filtering Component | Premium Dark Theme
 // ============================================================================
 

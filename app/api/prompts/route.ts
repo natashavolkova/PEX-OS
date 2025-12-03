@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS PRODUCTIVITY MANAGER - PROMPTS API
+// ATHENAPEX PRODUCTIVITY MANAGER - PROMPTS API
 // ATHENA Architecture | REST API Endpoints with Versioning
 // ============================================================================
 

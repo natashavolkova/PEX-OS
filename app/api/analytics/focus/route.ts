@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS API - ANALYTICS FOCUS ROUTE
+// AthenaPeX API - ANALYTICS FOCUS ROUTE
 // ATHENA Architecture | Mock Implementation
 // ============================================================================
 

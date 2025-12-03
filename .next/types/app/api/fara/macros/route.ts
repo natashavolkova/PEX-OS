@@ -1,4 +1,4 @@
-// File: C:\Users\Luke\Documents\WORKSPACE\FFWORKSPACEALL\FFWORKSPACE\AthenaPeX\app\api\fara\macros\route.ts
+// File: /home/user/webapp/app/api/fara/macros/route.ts
 import * as entry from '../../../../../../app/api/fara/macros/route.js'
 import type { NextRequest } from 'next/server.js'
 

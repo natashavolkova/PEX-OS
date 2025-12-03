@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS API - YOUTUBE INSIGHTS ROUTE
+// AthenaPeX API - YOUTUBE INSIGHTS ROUTE
 // ATHENA Architecture | Mock Implementation
 // ============================================================================
 

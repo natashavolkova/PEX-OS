@@ -1,5 +1,5 @@
 // ============================================================================
-// PEX-OS API - FARA AGENT MACROS ROUTE
+// AthenaPeX API - FARA AGENT MACROS ROUTE
 // ATHENA Architecture | Mock Implementation
 // ============================================================================
 

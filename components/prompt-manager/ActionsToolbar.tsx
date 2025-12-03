@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { Tooltip, ShortcutTooltip } from './TooltipWrapper';
 import { usePromptManagerStore } from '@/stores/promptManager';
-import { BackupService } from '@/lib/api/prompts';
+import { BackupService } from '@/lib/api/client';
 
 interface ActionsToolbarProps {
   className?: string;
@@ -182,7 +182,7 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
           Ações Rápidas
         </h3>
-        
+
         <div className="grid grid-cols-2 gap-2">
           <button onClick={handleNewFolder} className={primaryBtnClass} disabled={isLocked}>
             <FolderPlus size={14} /> Nova Pasta
@@ -214,8 +214,8 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
 
         <div className="h-px bg-white/5 my-2" />
 
-        <button 
-          onClick={handleDelete} 
+        <button
+          onClick={handleDelete}
           className={`${secondaryBtnClass} text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:border-red-500/20`}
           disabled={isLocked}
         >
@@ -236,7 +236,7 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
             <FolderPlus size={16} />
           </button>
         </ShortcutTooltip>
-        
+
         <ShortcutTooltip label="Novo Prompt" shortcut="Ctrl+P" position="bottom">
           <button onClick={handleNewPrompt} className={iconBtnClass} disabled={isLocked}>
             <FilePlus size={16} />
@@ -251,7 +251,7 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
             <Download size={16} />
           </button>
         </Tooltip>
-        
+
         <Tooltip content="Importar Backup" position="bottom">
           <button onClick={handleImport} className={iconBtnClass}>
             <Upload size={16} />
@@ -266,7 +266,7 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
             <Share2 size={16} />
           </button>
         </Tooltip>
-        
+
         <Tooltip content="Copiar Link" position="bottom">
           <button onClick={handleCopyLink} className={iconBtnClass}>
             <LinkIcon size={16} />
@@ -276,8 +276,8 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
 
       {/* Danger Actions */}
       <Tooltip content="Excluir" position="bottom">
-        <button 
-          onClick={handleDelete} 
+        <button
+          onClick={handleDelete}
           className={`${iconBtnClass} hover:text-red-400 hover:bg-red-500/10`}
           disabled={isLocked}
         >
@@ -319,7 +319,7 @@ export const FloatingActionButton: React.FC<FABProps> = ({ className = '' }) => 
               <FolderPlus size={20} />
             </button>
           </Tooltip>
-          
+
           <Tooltip content="Novo Prompt" position="left">
             <button
               onClick={() => {
@@ -344,8 +344,8 @@ export const FloatingActionButton: React.FC<FABProps> = ({ className = '' }) => 
         className={`
           w-14 h-14 rounded-full shadow-2xl flex items-center justify-center
           transition-all duration-300
-          ${isOpen 
-            ? 'bg-[#1e2330] text-white rotate-45' 
+          ${isOpen
+            ? 'bg-[#1e2330] text-white rotate-45'
             : 'bg-[#2979ff] text-white hover:bg-[#2264d1]'}
         `}
       >

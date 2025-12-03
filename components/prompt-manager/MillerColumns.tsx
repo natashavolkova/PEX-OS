@@ -45,31 +45,37 @@ export const MillerColumns: React.FC = () => {
   // --- Derived State ---
 
   const rootFolders = data.filter((item) => item.type === 'folder') as FolderType[];
-  
-  const subFolders = selectedFolder 
+
+  const subFolders = selectedFolder
     ? (selectedFolder.children || []).filter((i) => i.type === 'folder') as FolderType[]
     : [];
-  
-  const prompts = selectedSubfolder 
+
+  const prompts = selectedSubfolder
     ? (selectedSubfolder.children || []).filter((i) => i.type === 'prompt') as Prompt[]
-    : selectedFolder 
+    : selectedFolder
       ? (selectedFolder.children || []).filter((i) => i.type === 'prompt') as Prompt[]
       : [];
 
   // --- Handlers ---
 
-  const handleFolderSelect = (folder: FolderType) => {
-    setSelectedFolder(folder);
-    setPreviewPrompt(null);
+  const handleFolderSelect = (item: TreeNode) => {
+    if (item.type === 'folder') {
+      setSelectedFolder(item);
+      setPreviewPrompt(null);
+    }
   };
 
-  const handleSubfolderSelect = (subfolder: FolderType) => {
-    setSelectedSubfolder(subfolder);
-    setPreviewPrompt(null);
+  const handleSubfolderSelect = (item: TreeNode) => {
+    if (item.type === 'folder') {
+      setSelectedSubfolder(item);
+      setPreviewPrompt(null);
+    }
   };
 
-  const handlePromptSelect = (prompt: Prompt) => {
-    setPreviewPrompt(prompt);
+  const handlePromptSelect = (item: TreeNode) => {
+    if (item.type === 'prompt') {
+      setPreviewPrompt(item);
+    }
   };
 
   const handlePromptOpen = () => {
@@ -271,7 +277,7 @@ export const MillerColumns: React.FC = () => {
           icon={<Sparkles size={14} />}
           items={prompts}
           selectedId={previewPrompt?.id || null}
-          onSelect={(item) => handlePromptSelect(item as Prompt)}
+          onSelect={handlePromptSelect}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onContextMenu={openContextMenu}

@@ -1,0 +1,80 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  projects  Project[]
+  tasks     Task[]
+  prompts   Prompt[]
+  folders   Folder[]
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  status      String   @default("active")
+  progress    Int      @default(0)
+  members     Int      @default(1)
+  dueDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model Task {
+  id        String   @id @default(cuid())
+  title     String
+  status    String   @default("todo")
+  priority  String   @default("medium")
+  dueDate   DateTime?
+  tags      String[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Prompt {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  type      String   @default("prompt")
+  emoji     String?
+  category  String?
+  tags      String[]
+  version   Int      @default(1)
+  isFavorite Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  folderId  String?
+  folder    Folder?  @relation(fields: [folderId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Folder {
+  id        String   @id @default(cuid())
+  name      String
+  type      String   @default("folder")
+  emoji     String?
+  isSystem  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  parentId  String?
+  parent    Folder?  @relation("FolderHierarchy", fields: [parentId], references: [id])
+  children  Folder[] @relation("FolderHierarchy")
+  prompts   Prompt[]
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+}

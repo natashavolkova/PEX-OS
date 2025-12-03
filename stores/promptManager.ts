@@ -80,15 +80,18 @@ const updateItemInTree = (
   id: string,
   updates: Partial<TreeNode>
 ): TreeNode[] => {
-  return items.map((item) => {
+  return items.map((item): TreeNode => {
     if (item.id === id) {
-      return { ...item, ...updates, updatedAt: Date.now() };
+      if (item.type === 'folder') {
+        return { ...item, ...updates, updatedAt: Date.now() } as Folder;
+      }
+      return { ...item, ...updates, updatedAt: Date.now() } as Prompt;
     }
     if (item.type === 'folder' && item.children) {
       return {
         ...item,
         children: updateItemInTree(item.children, id, updates),
-      };
+      } as Folder;
     }
     return item;
   });
@@ -392,9 +395,6 @@ export const usePromptManagerStore = create<PromptManagerState>()(
             state.actions.showToast(`"${itemName}" excluído!`, 'success');
           },
           
-          clearSelection: () =>
-            set({ selectedFolder: null, selectedSubfolder: null, selectedPrompt: null }),
-          
           moveItem: (itemId, targetFolderId) => {
             const state = get();
             const item = state.actions.findItem(itemId);
@@ -422,7 +422,7 @@ export const usePromptManagerStore = create<PromptManagerState>()(
             const newPkg: Folder = {
               ...pkg,
               id: `imported-${Date.now()}`,
-              date: new Date().toLocaleDateString('pt-BR'),
+              updatedAt: Date.now(),
             };
             get().actions.addItem(newPkg, targetFolderId);
             get().actions.showToast('Pacote importado com sucesso!', 'success');

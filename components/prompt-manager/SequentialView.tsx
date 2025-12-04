@@ -74,13 +74,9 @@ const ItemCard: React.FC<ItemCardProps> = ({
         }
       }}
       className={`
-        group relative flex flex-col justify-between min-h-[160px] w-fit min-w-[260px] max-w-[280px] shrink-0
-        rounded-xl border-l-[6px] border-y border-r px-3.5 py-3 cursor-pointer transition-all duration-200 
-        shadow-xl shadow-black/20 hover:scale-[1.01]
-        ${isFolder
-          ? 'bg-gradient-to-br from-[#2979ff]/8 via-[#2979ff]/3 to-transparent border-l-[#2979ff] border-y-[#2979ff]/20 border-r-[#2979ff]/20 hover:shadow-[0_0_30px_rgba(41,121,255,0.15)]'
-          : 'bg-gradient-to-br from-[#10b981]/8 via-[#10b981]/3 to-transparent border-l-[#10b981] border-y-[#10b981]/20 border-r-[#10b981]/20 hover:shadow-[0_0_30px_rgba(16,185,129,0.15)]'
-        }
+        group relative flex flex-col justify-between min-h-[160px] w-full shrink-0
+        bg-athena-navy/80 backdrop-blur-sm border border-athena-gold/20 rounded-xl p-6 
+        hover:border-athena-gold/50 hover:shadow-athena-glow transition-all duration-300 cursor-pointer
         ${!isLocked ? 'cursor-grab active:cursor-grabbing' : ''}
         ${isDragging ? 'opacity-40 scale-95 border-dashed' : ''}
         ${isJustDropped ? 'animate-success-pulse ring-2 ring-green-500' : ''}
@@ -93,8 +89,8 @@ const ItemCard: React.FC<ItemCardProps> = ({
         <div className={`
           w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-lg 
           transition-transform group-hover:scale-110
-          ${isFolder 
-            ? 'bg-gradient-to-br from-blue-500/10 to-indigo-500/10' 
+          ${isFolder
+            ? 'bg-gradient-to-br from-blue-500/10 to-indigo-500/10'
             : 'bg-gradient-to-br from-emerald-500/10 to-teal-500/10'}
         `}>
           {item.emoji || (isFolder ? '📁' : '📄')}
@@ -325,14 +321,13 @@ export const SequentialView: React.FC = () => {
             )}
             {title}
           </h2>
-          
+
           {/* Breadcrumb Navigation */}
           <div className="flex items-center gap-2 text-sm text-gray-400 mt-2">
             <button
               onClick={goToRoot}
-              className={`hover:text-white transition-colors flex items-center gap-1 ${
-                sequentialPath.length === 0 ? 'text-white font-bold' : ''
-              }`}
+              className={`hover:text-white transition-colors flex items-center gap-1 ${sequentialPath.length === 0 ? 'text-white font-bold' : ''
+                }`}
             >
               <Home size={14} /> Início
             </button>
@@ -341,16 +336,15 @@ export const SequentialView: React.FC = () => {
                 <ChevronRight size={12} className="text-gray-500" />
                 <button
                   onClick={() => navigateToIndex(index)}
-                  className={`hover:text-white transition-colors flex items-center gap-1 ${
-                    index === breadcrumbPath.length - 1 ? 'text-white font-bold' : ''
-                  }`}
+                  className={`hover:text-white transition-colors flex items-center gap-1 ${index === breadcrumbPath.length - 1 ? 'text-white font-bold' : ''
+                    }`}
                 >
                   {folder.emoji} {folder.name}
                 </button>
               </React.Fragment>
             ))}
           </div>
-          
+
           <p className="text-gray-400 text-sm mt-1 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-green-500" />
             {nodes.length} itens disponíveis
@@ -359,7 +353,7 @@ export const SequentialView: React.FC = () => {
       </div>
 
       {/* Items Grid */}
-      <SlideView direction={slideDirection} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <SlideView direction={slideDirection} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-8">
         {nodes.map((node, index) => (
           <ItemCard
             key={node.id}

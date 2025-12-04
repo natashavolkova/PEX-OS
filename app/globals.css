@@ -21,7 +21,7 @@
   --athena-silver: #C0C0C0;
   --athena-platinum: #F5F5F5;
   --athena-bronze: #CD7F32;
-  
+
   /* Legacy PEX Variables - Mapped to Athena */
   --pex-primary: #D4AF37;
   --pex-primary-hover: #C19B2F;
@@ -33,13 +33,13 @@
   --pex-text-primary: #F5F5F5;
   --pex-text-secondary: #C0C0C0;
   --pex-text-muted: #8892a8;
-  
+
   /* Status Colors */
   --athena-success: #10b981;
   --athena-warning: #f59e0b;
   --athena-error: #ef4444;
   --athena-info: #3b82f6;
-  
+
   --pex-success: #10b981;
   --pex-warning: #f59e0b;
   --pex-error: #ef4444;
@@ -56,7 +56,12 @@ body {
 }
 
 /* --- ATHENA TYPOGRAPHY --- */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: 'Cinzel', serif;
   color: #D4AF37;
   letter-spacing: 0.02em;
@@ -156,6 +161,7 @@ input:-webkit-autofill:focus {
     opacity: 0;
     transform: translateY(20px) scale(0.95);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -167,10 +173,12 @@ input:-webkit-autofill:focus {
     opacity: 0;
     transform: scale(0.9) translateY(30px);
   }
+
   60% {
     opacity: 1;
     transform: scale(1.02) translateY(-5px);
   }
+
   100% {
     transform: scale(1) translateY(0);
   }
@@ -181,6 +189,7 @@ input:-webkit-autofill:focus {
     opacity: 0;
     transform: scale(0.9) translateY(-10px);
   }
+
   100% {
     opacity: 1;
     transform: scale(1) translateY(0);
@@ -192,6 +201,7 @@ input:-webkit-autofill:focus {
     opacity: 0;
     transform: translateX(100%);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -202,15 +212,19 @@ input:-webkit-autofill:focus {
   0% {
     background-position: -200% center;
   }
+
   100% {
     background-position: 200% center;
   }
 }
 
 @keyframes pulseGold {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4);
   }
+
   50% {
     box-shadow: 0 0 20px 5px rgba(212, 175, 55, 0.2);
   }
@@ -248,12 +262,10 @@ input:-webkit-autofill:focus {
 }
 
 .bg-gradient-premium {
-  background: linear-gradient(
-    135deg,
-    var(--athena-navy-deep) 0%,
-    var(--athena-navy) 50%,
-    var(--athena-navy-deep) 100%
-  );
+  background: linear-gradient(135deg,
+      var(--athena-navy-deep) 0%,
+      var(--athena-navy) 50%,
+      var(--athena-navy-deep) 100%);
 }
 
 .shadow-premium {
@@ -313,4 +325,22 @@ input:-webkit-autofill:focus {
   background: rgba(212, 175, 55, 0.1);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+/* --- CUSTOM SCROLLBAR (THIN) --- */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.3);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.5);
 }

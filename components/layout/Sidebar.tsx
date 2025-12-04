@@ -1,113 +1,230 @@
 'use client';
 
-// ============================================================================
-// ATHENAPEX PRODUCTIVITY MANAGER - SIDEBAR NAVIGATION
-// Athena Architecture | Olympian Theme | Premium Navigation
-// ============================================================================
-
-import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import {
-    LayoutDashboard,
+    Brain,
     FolderKanban,
     CheckSquare,
     Target,
-    BarChart2,
-    Settings,
-    Command,
+    BarChart3,
     Youtube,
-    FileCode2,
-    BookTemplate,
-    Sparkles,
+    FileText,
+    Terminal,
+    Bot,
+    Settings,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
-const NAV_ITEMS = [
-    { label: 'Prompts', icon: Command, href: '/pex-os/prompts', shortcut: '1' },
-    { label: 'Projects', icon: FolderKanban, href: '/pex-os/projects', shortcut: '2' },
-    { label: 'Tasks', icon: CheckSquare, href: '/pex-os/tasks', shortcut: '3' },
-    { label: 'Battle Plan', icon: Target, href: '/pex-os/battle-plan', shortcut: '4' },
-    { label: 'Analytics', icon: BarChart2, href: '/pex-os/analytics', shortcut: '5' },
-    { label: 'YouTube', icon: Youtube, href: '/pex-os/youtube', shortcut: '6' },
-    { label: 'Templates', icon: BookTemplate, href: '/pex-os/templates', shortcut: '7' },
-    { label: 'Neovim', icon: FileCode2, href: '/pex-os/neovim', shortcut: '8' },
+const menuItems = [
+    {
+        icon: BarChart3,
+        label: 'Analytics',
+        href: '/pex-os/analytics',
+        badge: '5',
+        color: 'text-purple-400'
+    },
+    {
+        icon: Brain,
+        label: 'Prompts',
+        href: '/pex-os/prompts',
+        badge: '1',
+        color: 'text-blue-400'
+    },
+    {
+        icon: FolderKanban,
+        label: 'Projects',
+        href: '/pex-os/projects',
+        badge: '2',
+        color: 'text-green-400'
+    },
+    {
+        icon: CheckSquare,
+        label: 'Tasks',
+        href: '/pex-os/tasks',
+        badge: '3',
+        color: 'text-orange-400'
+    },
+    {
+        icon: Target,
+        label: 'Battle Plan',
+        href: '/pex-os/battle-plan',
+        badge: '4',
+        color: 'text-red-400'
+    },
+    {
+        icon: Youtube,
+        label: 'YouTube',
+        href: '/pex-os/youtube',
+        badge: '6',
+        color: 'text-red-500'
+    },
+    {
+        icon: FileText,
+        label: 'Templates',
+        href: '/pex-os/templates',
+        badge: '7',
+        color: 'text-cyan-400'
+    },
+    {
+        icon: Terminal,
+        label: 'Neovim',
+        href: '/pex-os/neovim',
+        badge: '8',
+        color: 'text-green-500'
+    },
+    {
+        icon: Bot,
+        label: 'AI Agent',
+        href: '/pex-os/ai-agent',
+        badge: null,
+        color: 'text-athena-gold'
+    },
 ];
 
-export function Sidebar() {
+export default function Sidebar() {
     const pathname = usePathname();
+    const [collapsed, setCollapsed] = useState(false);
 
     return (
-        <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-athena-navy/95 backdrop-blur-md border-r border-athena-gold/20 transition-transform shadow-gold">
-            <div className="flex h-full flex-col">
-                {/* Logo Area - Athena Styled */}
-                <div className="flex h-16 items-center border-b border-athena-gold/20 px-6">
-                    <div className="flex items-center gap-3 font-cinzel font-bold text-xl tracking-wide">
-                        <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-athena-gold to-athena-gold-dark flex items-center justify-center shadow-lg shadow-athena-gold/20 animate-pulse-gold">
-                            <Sparkles className="h-5 w-5 text-athena-navy-deep" />
-                        </div>
-                        <span className="text-athena-platinum">
-                            ATHENA<span className="text-athena-gold">PEX</span>
-                        </span>
+        <aside
+            className={`
+        ${collapsed ? 'w-20' : 'w-64'} 
+        bg-gradient-to-b from-athena-navy/95 to-athena-navy-deep/95 
+        backdrop-blur-xl 
+        border-r border-athena-gold/20 
+        flex flex-col 
+        transition-all duration-300 ease-in-out
+        relative
+      `}
+        >
+            {/* Collapse Button */}
+            <button
+                onClick={() => setCollapsed(!collapsed)}
+                className="absolute -right-3 top-20 z-50 w-6 h-6 bg-athena-gold rounded-full flex items-center justify-center hover:bg-athena-gold-dark transition-all shadow-lg"
+            >
+                {collapsed ? (
+                    <ChevronRight className="w-4 h-4 text-athena-navy-deep" />
+                ) : (
+                    <ChevronLeft className="w-4 h-4 text-athena-navy-deep" />
+                )}
+            </button>
+
+            {/* Logo */}
+            <div className="h-16 flex items-center justify-center px-4 border-b border-athena-gold/20">
+                {collapsed ? (
+                    <div className="w-10 h-10 bg-gradient-to-br from-athena-gold to-athena-gold-dark rounded-lg flex items-center justify-center shadow-athena-glow">
+                        <span className="text-athena-navy-deep font-bold text-xl">A</span>
                     </div>
-                </div>
-
-                {/* Navigation - Athena Themed */}
-                <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto custom-scrollbar">
-                    {NAV_ITEMS.map((item) => {
-                        const isActive = pathname?.startsWith(item.href);
-                        const Icon = item.icon;
-
-                        return (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                className={cn(
-                                    "group flex items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                                    isActive
-                                        ? "bg-athena-gold text-athena-navy-deep shadow-lg shadow-athena-gold/20"
-                                        : "text-athena-silver hover:bg-athena-navy-light hover:text-athena-platinum"
-                                )}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <Icon className={cn(
-                                        "h-5 w-5 transition-colors",
-                                        isActive ? "text-athena-navy-deep" : "text-athena-silver group-hover:text-athena-gold"
-                                    )} />
-                                    <span>{item.label}</span>
-                                </div>
-                                <span className={cn(
-                                    "flex h-5 w-5 items-center justify-center rounded border text-[10px] font-mono",
-                                    isActive
-                                        ? "border-athena-navy-deep/20 bg-athena-navy-deep/10 text-athena-navy-deep"
-                                        : "border-athena-gold/20 bg-athena-navy-deep/50 text-athena-silver/60 group-hover:border-athena-gold/40 group-hover:text-athena-gold"
-                                )}>
-                                    {item.shortcut}
-                                </span>
-                            </Link>
-                        );
-                    })}
-                </nav>
-
-                {/* Footer / Settings - Athena Styled */}
-                <div className="border-t border-athena-gold/20 p-3 bg-athena-navy-deep/30">
-                    <Link
-                        href="/pex-os/settings"
-                        className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-athena-silver hover:bg-athena-navy-light hover:text-athena-platinum transition-all duration-200"
-                    >
-                        <Settings className="h-5 w-5 text-athena-silver group-hover:text-athena-gold transition-colors" />
-                        <span>Settings</span>
-                    </Link>
-
-                    {/* Version Badge */}
-                    <div className="mt-3 px-3">
-                        <div className="flex items-center justify-between text-[10px] text-athena-silver/40">
-                            <span>AthenaPeX</span>
-                            <span className="font-mono">v2.0.0</span>
+                ) : (
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-athena-gold to-athena-gold-dark rounded-lg flex items-center justify-center shadow-athena-glow">
+                            <span className="text-athena-navy-deep font-bold text-xl">A</span>
+                        </div>
+                        <div>
+                            <h1 className="font-cinzel text-athena-gold text-lg font-bold leading-none">
+                                ATHENA<span className="text-athena-silver">PEX</span>
+                            </h1>
+                            <p className="text-athena-silver/50 text-xs">Productivity OS</p>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
+
+            {/* Menu Items */}
+            <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-athena-gold/30 scrollbar-track-transparent">
+                {menuItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = pathname === item.href;
+
+                    return (
+                        <Link
+                            key={item.href}
+                            href={item.href}
+                            className={`
+                flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 group relative
+                ${isActive
+                                    ? 'bg-athena-gold/20 border border-athena-gold/40 shadow-athena-glow'
+                                    : 'hover:bg-athena-gold/10 border border-transparent hover:border-athena-gold/20'
+                                }
+                ${collapsed ? 'justify-center' : ''}
+              `}
+                            title={collapsed ? item.label : ''}
+                        >
+                            {/* Icon with glow effect */}
+                            <div className={`
+                ${isActive ? 'text-athena-gold' : `${item.color} group-hover:text-athena-gold`}
+                transition-colors duration-200
+                ${isActive ? 'drop-shadow-[0_0_8px_rgba(212,175,55,0.6)]' : ''}
+              `}>
+                                <Icon className="w-5 h-5" />
+                            </div>
+
+                            {/* Label */}
+                            {!collapsed && (
+                                <>
+                                    <span className={`
+                    flex-1 font-medium text-sm
+                    ${isActive ? 'text-athena-gold font-semibold' : 'text-athena-silver group-hover:text-athena-platinum'}
+                    transition-colors duration-200
+                  `}>
+                                        {item.label}
+                                    </span>
+
+                                    {/* Badge */}
+                                    {item.badge && (
+                                        <span className={`
+                      text-xs px-2 py-0.5 rounded-full font-medium
+                      ${isActive
+                                                ? 'bg-athena-gold text-athena-navy-deep'
+                                                : 'bg-athena-gold/20 text-athena-gold border border-athena-gold/30'
+                                            }
+                      transition-all duration-200
+                    `}>
+                                            {item.badge}
+                                        </span>
+                                    )}
+                                </>
+                            )}
+
+                            {/* Active indicator */}
+                            {isActive && (
+                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-athena-gold rounded-r-full shadow-[0_0_10px_rgba(212,175,55,0.8)]" />
+                            )}
+                        </Link>
+                    );
+                })}
+            </nav>
+
+            {/* Divider */}
+            <div className="h-px bg-gradient-to-r from-transparent via-athena-gold/30 to-transparent mx-4" />
+
+            {/* Settings */}
+            <div className="p-3">
+                <Link
+                    href="/pex-os/settings"
+                    className={`
+            flex items-center gap-3 px-3 py-3 rounded-lg text-athena-silver hover:bg-athena-gold/10 hover:text-athena-gold transition-all group
+            ${collapsed ? 'justify-center' : ''}
+          `}
+                    title={collapsed ? 'Settings' : ''}
+                >
+                    <Settings className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+                    {!collapsed && <span className="font-medium text-sm">Settings</span>}
+                </Link>
+
+                {!collapsed && (
+                    <div className="mt-3 px-3 flex items-center justify-between text-xs">
+                        <span className="text-athena-silver/50">AthenaPeX</span>
+                        <span className="text-athena-gold/60 font-mono">v2.0.0</span>
+                    </div>
+                )}
+            </div>
+
+            {/* Bottom accent */}
+            <div className="h-1 bg-gradient-to-r from-athena-gold via-athena-silver to-athena-gold opacity-50" />
         </aside>
     );
 }

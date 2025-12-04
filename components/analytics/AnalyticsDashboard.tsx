@@ -25,6 +25,9 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useProductivityStore } from '@/stores/productivityStore';
+import { QuickActions } from './QuickActions';
+import { VelocityGraph } from './VelocityGraph';
+
 
 // --- HEATMAP COMPONENT ---
 
@@ -145,9 +148,8 @@ const MetricCard: React.FC<MetricCardProps> = ({
       <div className={`p-2 rounded-lg ${color}`}>{icon}</div>
       {change !== undefined && (
         <div
-          className={`flex items-center gap-1 text-xs font-medium ${
-            change >= 0 ? 'text-green-400' : 'text-red-400'
-          }`}
+          className={`flex items-center gap-1 text-xs font-medium ${change >= 0 ? 'text-green-400' : 'text-red-400'
+            }`}
         >
           {change >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
           {Math.abs(change)}%
@@ -204,7 +206,7 @@ const InsightCard: React.FC<InsightCardProps> = ({
       >
         <X size={12} />
       </button>
-      
+
       <div className="flex items-start gap-2">
         <div className="shrink-0 mt-0.5">
           {typeIcons[type as keyof typeof typeIcons] || typeIcons.pattern}
@@ -228,7 +230,7 @@ const InsightCard: React.FC<InsightCardProps> = ({
 
 const FocusWindowsChart: React.FC = () => {
   const focusWindows = useProductivityStore((s) => s.focusWindows);
-  
+
   // Group by day and calculate totals
   const last7Days = useMemo(() => {
     const days = [];
@@ -315,13 +317,12 @@ const PeakHoursChart: React.FC = () => {
             </span>
             <div className="flex-1 h-4 bg-[#0f111a] rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all ${
-                  item.productivity >= 80
-                    ? 'bg-gradient-to-r from-green-500 to-green-400'
-                    : item.productivity >= 60
-                      ? 'bg-gradient-to-r from-yellow-500 to-yellow-400'
-                      : 'bg-gradient-to-r from-red-500 to-red-400'
-                }`}
+                className={`h-full rounded-full transition-all ${item.productivity >= 80
+                  ? 'bg-gradient-to-r from-green-500 to-green-400'
+                  : item.productivity >= 60
+                    ? 'bg-gradient-to-r from-yellow-500 to-yellow-400'
+                    : 'bg-gradient-to-r from-red-500 to-red-400'
+                  }`}
                 style={{ width: `${(item.productivity / maxProductivity) * 100}%` }}
               />
             </div>
@@ -354,16 +355,16 @@ export const AnalyticsDashboard: React.FC = () => {
   const completedTasks = tasks.filter((t) => t.status === 'completed').length;
   const totalTasks = tasks.length;
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-  
+
   const avgROI = tasks.length > 0
     ? (tasks.reduce((sum, t) => sum + t.roiScore, 0) / tasks.length).toFixed(1)
     : '0';
-  
+
   const totalFocusMinutes = focusWindows.reduce((sum, w) => sum + w.duration, 0);
   const totalFocusHours = Math.round(totalFocusMinutes / 60);
-  
+
   const blockedTasks = tasks.filter((t) => t.status === 'blocked').length;
-  
+
   const highROICompleted = tasks.filter(
     (t) => t.status === 'completed' && t.roiScore >= 2
   ).length;
@@ -450,16 +451,23 @@ export const AnalyticsDashboard: React.FC = () => {
         />
       </div>
 
+      {/* Quick Actions Bar */}
+      <div className="mb-6">
+        <QuickActions />
+      </div>
+
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Heatmap */}
         <div className="lg:col-span-2 space-y-6">
           <WeeklyHeatmap />
-          
+
           <div className="grid grid-cols-2 gap-6">
             <FocusWindowsChart />
-            <PeakHoursChart />
+            <VelocityGraph />
           </div>
+
+          <PeakHoursChart />
         </div>
 
         {/* Right Column - Insights */}
@@ -480,7 +488,7 @@ export const AnalyticsDashboard: React.FC = () => {
                   actionable={insight.actionable}
                   suggestedAction={insight.suggestedAction}
                   priority={insight.priority}
-                  onDismiss={() => {}}
+                  onDismiss={() => { }}
                 />
               ))}
             </div>
@@ -492,7 +500,7 @@ export const AnalyticsDashboard: React.FC = () => {
               <Zap size={16} className="text-[#2979ff]" />
               ENTJ Productivity Rules
             </h3>
-            
+
             <ul className="space-y-2 text-xs text-gray-300">
               <li className="flex items-start gap-2">
                 <span className="text-green-400 mt-0.5">✓</span>
@@ -520,7 +528,7 @@ export const AnalyticsDashboard: React.FC = () => {
           {/* Quick Actions */}
           <div className="bg-[#1e2330] border border-white/5 rounded-xl p-4">
             <h3 className="text-sm font-bold text-white mb-3">Quick Actions</h3>
-            
+
             <div className="space-y-2">
               <button className="w-full px-3 py-2 text-xs text-left text-gray-300 hover:bg-white/5 rounded-lg transition-colors flex items-center gap-2">
                 <Calendar size={14} className="text-[#2979ff]" />

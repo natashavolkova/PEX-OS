@@ -1,6 +1,85 @@
-node_modules
+# ============================================================================
+# ATHENAPEX - GITIGNORE
+# Complete configuration for public repository security
+# ============================================================================
 
+# --- ENVIRONMENT & SECRETS ---
+.env
+.env.*
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+*.env
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+
+# --- DEPENDENCIES ---
+node_modules/
+.pnp/
+.pnp.js
+
+# --- BUILD OUTPUTS ---
+.next/
+out/
+build/
+dist/
+.turbo/
+
+# --- VERCEL ---
+.vercel/
+
+# --- PRISMA ---
 /lib/generated/prisma
-.vercel
 
-.vercel
+# --- CACHE & TEMP ---
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+.cache/
+*.cache
+.temp/
+tmp/
+
+# --- LOGS ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+logs/
+
+# --- TESTING ---
+coverage/
+.nyc_output/
+
+# --- IDE & EDITOR ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- DEBUG ---
+.debug/
+
+# --- LOCAL CONFIG ---
+*.local
+local.settings.json
+
+# --- MISC ---
+.eslintcache
+.stylelintcache
+*.pid
+*.seed
+*.pid.lock

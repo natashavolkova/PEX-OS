@@ -22,7 +22,7 @@ export default function AthenaPexLayout({
       <Sidebar />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 pl-64 transition-all duration-300">
+      <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
         <Header />
 
         <main className="flex-1 overflow-auto">

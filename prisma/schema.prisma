@@ -8,15 +8,18 @@ generator client {
 }
 
 model User {
-  id        String   @id
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  projects  Project[]
-  tasks     Task[]
-  prompts   Prompt[]
-  folders   Folder[]
+  id              String           @id
+  email           String           @unique
+  name            String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  projects        Project[]
+  tasks           Task[]
+  prompts         Prompt[]
+  folders         Folder[]
+  analyticsEvents AnalyticsEvent[]
+  youtubeVideos   YouTubeVideo[]
+  neovimConfigs   NeovimConfig[]
 }
 
 model Project {
@@ -79,3 +82,54 @@ model Folder {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
 }
+
+// ============================================================================
+// NEW MODELS FOR LOTE #4
+// ============================================================================
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  type      String   // 'focus_start', 'focus_end', 'task_complete', 'prompt_create', etc.
+  metadata  Json?    // Additional event data
+  duration  Int?     // Duration in minutes (for focus sessions)
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([type])
+}
+
+model YouTubeVideo {
+  id           String   @id @default(cuid())
+  videoId      String   @unique
+  title        String
+  channelName  String?
+  thumbnailUrl String?
+  watchStatus  String   @default("unwatched") // 'unwatched', 'watching', 'watched', 'revisit'
+  notes        String?
+  insights     Json?    // Array of extracted insights
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([watchStatus])
+}
+
+model NeovimConfig {
+  id         String   @id @default(cuid())
+  name       String
+  base       String   // 'lazyvim', 'astronvim', 'custom'
+  lspConfigs String[] // Enabled LSP servers
+  plugins    String[] // Enabled plugins
+  content    String   // Generated init.lua content
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+

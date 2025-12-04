@@ -1,13 +1,5 @@
 {
     "$schema": "https://openapi.vercel.sh/vercel.json",
     "framework": "nextjs",
-    "buildCommand": "prisma generate && next build",
-    "functions": {
-        "app/**/*.ts": {
-            "runtime": "nodejs22.x"
-        },
-        "app/**/*.tsx": {
-            "runtime": "nodejs22.x"
-        }
-    }
+    "buildCommand": "prisma generate && next build"
 }

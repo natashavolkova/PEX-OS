@@ -34,9 +34,9 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       const searchLower = search.toLowerCase();
-      filteredData = filteredData.filter(p =>
+      filteredData = filteredData.filter((p: any) =>
         p.name?.toLowerCase().includes(searchLower) ||
-        p.content?.toLowerCase().includes(searchLower)
+        (p.content && p.content.toLowerCase().includes(searchLower))
       );
     }
 

@@ -6,7 +6,8 @@
 // ============================================================================
 
 import React from 'react';
-import { Bell, Search, User, Command, Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import { Bell, Search, Command, Sparkles, ChevronDown } from 'lucide-react';
 
 export function Header() {
     return (
@@ -47,13 +48,17 @@ export function Header() {
                     <span className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-athena-gold border-2 border-athena-navy animate-pulse"></span>
                 </button>
 
-                {/* User Profile - Athena Styled */}
-                <button className="flex items-center gap-2 rounded-full bg-athena-navy-light/80 p-1 pr-3 hover:bg-athena-navy-light border border-athena-gold/10 hover:border-athena-gold/30 transition-all duration-200">
+                {/* User Profile - Navigate to Profile Page */}
+                <Link
+                    href="/pex-os/profile"
+                    className="flex items-center gap-2 rounded-full bg-athena-navy-light/80 p-1 pr-3 hover:bg-athena-navy-light border border-athena-gold/10 hover:border-athena-gold/30 transition-all duration-200"
+                >
                     <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-athena-gold to-athena-gold-dark shadow-lg shadow-athena-gold/20">
                         <Sparkles className="h-4 w-4 text-athena-navy-deep" />
                     </div>
                     <span className="text-sm font-medium text-athena-platinum">Commander</span>
-                </button>
+                    <ChevronDown className="h-4 w-4 text-athena-silver/60" />
+                </Link>
             </div>
         </header>
     );

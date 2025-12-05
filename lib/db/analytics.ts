@@ -231,12 +231,12 @@ export async function getOverviewStats(userId: string) {
     ) / 60;
 
     return {
-        totalPrompts,
-        activeProjects,
-        focusHoursWeek: Math.round(focusHours * 10) / 10,
-        completedTasks,
-        youtubeVideos,
-        neovimConfigs,
+        totalPrompts: totalPrompts ?? 0,
+        activeProjects: activeProjects ?? 0,
+        totalFocusHours: Math.round(focusHours * 10) / 10 || 0,
+        completedTasks: completedTasks ?? 0,
+        youtubeVideos: youtubeVideos ?? 0,
+        neovimConfigs: neovimConfigs ?? 0,
     };
 }
 

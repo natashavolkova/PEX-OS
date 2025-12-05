@@ -10,6 +10,7 @@ import '@/styles/animations.css';
 
 import Sidebar from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
+import { AuthGuard } from '@/lib/auth';
 
 export default function AthenaPexLayout({
   children,
@@ -17,18 +18,21 @@ export default function AthenaPexLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-screen bg-athena-gradient overflow-hidden">
-      {/* Global Sidebar - Athena Themed */}
-      <Sidebar />
+    <AuthGuard>
+      <div className="flex h-screen bg-athena-gradient overflow-hidden">
+        {/* Global Sidebar - Athena Themed */}
+        <Sidebar />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
-        <Header />
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
+          <Header />
 
-        <main className="flex-1 overflow-auto">
-          {children}
-        </main>
+          <main className="flex-1 overflow-auto">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </AuthGuard>
   );
 }
+

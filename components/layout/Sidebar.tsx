@@ -98,12 +98,13 @@ export default function Sidebar() {
         flex flex-col 
         transition-all duration-300 ease-in-out
         relative
+        z-40
       `}
         >
             {/* Collapse Button */}
             <button
                 onClick={() => setCollapsed(!collapsed)}
-                className="absolute -right-3 top-20 z-50 w-6 h-6 bg-athena-gold rounded-full flex items-center justify-center hover:bg-athena-gold-dark transition-all shadow-lg"
+                className="absolute -right-3 top-20 z-[100] w-6 h-6 bg-athena-gold rounded-full flex items-center justify-center hover:bg-athena-gold-dark transition-all shadow-lg"
             >
                 {collapsed ? (
                     <ChevronRight className="w-4 h-4 text-athena-navy-deep" />

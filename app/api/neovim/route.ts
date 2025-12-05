@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import * as neovimDb from '@/lib/db/neovim';
+import { getCurrentUserId } from '@/lib/db/users';
 
 // GET /api/neovim - Get all configs
 export async function GET(request: NextRequest) {
@@ -13,9 +14,7 @@ export async function GET(request: NextRequest) {
         const base = searchParams.get('base') as neovimDb.NeovimBase | null;
         const search = searchParams.get('search') || undefined;
 
-        // TODO: Get userId from auth session
-        const userId = 'demo-user';
-
+        const userId = await getCurrentUserId();
         const { configs, total } = await neovimDb.getConfigs(userId, {
             base: base || undefined,
             search,
@@ -48,8 +47,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // TODO: Get userId from auth session
-        const userId = 'demo-user';
+        const userId = await getCurrentUserId();
 
         // Generate config content
         const content = neovimDb.generateConfigContent(
@@ -79,3 +77,4 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+

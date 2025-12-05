@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getRecentActivity, createEvent, EventType } from '@/lib/db/analytics';
+import { getCurrentUserId } from '@/lib/db/users';
 
 // GET /api/activity - Get recent activity
 export async function GET(request: NextRequest) {
@@ -12,9 +13,7 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const limit = parseInt(searchParams.get('limit') || '10', 10);
 
-        // TODO: Get userId from auth session
-        const userId = 'demo-user';
-
+        const userId = await getCurrentUserId();
         const activity = await getRecentActivity(userId, limit);
 
         return NextResponse.json({
@@ -43,9 +42,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // TODO: Get userId from auth session
-        const userId = 'demo-user';
-
+        const userId = await getCurrentUserId();
         const event = await createEvent(userId, type as EventType, metadata, duration);
 
         return NextResponse.json({
@@ -61,3 +58,4 @@ export async function POST(request: NextRequest) {
         );
     }
 }
+

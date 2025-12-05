@@ -3,16 +3,14 @@
 // Dashboard overview metrics
 // ============================================================================
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getOverviewStats } from '@/lib/db/analytics';
+import { getCurrentUserId } from '@/lib/db/users';
 
 // GET /api/analytics/stats - Get overview stats for dashboard
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
-        // TODO: Get userId from auth session
-        // For now, use a demo user ID
-        const userId = 'demo-user';
-
+        const userId = await getCurrentUserId();
         const stats = await getOverviewStats(userId);
 
         return NextResponse.json({
@@ -27,3 +25,4 @@ export async function GET(request: NextRequest) {
         );
     }
 }
+

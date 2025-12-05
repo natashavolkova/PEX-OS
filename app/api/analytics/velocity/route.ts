@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getVelocityData } from '@/lib/db/analytics';
+import { getCurrentUserId } from '@/lib/db/users';
 
 // GET /api/analytics/velocity - Get velocity data for chart
 export async function GET(request: NextRequest) {
@@ -12,9 +13,7 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const days = parseInt(searchParams.get('days') || '7', 10);
 
-        // TODO: Get userId from auth session
-        const userId = 'demo-user';
-
+        const userId = await getCurrentUserId();
         const data = await getVelocityData(userId, days);
 
         return NextResponse.json({
@@ -29,3 +28,4 @@ export async function GET(request: NextRequest) {
         );
     }
 }
+

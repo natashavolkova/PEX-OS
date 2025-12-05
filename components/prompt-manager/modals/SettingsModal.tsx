@@ -14,6 +14,8 @@ import {
   List,
   Columns,
   Network,
+  Grid3X3,
+  LayoutGrid,
 } from 'lucide-react';
 import { Overlay, ModalAnimation } from '../MotionWrappers';
 import { usePromptManagerStore } from '@/stores/promptManager';
@@ -27,16 +29,24 @@ const VIEWS: { id: ViewType; label: string; icon: any }[] = [
   { id: 'mindmap', label: 'Hierarquia', icon: Network },
 ];
 
+// --- DENSITY OPTIONS ---
+
+const DENSITY_OPTIONS: { id: 'standard' | 'high'; label: string; description: string; icon: any }[] = [
+  { id: 'standard', label: '4 Colunas', description: 'Padrão', icon: Grid3X3 },
+  { id: 'high', label: '5 Colunas', description: 'Alta Densidade', icon: LayoutGrid },
+];
+
 // --- SETTINGS MODAL ---
 
 export const SettingsModal: React.FC = () => {
   const isOpen = usePromptManagerStore((s) => s.isSettingsOpen);
   const currentUser = usePromptManagerStore((s) => s.currentUser);
   const preferences = usePromptManagerStore((s) => s.preferences);
-  const { setSettingsOpen, updatePreferences, setCurrentUser, showToast } = 
+  const { setSettingsOpen, updatePreferences, setCurrentUser, showToast } =
     usePromptManagerStore((s) => s.actions);
 
   const [localView, setLocalView] = useState<ViewType>('sequential');
+  const [localGridDensity, setLocalGridDensity] = useState<'standard' | 'high'>('standard');
   const [previewAvatar, setPreviewAvatar] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -44,6 +54,7 @@ export const SettingsModal: React.FC = () => {
   useEffect(() => {
     if (isOpen) {
       setLocalView(preferences.defaultView || 'sequential');
+      setLocalGridDensity(preferences.gridDensity || 'standard');
       setPreviewAvatar(currentUser.avatar || null);
     }
   }, [isOpen, preferences, currentUser]);
@@ -57,9 +68,22 @@ export const SettingsModal: React.FC = () => {
     }
   };
 
-  const handleSave = () => {
-    updatePreferences({ defaultView: localView });
+  const handleSave = async () => {
+    // Update local preferences
+    updatePreferences({ defaultView: localView, gridDensity: localGridDensity });
     setCurrentUser({ ...currentUser, avatar: previewAvatar });
+
+    // Persist gridDensity to database
+    try {
+      await fetch('/api/user/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gridDensity: localGridDensity }),
+      });
+    } catch (error) {
+      console.error('Erro ao salvar preferências:', error);
+    }
+
     showToast('Preferências salvas', 'success');
     setSettingsOpen(false);
   };
@@ -172,6 +196,41 @@ export const SettingsModal: React.FC = () => {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Grid Density Toggle */}
+              <div className="space-y-2 pt-4">
+                <label className="text-sm font-medium text-gray-300 block">
+                  Densidade do Grid (Prompts)
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {DENSITY_OPTIONS.map((option) => (
+                    <button
+                      key={option.id}
+                      onClick={() => setLocalGridDensity(option.id)}
+                      className={`
+                        flex items-center gap-3 p-4 rounded-lg border 
+                        transition-all duration-200 relative
+                        ${localGridDensity === option.id
+                          ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.15)]'
+                          : 'bg-[#0f111a] border-white/5 text-gray-300 hover:border-white/20 hover:text-gray-200'
+                        }
+                      `}
+                    >
+                      <option.icon size={24} />
+                      <div className="text-left">
+                        <span className="text-sm font-semibold block">{option.label}</span>
+                        <span className="text-[10px] text-gray-500 uppercase tracking-wider">{option.description}</span>
+                      </div>
+                      {localGridDensity === option.id && (
+                        <div className="absolute top-2 right-2 w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_5px_#10b981]" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-gray-500 italic mt-1">
+                  Determina quantos cards de prompts serão exibidos por linha.
+                </p>
               </div>
             </div>
           </div>

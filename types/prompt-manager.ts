@@ -98,6 +98,7 @@ export interface UserPreferences {
   theme?: 'dark' | 'light';
   compactMode?: boolean;
   showTags?: boolean;
+  gridDensity?: 'standard' | 'high'; // 'standard' = 4 cols, 'high' = 5 cols
 }
 
 // --- DRAG & DROP ---

@@ -435,7 +435,7 @@ export const SequentialView: React.FC = () => {
 
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-      <div className="p-10 min-h-full">
+      <div className="px-4 py-6 min-h-full">
         {/* Header with Breadcrumbs */}
         <div className="flex items-center gap-6 mb-10">
           {sequentialPath.length > 0 && (
@@ -493,7 +493,7 @@ export const SequentialView: React.FC = () => {
           <div className="mb-8">
             <SlideView
               direction={slideDirection}
-              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4"
+              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3"
             >
               {folders.map((folder, index) => (
                 <FolderCard
@@ -542,8 +542,8 @@ export const SequentialView: React.FC = () => {
             <SlideView
               direction={slideDirection}
               className={`grid ${gridDensity === 'high'
-                ? 'gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
-                : 'gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4'
+                ? 'gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+                : 'gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4'
                 }`}
             >
               {prompts.map((prompt, index) => (

@@ -23,6 +23,24 @@ import { SlideView, PulseSuccess } from './MotionWrappers';
 import { usePromptManagerStore } from '@/stores/promptManager';
 import type { TreeNode, Folder as FolderType, Prompt } from '@/types/prompt-manager';
 
+// Date formatting helper
+const formatDate = (dateStr: string | undefined): string => {
+  if (!dateStr) return 'Hoje';
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr; // Return original if invalid
+    return date.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).replace(',', ' às');
+  } catch {
+    return dateStr;
+  }
+};
+
 // --- ITEM CARD COMPONENT ---
 
 interface ItemCardProps {
@@ -76,103 +94,95 @@ const ItemCard: React.FC<ItemCardProps> = ({
         }
       }}
       className={`
-        group relative flex flex-col min-h-[280px] w-full
+        group relative flex flex-col min-h-[180px] w-full
         bg-gradient-to-br from-athena-navy/90 to-athena-navy-deep/80 
-        backdrop-blur-xl border-2 rounded-2xl p-8
-        transition-all duration-300 cursor-pointer
+        backdrop-blur-xl border rounded-xl p-5
+        transition-all duration-200 cursor-pointer
         ${isFolder
-          ? 'border-blue-500/30 hover:border-blue-400/60 hover:shadow-[0_0_40px_rgba(41,121,255,0.2)]'
-          : 'border-emerald-500/30 hover:border-emerald-400/60 hover:shadow-[0_0_40px_rgba(16,185,129,0.2)]'
+          ? 'border-blue-500/25 hover:border-blue-400/50 hover:shadow-[0_0_25px_rgba(41,121,255,0.15)]'
+          : 'border-emerald-500/25 hover:border-emerald-400/50 hover:shadow-[0_0_25px_rgba(16,185,129,0.15)]'
         }
         ${!isLocked ? 'cursor-grab active:cursor-grabbing' : ''}
         ${isDragging ? 'opacity-40 scale-95 border-dashed' : ''}
         ${isJustDropped ? 'animate-success-pulse ring-2 ring-green-500' : ''}
-        hover:scale-[1.02] hover:-translate-y-1
+        hover:scale-[1.01] hover:-translate-y-0.5
       `}
-      style={{ animationDelay: `${index * 30}ms` }}
+      style={{ animationDelay: `${index * 20}ms` }}
     >
       {/* Type Badge */}
-      <div className={`absolute top-4 right-4 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
-        ${isFolder ? 'bg-blue-500/20 text-blue-300' : 'bg-emerald-500/20 text-emerald-300'}
+      <div className={`absolute top-3 right-3 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider
+        ${isFolder ? 'bg-blue-500/15 text-blue-400' : 'bg-emerald-500/15 text-emerald-400'}
       `}>
         {isFolder ? 'Pasta' : 'Prompt'}
       </div>
 
       {/* Icon */}
       <div className={`
-        w-20 h-20 rounded-2xl flex items-center justify-center text-4xl mb-6
-        shadow-2xl transition-transform group-hover:scale-110 group-hover:rotate-3
+        w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-3
+        shadow-lg transition-transform group-hover:scale-105
         ${isFolder
-          ? 'bg-gradient-to-br from-blue-500/20 via-indigo-500/20 to-purple-500/20 border border-blue-500/30'
-          : 'bg-gradient-to-br from-emerald-500/20 via-teal-500/20 to-cyan-500/20 border border-emerald-500/30'}
+          ? 'bg-gradient-to-br from-blue-500/15 to-indigo-500/15 border border-blue-500/20'
+          : 'bg-gradient-to-br from-emerald-500/15 to-teal-500/15 border border-emerald-500/20'}
       `}>
         {item.emoji || (isFolder ? '📁' : '📄')}
       </div>
 
       {/* Title */}
-      <h3 className="text-white font-bold text-xl mb-3 line-clamp-2 leading-tight">
+      <h3 className="text-white font-semibold text-base mb-2 line-clamp-2 leading-snug">
         {item.name}
       </h3>
 
       {/* Content Preview (Prompts only) */}
       {!isFolder && prompt.content && (
-        <p className="text-gray-400 text-sm line-clamp-3 mb-4 leading-relaxed flex-grow">
-          {prompt.content.substring(0, 150)}...
+        <p className="text-gray-500 text-xs line-clamp-2 mb-3 leading-relaxed flex-grow">
+          {prompt.content.substring(0, 100)}...
         </p>
       )}
 
       {/* Meta Info */}
-      <div className="flex items-center gap-3 text-sm text-gray-400 mb-4">
-        <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-green-500/70" />
-          {prompt.date || 'Hoje'}
+      <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
+        <span className="flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-green-500/60" />
+          {formatDate(prompt.date)}
         </span>
         {isFolder && folder.children && (
           <>
-            <span className="w-1 h-1 rounded-full bg-gray-600" />
+            <span className="w-0.5 h-0.5 rounded-full bg-gray-600" />
             <span className="font-medium text-blue-400">{folder.children.length} itens</span>
-          </>
-        )}
-        {!isFolder && prompt.category && (
-          <>
-            <span className="w-1 h-1 rounded-full bg-gray-600" />
-            <span className="px-2 py-0.5 rounded-md bg-white/10 text-xs font-medium">
-              {prompt.category}
-            </span>
           </>
         )}
       </div>
 
       {/* Tags (Prompts only) */}
       {!isFolder && prompt.tags && prompt.tags.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {prompt.tags.slice(0, 3).map((tag) => (
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {prompt.tags.slice(0, 2).map((tag) => (
             <span
               key={tag}
-              className="text-xs uppercase font-bold px-3 py-1 rounded-lg bg-white/5 text-gray-300 border border-white/10"
+              className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded bg-white/5 text-gray-400"
             >
               {tag}
             </span>
           ))}
-          {prompt.tags.length > 3 && (
-            <span className="text-xs text-gray-500 flex items-center">
-              +{prompt.tags.length - 3} mais
+          {prompt.tags.length > 2 && (
+            <span className="text-[10px] text-gray-600">
+              +{prompt.tags.length - 2}
             </span>
           )}
         </div>
       )}
 
       {/* Actions */}
-      <div className="flex gap-3 pt-5 border-t border-white/10 mt-auto">
+      <div className="flex gap-2 pt-3 border-t border-white/5 mt-auto">
         <Tooltip content={`Editar ${item.type}`} position="top">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onEdit(item);
             }}
-            className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-[#2979ff] to-[#5b4eff] hover:from-[#2264d1] hover:to-[#4a3fd1] text-white rounded-xl transition-all text-sm font-bold shadow-lg shadow-blue-900/30 hover:shadow-blue-900/50 active:scale-95"
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-[#2979ff] hover:bg-[#2264d1] text-white rounded-lg transition-all text-xs font-bold active:scale-95"
           >
-            <Edit2 size={16} /> EDITAR
+            <Edit2 size={12} /> EDITAR
           </button>
         </Tooltip>
 
@@ -182,9 +192,9 @@ const ItemCard: React.FC<ItemCardProps> = ({
               e.stopPropagation();
               onShare(item);
             }}
-            className="p-3 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-xl transition-all border border-white/10 hover:border-white/30 active:scale-95 group"
+            className="p-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg transition-all active:scale-95"
           >
-            <Share2 size={18} className="group-hover:rotate-12 transition-transform" />
+            <Share2 size={14} />
           </button>
         </Tooltip>
       </div>
@@ -377,10 +387,10 @@ export const SequentialView: React.FC = () => {
           </div>
         </div>
 
-        {/* Items Grid - Responsive with larger cards */}
+        {/* Items Grid - High density 4-5 columns */}
         <SlideView
           direction={slideDirection}
-          className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8"
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4"
         >
           {nodes.map((node, index) => (
             <ItemCard
@@ -403,25 +413,25 @@ export const SequentialView: React.FC = () => {
 
           {/* Empty State */}
           {nodes.length === 0 && (
-            <div className="col-span-full flex flex-col items-center justify-center py-32 text-gray-400 border-2 border-dashed border-white/10 rounded-2xl bg-gradient-to-br from-white/[0.02] to-transparent">
-              <div className="w-24 h-24 rounded-2xl bg-white/5 flex items-center justify-center mb-6 border border-white/10">
-                <FolderOpen size={48} className="opacity-40" />
+            <div className="col-span-full flex flex-col items-center justify-center py-16 text-gray-400 border border-dashed border-white/10 rounded-xl bg-white/[0.01]">
+              <div className="w-16 h-16 rounded-xl bg-white/5 flex items-center justify-center mb-4">
+                <FolderOpen size={32} className="opacity-40" />
               </div>
-              <p className="text-xl font-bold text-gray-300 mb-2">Esta pasta está vazia</p>
-              <p className="text-base text-gray-500">Comece criando uma nova pasta ou prompt.</p>
+              <p className="text-base font-semibold text-gray-300 mb-1">Pasta vazia</p>
+              <p className="text-sm text-gray-500">Crie uma nova pasta ou prompt</p>
             </div>
           )}
 
           {/* New Folder Button */}
           <button
             onClick={handleNewFolder}
-            className="flex flex-col items-center justify-center gap-4 bg-gradient-to-br from-[#1e2330]/50 to-transparent border-2 border-dashed border-white/10 hover:border-[#2979ff]/50 hover:bg-[#2979ff]/5 rounded-2xl p-8 cursor-pointer transition-all group min-h-[280px]"
-            style={{ animationDelay: `${nodes.length * 30}ms` }}
+            className="flex flex-col items-center justify-center gap-3 bg-white/[0.02] border border-dashed border-white/10 hover:border-[#2979ff]/40 hover:bg-[#2979ff]/5 rounded-xl p-5 cursor-pointer transition-all group min-h-[180px]"
+            style={{ animationDelay: `${nodes.length * 20}ms` }}
           >
-            <div className="w-20 h-20 rounded-2xl bg-white/5 flex items-center justify-center text-gray-400 group-hover:text-[#2979ff] group-hover:scale-110 group-hover:bg-[#2979ff]/10 transition-all border border-white/10 group-hover:border-[#2979ff]/30">
-              <Plus size={36} />
+            <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center text-gray-400 group-hover:text-[#2979ff] group-hover:scale-105 transition-all">
+              <Plus size={24} />
             </div>
-            <span className="text-lg font-medium text-gray-400 group-hover:text-[#2979ff] transition-colors">
+            <span className="text-sm font-medium text-gray-400 group-hover:text-[#2979ff] transition-colors">
               Nova Pasta
             </span>
           </button>
@@ -432,4 +442,5 @@ export const SequentialView: React.FC = () => {
 };
 
 export default SequentialView;
+
 

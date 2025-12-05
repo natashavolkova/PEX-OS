@@ -14,6 +14,7 @@ export interface Prompt {
   category?: string;
   tags?: string[];
   date: string;
+  folderId?: string | null;
   createdAt?: number;
   updatedAt?: number;
 }
@@ -161,36 +162,36 @@ export interface PromptManagerActions {
   updateItem: (id: string, updates: Partial<TreeNode>) => void;
   deleteItem: (id: string) => void;
   moveItem: (itemId: string, targetFolderId: string | null) => void;
-  
+
   // Selection
   setSelectedFolder: (folder: Folder | null) => void;
   setSelectedSubfolder: (folder: Folder | null) => void;
   setSelectedPrompt: (prompt: Prompt | null) => void;
-  
+
   // Navigation
   setActiveView: (view: ViewType) => void;
   setSequentialPath: (path: string[]) => void;
   navigateToFolder: (folder: Folder) => void;
   goBack: () => void;
-  
+
   // UI State
   setIsLocked: (locked: boolean) => void;
   setToast: (toast: Toast | null) => void;
   setDragState: (state: Partial<DragState>) => void;
-  
+
   // Modals
   openEditModal: (item: TreeNode, fullEdit?: boolean, isImport?: boolean) => void;
   closeEditModal: () => void;
-  
+
   // User
   setCurrentUser: (user: User) => void;
   updatePreferences: (prefs: Partial<UserPreferences>) => void;
-  
+
   // Notifications
   addNotification: (notification: Omit<Notification, 'id'>) => void;
   markNotificationRead: (id: number) => void;
   markAllNotificationsRead: () => void;
-  
+
   // Keys Management
   generateKey: (userName: string) => string;
   revokeKey: (keyId: string) => void;

@@ -1,29 +1,64 @@
 import prisma from '@/lib/prisma';
+import { getCurrentUserId } from '@/lib/db/users';
 import type { Prompt, Folder, TreeNode } from '@/types/prompt-manager';
 
 export const DataService = {
   fetchData: async (): Promise<TreeNode[]> => {
-    // Fetch folders and prompts from DB
+    // Get current user
+    const userId = await getCurrentUserId();
+
+    // Fetch folders and prompts from DB for this user
     const folders = await prisma.folder.findMany({
+      where: { userId },
       include: {
-        children: true, // This only includes direct children if modeled that way
+        children: {
+          include: {
+            prompts: true,
+          }
+        },
         prompts: true,
-      }
+      },
+      orderBy: { createdAt: 'asc' }
     });
 
-    const prompts = await prisma.prompt.findMany();
+    const prompts = await prisma.prompt.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
 
-    // Transform to TreeNode structure
-    // Note: Prisma's recursive relations need careful handling. 
-    // For now, we'll map a flat list or simple hierarchy.
-
+    // Transform to TreeNode structure with hierarchy
     const mappedFolders = folders.map(f => ({
       id: f.id,
       name: f.name,
       type: 'folder' as const,
       emoji: f.emoji || undefined,
       isSystem: f.isSystem,
-      children: [], // TODO: Reconstruct hierarchy if needed
+      parentId: f.parentId || undefined,
+      children: f.children?.map(child => ({
+        id: child.id,
+        name: child.name,
+        type: 'folder' as const,
+        emoji: child.emoji || undefined,
+        isSystem: child.isSystem,
+        parentId: child.parentId || undefined,
+        children: [],
+        prompts: child.prompts?.map(p => ({
+          id: p.id,
+          name: p.title,
+          type: 'prompt' as const,
+          content: p.content,
+          folderId: p.folderId,
+        })) || [],
+        createdAt: child.createdAt.getTime(),
+        updatedAt: child.updatedAt.getTime(),
+      })) || [],
+      prompts: f.prompts?.map(p => ({
+        id: p.id,
+        name: p.title,
+        type: 'prompt' as const,
+        content: p.content,
+        folderId: p.folderId,
+      })) || [],
       createdAt: f.createdAt.getTime(),
       updatedAt: f.updatedAt.getTime(),
     }));
@@ -42,11 +77,13 @@ export const DataService = {
       folderId: p.folderId,
     }));
 
-    // Basic hierarchy reconstruction (optional, for now returning flat-ish list)
+    // Return folders (with nested children) and prompts
     return [...mappedFolders, ...mappedPrompts];
   },
 
   createPrompt: async (prompt: Partial<Prompt>): Promise<Prompt> => {
+    const userId = await getCurrentUserId();
+
     const newPrompt = await prisma.prompt.create({
       data: {
         title: prompt.name || 'Untitled Prompt',
@@ -55,7 +92,7 @@ export const DataService = {
         emoji: prompt.emoji,
         category: prompt.category,
         tags: prompt.tags || [],
-        userId: 'user-1', // TODO: Get from Stack Auth
+        userId,
         folderId: undefined,
       }
     });
@@ -76,3 +113,4 @@ export const DataService = {
 
   // Add other methods as needed by the API routes
 };
+

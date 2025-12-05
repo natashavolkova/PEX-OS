@@ -82,6 +82,7 @@ function buildTreeFromApi(data: any[]): TreeNode[] {
 
 export function useDataSync() {
     const setData = usePromptManagerStore(s => s.actions.setData);
+    const updatePreferences = usePromptManagerStore(s => s.actions.updatePreferences);
     const [synced, setSynced] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -89,6 +90,8 @@ export function useDataSync() {
         const syncData = async () => {
             try {
                 console.log('🔄 Syncing data from API...');
+
+                // Fetch prompts
                 const response = await fetch('/api/prompts');
                 const result = await response.json();
 
@@ -96,11 +99,17 @@ export function useDataSync() {
                     const tree = buildTreeFromApi(result.data);
                     console.log('✅ Data synced:', tree.length, 'root items');
                     setData(tree);
-                    setSynced(true);
-                } else {
-                    console.error('❌ API returned error:', result);
-                    setError('Failed to fetch data');
                 }
+
+                // Fetch user preferences from Neon DB
+                const prefsRes = await fetch('/api/user/preferences');
+                const prefsData = await prefsRes.json();
+                if (prefsData.success && prefsData.data) {
+                    console.log('✅ Preferences synced:', prefsData.data);
+                    updatePreferences({ gridDensity: prefsData.data.gridDensity || 'standard' });
+                }
+
+                setSynced(true);
             } catch (err) {
                 console.error('❌ Sync error:', err);
                 setError(err instanceof Error ? err.message : 'Unknown error');
@@ -111,7 +120,7 @@ export function useDataSync() {
         if (!synced) {
             syncData();
         }
-    }, [setData, synced]);
+    }, [setData, updatePreferences, synced]);
 
     return { synced, error };
 }

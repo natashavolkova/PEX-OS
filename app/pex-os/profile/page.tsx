@@ -27,6 +27,7 @@ import {
     Grid3X3,
     LayoutGrid,
 } from 'lucide-react';
+import { usePromptManagerStore } from '@/stores/promptManager';
 
 // --- TYPES ---
 interface UserStats {
@@ -38,6 +39,11 @@ interface UserStats {
 
 export default function ProfilePage() {
     const router = useRouter();
+
+    // Use Zustand store for grid density (source of truth for reactivity)
+    const preferences = usePromptManagerStore((s) => s.preferences);
+    const { updatePreferences } = usePromptManagerStore((s) => s.actions);
+
     const [stats, setStats] = useState<UserStats>({
         daysUsing: 0,
         totalPrompts: 0,
@@ -47,10 +53,12 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [regenerating, setRegenerating] = useState(false);
-    const [gridDensity, setGridDensity] = useState<'standard' | 'high'>('standard');
     const [savingPrefs, setSavingPrefs] = useState(false);
 
-    // Fetch user stats and preferences
+    // Current grid density from store
+    const gridDensity = preferences.gridDensity || 'standard';
+
+    // Fetch user stats and hydrate preferences from backend on mount
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -66,11 +74,12 @@ export default function ProfilePage() {
                     });
                 }
 
-                // Fetch preferences
+                // Hydrate preferences from backend (database is source of truth)
                 const prefsRes = await fetch('/api/user/preferences');
                 const prefsData = await prefsRes.json();
                 if (prefsData.success && prefsData.data) {
-                    setGridDensity(prefsData.data.gridDensity || 'standard');
+                    // Sync backend -> store (hydration)
+                    updatePreferences({ gridDensity: prefsData.data.gridDensity || 'standard' });
                 }
             } catch (error) {
                 console.error('Failed to fetch data:', error);
@@ -80,20 +89,29 @@ export default function ProfilePage() {
         };
 
         fetchData();
-    }, []);
+    }, [updatePreferences]);
 
-    // Handle density change
+    // Handle density change - updates BOTH store AND backend
     const handleDensityChange = async (density: 'standard' | 'high') => {
-        setGridDensity(density);
+        // 1. Update store IMMEDIATELY for instant reactivity
+        updatePreferences({ gridDensity: density });
+
+        // 2. Persist to backend (Neon DB)
         setSavingPrefs(true);
         try {
-            await fetch('/api/user/preferences', {
+            const res = await fetch('/api/user/preferences', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ gridDensity: density }),
             });
+            const data = await res.json();
+            if (!data.success) {
+                console.error('Failed to persist preference:', data.error);
+            }
         } catch (error) {
             console.error('Failed to save preference:', error);
+            // Rollback store on error
+            updatePreferences({ gridDensity: gridDensity });
         } finally {
             setSavingPrefs(false);
         }

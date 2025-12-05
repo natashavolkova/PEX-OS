@@ -23,6 +23,9 @@ import {
     AlertTriangle,
     Sparkles,
     Check,
+    Settings,
+    Grid3X3,
+    LayoutGrid,
 } from 'lucide-react';
 
 // --- TYPES ---
@@ -44,30 +47,57 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [regenerating, setRegenerating] = useState(false);
+    const [gridDensity, setGridDensity] = useState<'standard' | 'high'>('standard');
+    const [savingPrefs, setSavingPrefs] = useState(false);
 
-    // Fetch user stats
+    // Fetch user stats and preferences
     useEffect(() => {
-        const fetchStats = async () => {
+        const fetchData = async () => {
             try {
-                const res = await fetch('/api/analytics/stats');
-                const data = await res.json();
-                if (data.success && data.data) {
+                // Fetch stats
+                const statsRes = await fetch('/api/analytics/stats');
+                const statsData = await statsRes.json();
+                if (statsData.success && statsData.data) {
                     setStats({
                         daysUsing: Math.floor((Date.now() - new Date('2024-01-01').getTime()) / (1000 * 60 * 60 * 24)),
-                        totalPrompts: data.data.totalPrompts || 0,
-                        completedProjects: data.data.activeProjects || 0,
+                        totalPrompts: statsData.data.totalPrompts || 0,
+                        completedProjects: statsData.data.activeProjects || 0,
                         currentStreak: 0,
                     });
                 }
+
+                // Fetch preferences
+                const prefsRes = await fetch('/api/user/preferences');
+                const prefsData = await prefsRes.json();
+                if (prefsData.success && prefsData.data) {
+                    setGridDensity(prefsData.data.gridDensity || 'standard');
+                }
             } catch (error) {
-                console.error('Failed to fetch stats:', error);
+                console.error('Failed to fetch data:', error);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchStats();
+        fetchData();
     }, []);
+
+    // Handle density change
+    const handleDensityChange = async (density: 'standard' | 'high') => {
+        setGridDensity(density);
+        setSavingPrefs(true);
+        try {
+            await fetch('/api/user/preferences', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gridDensity: density }),
+            });
+        } catch (error) {
+            console.error('Failed to save preference:', error);
+        } finally {
+            setSavingPrefs(false);
+        }
+    };
 
     const handleLogout = () => {
         localStorage.removeItem('athena-auth');
@@ -246,7 +276,82 @@ export default function ProfilePage() {
                     </div>
                 </div>
 
-                {/* SECTION 4: Account Settings */}
+                {/* SECTION 4: Interface Preferences */}
+                <div className="bg-gradient-to-br from-emerald-500/5 to-teal-500/5 border border-emerald-500/20 rounded-xl p-6">
+                    <h2 className="text-lg font-cinzel text-athena-platinum mb-6 flex items-center gap-2">
+                        <Settings className="w-5 h-5 text-emerald-400" />
+                        Preferências de Interface
+                    </h2>
+
+                    <div className="space-y-4">
+                        {/* Grid Density Toggle */}
+                        <div className="p-4 rounded-lg bg-[#0f111a]/50 border border-white/5">
+                            <div className="mb-4">
+                                <h3 className="text-athena-platinum font-medium mb-1">Densidade do Grid de Prompts</h3>
+                                <p className="text-sm text-athena-silver/60">
+                                    Escolha quantos cards de prompt aparecem por linha.
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                {/* Standard (4 columns) */}
+                                <button
+                                    onClick={() => handleDensityChange('standard')}
+                                    disabled={savingPrefs}
+                                    className={`
+                                        flex items-center gap-3 p-4 rounded-xl border transition-all duration-200
+                                        ${gridDensity === 'standard'
+                                            ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.15)]'
+                                            : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20'
+                                        }
+                                        ${savingPrefs ? 'opacity-50 cursor-wait' : ''}
+                                    `}
+                                >
+                                    <Grid3X3 className="w-6 h-6" />
+                                    <div className="text-left">
+                                        <span className="font-semibold block">Padrão (4)</span>
+                                        <span className="text-xs opacity-60">Grade equilibrada</span>
+                                    </div>
+                                    {gridDensity === 'standard' && (
+                                        <Check className="w-5 h-5 ml-auto text-emerald-400" />
+                                    )}
+                                </button>
+
+                                {/* High Density (5 columns) */}
+                                <button
+                                    onClick={() => handleDensityChange('high')}
+                                    disabled={savingPrefs}
+                                    className={`
+                                        flex items-center gap-3 p-4 rounded-xl border transition-all duration-200
+                                        ${gridDensity === 'high'
+                                            ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.15)]'
+                                            : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20'
+                                        }
+                                        ${savingPrefs ? 'opacity-50 cursor-wait' : ''}
+                                    `}
+                                >
+                                    <LayoutGrid className="w-6 h-6" />
+                                    <div className="text-left">
+                                        <span className="font-semibold block">Alta (5)</span>
+                                        <span className="text-xs opacity-60">Mais densidade</span>
+                                    </div>
+                                    {gridDensity === 'high' && (
+                                        <Check className="w-5 h-5 ml-auto text-emerald-400" />
+                                    )}
+                                </button>
+                            </div>
+
+                            {savingPrefs && (
+                                <p className="text-xs text-emerald-400 mt-3 flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                    Salvando preferência...
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* SECTION 5: Account Settings */}
                 <div className="bg-[#1e2330] border border-white/5 rounded-xl p-6">
                     <h2 className="text-lg font-cinzel text-athena-platinum mb-6 flex items-center gap-2">
                         <Key className="w-5 h-5 text-athena-gold" />

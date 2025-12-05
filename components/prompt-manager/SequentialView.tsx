@@ -258,19 +258,6 @@ const PromptCard: React.FC<PromptCardProps> = ({
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/60 animate-pulse" />
               {formatDate(prompt.date)}
             </span>
-            {prompt.tags && prompt.tags.length > 0 && (
-              <div className="flex items-center gap-1.5 overflow-hidden">
-                {prompt.tags.slice(0, 1).map((tag) => (
-                  <span key={tag} className="px-2 py-0.5 rounded text-[9px] uppercase font-semibold 
-                    bg-white/5 text-gray-400 border border-white/5 truncate max-w-[80px]">
-                    {tag}
-                  </span>
-                ))}
-                {prompt.tags.length > 1 && (
-                  <span className="text-[9px] text-gray-600 shrink-0">+{prompt.tags.length - 1}</span>
-                )}
-              </div>
-            )}
           </div>
 
           {/* Actions - Sempre visíveis */}
@@ -552,8 +539,8 @@ export const SequentialView: React.FC = () => {
             <SlideView
               direction={slideDirection}
               className={`grid gap-6 ${gridDensity === 'high'
-                  ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
-                  : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4'
+                ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+                : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4'
                 }`}
             >
               {prompts.map((prompt, index) => (

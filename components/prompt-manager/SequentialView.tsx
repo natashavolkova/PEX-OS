@@ -194,80 +194,108 @@ const PromptCard: React.FC<PromptCardProps> = ({
         }
       }}
       className={`
-        group relative flex flex-row items-start gap-5 w-full
-        bg-gradient-to-r from-athena-navy/90 via-athena-navy-deep/80 to-athena-navy/70
-        backdrop-blur-xl border rounded-xl p-5 min-h-[120px]
-        transition-all duration-200 cursor-pointer
-        border-emerald-500/20 hover:border-emerald-400/40 hover:shadow-[0_0_30px_rgba(16,185,129,0.12)]
+        group relative flex flex-col w-full overflow-hidden
+        bg-gradient-to-br from-[#1a1f2e] via-[#1e2536] to-[#1a1f2e]
+        backdrop-blur-xl rounded-2xl
+        border border-white/[0.08] hover:border-emerald-500/40
+        shadow-[0_4px_24px_rgba(0,0,0,0.25)] hover:shadow-[0_8px_40px_rgba(16,185,129,0.15)]
+        transition-all duration-300 cursor-pointer
         ${!isLocked ? 'cursor-grab active:cursor-grabbing' : ''}
         ${isDragging ? 'opacity-40 scale-95 border-dashed' : ''}
         ${isJustDropped ? 'animate-success-pulse ring-2 ring-green-500' : ''}
-        hover:scale-[1.005]
+        hover:translate-y-[-2px]
       `}
-      style={{ animationDelay: `${index * 15}ms` }}
+      style={{ animationDelay: `${index * 25}ms` }}
     >
-      {/* Left: Icon */}
-      <div className="shrink-0 w-14 h-14 rounded-xl flex items-center justify-center text-2xl shadow-lg bg-gradient-to-br from-emerald-500/15 to-teal-500/15 border border-emerald-500/20 group-hover:scale-105 transition-transform">
-        {prompt.emoji || '📄'}
-      </div>
+      {/* Top Accent Bar */}
+      <div className="h-1 w-full bg-gradient-to-r from-emerald-500/60 via-teal-400/60 to-cyan-400/60" />
 
-      {/* Center: Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-3 mb-2">
-          <h3 className="text-white font-semibold text-base leading-snug">
-            {prompt.name}
-          </h3>
-          <span className="shrink-0 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400">
-            Prompt
-          </span>
+      {/* Card Content */}
+      <div className="p-6">
+        {/* Header Row */}
+        <div className="flex items-start gap-4 mb-5">
+          {/* Icon */}
+          <div className="shrink-0 w-14 h-14 rounded-xl flex items-center justify-center text-2xl 
+            bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-cyan-500/10 
+            border border-emerald-500/25 shadow-lg
+            group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+            {prompt.emoji || '📄'}
+          </div>
+
+          {/* Title & Badge */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-1">
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider 
+                bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-400 
+                border border-emerald-500/20">
+                Prompt
+              </span>
+            </div>
+            <h3 className="text-white font-bold text-lg leading-tight group-hover:text-emerald-50 transition-colors">
+              {prompt.name}
+            </h3>
+          </div>
         </div>
 
         {/* Content Preview */}
         {prompt.content && (
-          <p className="text-gray-400 text-sm leading-relaxed line-clamp-2 mb-3">
-            {prompt.content.substring(0, 200)}
-          </p>
+          <div className="mb-5 pl-[72px]">
+            <p className="text-gray-400 text-sm leading-relaxed line-clamp-3 
+              border-l-2 border-emerald-500/30 pl-4 italic">
+              {prompt.content.substring(0, 180)}...
+            </p>
+          </div>
         )}
 
-        {/* Meta Row */}
-        <div className="flex items-center gap-4 text-xs text-gray-500">
-          <span className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500/60" />
-            {formatDate(prompt.date)}
-          </span>
-          {prompt.tags && prompt.tags.length > 0 && (
-            <div className="flex items-center gap-1.5">
-              {prompt.tags.slice(0, 3).map((tag) => (
-                <span key={tag} className="px-2 py-0.5 rounded bg-white/5 text-gray-400 text-[10px] uppercase font-semibold">
-                  {tag}
-                </span>
-              ))}
-              {prompt.tags.length > 3 && (
-                <span className="text-gray-600 text-[10px]">+{prompt.tags.length - 3}</span>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+        {/* Footer */}
+        <div className="flex items-center justify-between pt-4 border-t border-white/5">
+          {/* Meta Info */}
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-2 text-xs text-gray-500">
+              <span className="w-2 h-2 rounded-full bg-emerald-500/60 animate-pulse" />
+              {formatDate(prompt.date)}
+            </span>
+            {prompt.tags && prompt.tags.length > 0 && (
+              <div className="flex items-center gap-2">
+                {prompt.tags.slice(0, 2).map((tag) => (
+                  <span key={tag} className="px-2.5 py-1 rounded-lg text-[10px] uppercase font-semibold 
+                    bg-white/5 text-gray-400 border border-white/5">
+                    {tag}
+                  </span>
+                ))}
+                {prompt.tags.length > 2 && (
+                  <span className="text-[10px] text-gray-600">+{prompt.tags.length - 2}</span>
+                )}
+              </div>
+            )}
+          </div>
 
-      {/* Right: Actions */}
-      <div className="shrink-0 flex flex-col gap-2">
-        <Tooltip content="Editar prompt" position="left">
-          <button
-            onClick={(e) => { e.stopPropagation(); onEdit(prompt); }}
-            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-[#2979ff] hover:bg-[#2264d1] text-white rounded-lg transition-all text-xs font-bold active:scale-95"
-          >
-            <Edit2 size={12} /> EDITAR
-          </button>
-        </Tooltip>
-        <Tooltip content="Compartilhar" position="left">
-          <button
-            onClick={(e) => { e.stopPropagation(); onShare(prompt); }}
-            className="p-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg transition-all active:scale-95 flex items-center justify-center"
-          >
-            <Share2 size={14} />
-          </button>
-        </Tooltip>
+          {/* Actions */}
+          <div className="flex items-center gap-2">
+            <Tooltip content="Editar" position="top">
+              <button
+                onClick={(e) => { e.stopPropagation(); onEdit(prompt); }}
+                className="flex items-center gap-2 px-4 py-2.5 
+                  bg-gradient-to-r from-[#2979ff] to-[#5b4eff] 
+                  hover:from-[#3d8bff] hover:to-[#7264ff]
+                  text-white rounded-xl transition-all text-xs font-bold 
+                  shadow-lg shadow-blue-900/25 hover:shadow-blue-900/40
+                  active:scale-95"
+              >
+                <Edit2 size={14} /> EDITAR
+              </button>
+            </Tooltip>
+            <Tooltip content="Compartilhar" position="top">
+              <button
+                onClick={(e) => { e.stopPropagation(); onShare(prompt); }}
+                className="p-2.5 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white 
+                  rounded-xl transition-all active:scale-95 border border-white/5 hover:border-white/10"
+              >
+                <Share2 size={16} />
+              </button>
+            </Tooltip>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -505,18 +533,18 @@ export const SequentialView: React.FC = () => {
           </div>
         )}
 
-        {/* Prompts List - WIDESCREEN HORIZONTAL - 2-4 per row max */}
+        {/* Prompts Grid - 3 columns (sweet spot) - max 4 for ultrawide */}
         {prompts.length > 0 && (
           <div>
             {folders.length > 0 && (
-              <h3 className="text-lg font-semibold text-gray-400 mb-4 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <h3 className="text-lg font-semibold text-gray-400 mb-6 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 Prompts ({prompts.length})
               </h3>
             )}
             <SlideView
               direction={slideDirection}
-              className="grid grid-cols-1 lg:grid-cols-2 gap-4"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6"
             >
               {prompts.map((prompt, index) => (
                 <PromptCard

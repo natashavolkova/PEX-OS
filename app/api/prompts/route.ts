@@ -6,34 +6,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DataService } from '@/lib/api/prompts';
 
-// GET /api/prompts - List all prompts
+// GET /api/prompts - List all folders and prompts
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const folderId = searchParams.get('folderId') || undefined;
     const search = searchParams.get('search') || undefined;
     const tags = searchParams.get('tags') ? searchParams.get('tags')?.split(',') : undefined;
+    const type = searchParams.get('type') || undefined; // 'folder', 'prompt', or undefined for all
 
     const data = await DataService.fetchData();
 
-    // Filter logic (mocking DB query)
-    let filteredData = data.filter((item): item is any => item.type === 'prompt');
+    // If type specified, filter by type
+    let filteredData = data;
 
+    if (type === 'prompt') {
+      filteredData = data.filter((item): item is any => item.type === 'prompt');
+    } else if (type === 'folder') {
+      filteredData = data.filter((item): item is any => item.type === 'folder');
+    }
+    // Otherwise return all data (folders + prompts)
+
+    // Apply additional filters only to prompts
     if (folderId) {
-      filteredData = filteredData.filter(p => p.folderId === folderId);
+      filteredData = filteredData.filter(p => p.type !== 'prompt' || p.folderId === folderId);
     }
 
     if (search) {
       const searchLower = search.toLowerCase();
       filteredData = filteredData.filter(p =>
-        p.title.toLowerCase().includes(searchLower) ||
-        p.content.toLowerCase().includes(searchLower)
+        p.name?.toLowerCase().includes(searchLower) ||
+        p.content?.toLowerCase().includes(searchLower)
       );
     }
 
     if (tags && tags.length > 0) {
       filteredData = filteredData.filter(p =>
-        p.tags && p.tags.some((tag: string) => tags.includes(tag))
+        p.type !== 'prompt' || (p.tags && p.tags.some((tag: string) => tags.includes(tag)))
       );
     }
 

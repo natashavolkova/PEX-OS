@@ -162,6 +162,7 @@ interface PromptCardProps {
   isLocked: boolean;
   isDragging: boolean;
   isJustDropped: boolean;
+  isCompact?: boolean; // For high density mode
 }
 
 const PromptCard: React.FC<PromptCardProps> = ({
@@ -177,6 +178,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
   isLocked,
   isDragging,
   isJustDropped,
+  isCompact = false,
 }) => {
   return (
     <div
@@ -194,9 +196,10 @@ const PromptCard: React.FC<PromptCardProps> = ({
         }
       }}
       className={`
-        group relative flex flex-col h-full min-h-[280px] w-full
+        group relative flex flex-col h-full w-full
+        ${isCompact ? 'min-h-[240px]' : 'min-h-[280px]'}
         bg-gradient-to-br from-[#1a1f2e] via-[#1e2536] to-[#1a1f2e]
-        backdrop-blur-xl rounded-2xl overflow-hidden
+        backdrop-blur-xl ${isCompact ? 'rounded-xl' : 'rounded-2xl'} overflow-hidden
         border border-white/[0.08] hover:border-emerald-500/40
         shadow-[0_4px_24px_rgba(0,0,0,0.25)] hover:shadow-[0_8px_40px_rgba(16,185,129,0.15)]
         transition-all duration-300 cursor-pointer
@@ -211,26 +214,26 @@ const PromptCard: React.FC<PromptCardProps> = ({
       <div className="h-1 w-full bg-gradient-to-r from-emerald-500/60 via-teal-400/60 to-cyan-400/60 shrink-0" />
 
       {/* === ZONA 1: TOPO (Altura Fixa) - Ícone + Badge + Título === */}
-      <div className="shrink-0 p-5 pb-3">
-        <div className="flex items-start gap-4">
+      <div className={`shrink-0 ${isCompact ? 'p-4 pb-2' : 'p-5 pb-3'}`}>
+        <div className={`flex items-start ${isCompact ? 'gap-3' : 'gap-4'}`}>
           {/* Icon */}
-          <div className="shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-xl 
+          <div className={`shrink-0 ${isCompact ? 'w-10 h-10 text-base' : 'w-12 h-12 text-xl'} rounded-xl flex items-center justify-center 
             bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-cyan-500/10 
             border border-emerald-500/25 shadow-lg
-            group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+            group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
             {prompt.emoji || '📄'}
           </div>
 
           {/* Title & Badge */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider 
+              <span className={`px-2 py-0.5 rounded-full ${isCompact ? 'text-[8px]' : 'text-[9px]'} font-bold uppercase tracking-wider 
                 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-400 
-                border border-emerald-500/20">
+                border border-emerald-500/20`}>
                 Prompt
               </span>
             </div>
-            <h3 className="text-white font-bold text-base leading-snug line-clamp-2 group-hover:text-emerald-50 transition-colors">
+            <h3 className={`text-white font-bold ${isCompact ? 'text-sm' : 'text-base'} leading-snug line-clamp-2 group-hover:text-emerald-50 transition-colors`}>
               {prompt.name}
             </h3>
           </div>
@@ -238,23 +241,23 @@ const PromptCard: React.FC<PromptCardProps> = ({
       </div>
 
       {/* === ZONA 2: MEIO (Flex-Grow) - Descrição com line-clamp === */}
-      <div className="flex-grow px-5 min-h-[60px]">
+      <div className={`flex-grow ${isCompact ? 'px-4 min-h-[50px]' : 'px-5 min-h-[60px]'}`}>
         {prompt.content ? (
-          <p className="text-gray-400 text-sm leading-relaxed line-clamp-3 
-            border-l-2 border-emerald-500/30 pl-3 italic">
+          <p className={`text-gray-400 ${isCompact ? 'text-xs' : 'text-sm'} leading-relaxed ${isCompact ? 'line-clamp-2' : 'line-clamp-3'} 
+            border-l-2 border-emerald-500/30 pl-3 italic`}>
             {prompt.content.substring(0, 200)}{prompt.content.length > 200 ? '...' : ''}
           </p>
         ) : (
-          <p className="text-gray-600 text-sm italic">Sem descrição</p>
+          <p className={`text-gray-600 ${isCompact ? 'text-xs' : 'text-sm'} italic`}>Sem descrição</p>
         )}
       </div>
 
       {/* === ZONA 3: RODAPÉ (Ancorado no Fundo) - Data + Botões === */}
-      <div className="shrink-0 mt-auto p-5 pt-4 border-t border-white/5 bg-black/10">
+      <div className={`shrink-0 mt-auto ${isCompact ? 'p-4 pt-3' : 'p-5 pt-4'} border-t border-white/5 bg-black/10`}>
         <div className="flex items-center justify-between gap-3">
           {/* Meta Info */}
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <span className="flex items-center gap-1.5 text-xs text-gray-500 shrink-0">
+            <span className={`flex items-center gap-1.5 ${isCompact ? 'text-[10px]' : 'text-xs'} text-gray-500 shrink-0`}>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/60 animate-pulse" />
               {formatDate(prompt.date)}
             </span>
@@ -538,9 +541,9 @@ export const SequentialView: React.FC = () => {
             )}
             <SlideView
               direction={slideDirection}
-              className={`grid gap-6 ${gridDensity === 'high'
-                ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
-                : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4'
+              className={`grid ${gridDensity === 'high'
+                ? 'gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
+                : 'gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4'
                 }`}
             >
               {prompts.map((prompt, index) => (
@@ -558,6 +561,7 @@ export const SequentialView: React.FC = () => {
                   isLocked={isLocked}
                   isDragging={dragState.draggedItemId === prompt.id}
                   isJustDropped={justDroppedId === prompt.id}
+                  isCompact={gridDensity === 'high'}
                 />
               ))}
             </SlideView>

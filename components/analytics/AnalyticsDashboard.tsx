@@ -444,22 +444,6 @@ export const AnalyticsDashboard: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* Empty state message with action - only shows when no data */}
-        {!hasData && (
-          <div className="mt-6 text-center py-4 border-t border-white/5">
-            <Lightbulb className="w-8 h-8 text-athena-gold/40 mx-auto mb-2" />
-            <p className="text-sm text-gray-400 mb-1">No activity data yet</p>
-            <p className="text-xs text-gray-500 mb-3">Complete tasks to see your productivity patterns</p>
-            <a
-              href="/pex-os/tasks"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#2979ff]/10 text-[#2979ff] hover:bg-[#2979ff]/20 border border-[#2979ff]/20 hover:border-[#2979ff]/40 transition-all text-sm font-medium"
-            >
-              <Target size={16} />
-              Go to Tasks
-            </a>
-          </div>
-        )}
       </div>
     </div>
   );

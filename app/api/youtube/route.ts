@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const status = searchParams.get('status');
 
+    // Optimized query - only needed fields
     const videos = await prisma.youTubeVideo.findMany({
       where: {
         userId,
@@ -27,7 +28,18 @@ export async function GET(request: NextRequest) {
         }),
         ...(status && { watchStatus: status }),
       },
+      select: {
+        id: true,
+        videoId: true,
+        title: true,
+        channelName: true,
+        thumbnailUrl: true,
+        watchStatus: true,
+        notes: true,
+        createdAt: true,
+      },
       orderBy: { createdAt: 'desc' },
+      take: 50, // Limit for performance
     });
 
     return NextResponse.json({

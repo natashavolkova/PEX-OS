@@ -1,35 +1,56 @@
 // ============================================================================
 // AthenaPeX API - TASKS/:ID ROUTE
-// ATHENA Architecture | Mock Implementation (Next.js 15 Compatible)
+// ATHENA Architecture | Neon DB with Prisma (Optimized Queries)
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { mockTasks, getTaskById } from '@/lib/mock-data';
+import prisma from '@/lib/prisma';
+
+// Athena admin user ID
+const ATHENA_USER_ID = 'athena-supreme-user-001';
 
 type Params = Promise<{ id: string }>;
 
-// GET /api/tasks/:id - Get single task
+// GET /api/tasks/:id - Get single task (optimized - only needed fields)
 export async function GET(
   request: NextRequest,
   { params }: { params: Params }
 ) {
   const { id } = await params;
-  console.log('[API] GET /api/tasks/:id', { id });
 
-  // TODO: Replace with real database query
-  const task = getTaskById(id);
+  try {
+    const task = await prisma.task.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        priority: true,
+        dueDate: true,
+        tags: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
-  if (!task) {
+    if (!task) {
+      return NextResponse.json(
+        { success: false, error: 'Task not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: task,
+    });
+  } catch (error) {
+    console.error('[API] GET /api/tasks/:id error:', error);
     return NextResponse.json(
-      { success: false, error: 'Task not found' },
-      { status: 404 }
+      { success: false, error: 'Database error' },
+      { status: 500 }
     );
   }
-
-  return NextResponse.json({
-    success: true,
-    data: task,
-  });
 }
 
 // PATCH /api/tasks/:id - Update task
@@ -39,30 +60,40 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await request.json();
-  console.log('[API] PATCH /api/tasks/:id', { id, body });
 
-  // TODO: Replace with real database update
-  const task = getTaskById(id);
+  try {
+    const task = await prisma.task.update({
+      where: { id },
+      data: {
+        ...(body.title && { title: body.title }),
+        ...(body.status && { status: body.status }),
+        ...(body.priority && { priority: body.priority }),
+        ...(body.dueDate && { dueDate: new Date(body.dueDate) }),
+        ...(body.tags && { tags: body.tags }),
+      },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        priority: true,
+        dueDate: true,
+        tags: true,
+        updatedAt: true,
+      },
+    });
 
-  if (!task) {
+    return NextResponse.json({
+      success: true,
+      data: task,
+      message: 'Task updated successfully',
+    });
+  } catch (error) {
+    console.error('[API] PATCH /api/tasks/:id error:', error);
     return NextResponse.json(
-      { success: false, error: 'Task not found' },
+      { success: false, error: 'Task not found or update failed' },
       { status: 404 }
     );
   }
-
-  // Mock update
-  const updatedTask = {
-    ...task,
-    ...body,
-    updatedAt: Date.now(),
-  };
-
-  return NextResponse.json({
-    success: true,
-    data: updatedTask,
-    message: 'Task updated successfully',
-  });
 }
 
 // DELETE /api/tasks/:id - Delete task
@@ -71,20 +102,21 @@ export async function DELETE(
   { params }: { params: Params }
 ) {
   const { id } = await params;
-  console.log('[API] DELETE /api/tasks/:id', { id });
 
-  // TODO: Replace with real database delete
-  const task = getTaskById(id);
+  try {
+    await prisma.task.delete({
+      where: { id },
+    });
 
-  if (!task) {
+    return NextResponse.json({
+      success: true,
+      message: 'Task deleted successfully',
+    });
+  } catch (error) {
+    console.error('[API] DELETE /api/tasks/:id error:', error);
     return NextResponse.json(
-      { success: false, error: 'Task not found' },
+      { success: false, error: 'Task not found or delete failed' },
       { status: 404 }
     );
   }
-
-  return NextResponse.json({
-    success: true,
-    message: 'Task deleted successfully',
-  });
 }

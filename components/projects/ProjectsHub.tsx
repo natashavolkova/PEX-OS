@@ -382,9 +382,10 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, onClose
 
 export const ProjectsHub: React.FC = () => {
   const projects = useProductivityStore((s) => s.projects);
-  const { setSelectedProject, archiveProject, deleteProject } = useProductivityStore((s) => s.actions);
+  const { setSelectedProject, archiveProject, deleteProject, updateProject } = useProductivityStore((s) => s.actions);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [filter, setFilter] = useState<'all' | 'active' | 'archived' | 'completed'>('all');
   const [sortBy, setSortBy] = useState<'updated' | 'priority' | 'roi'>('updated');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -516,7 +517,7 @@ export const ProjectsHub: React.FC = () => {
                 key={project.id}
                 project={project}
                 onSelect={() => setSelectedProject(project.id)}
-                onEdit={() => { }}
+                onEdit={() => setEditingProject(project)}
                 onArchive={() => archiveProject(project.id)}
                 onDelete={() => deleteProject(project.id)}
               />

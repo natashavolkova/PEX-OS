@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { AthenaThemeProvider } from '@/components/providers/AthenaThemeProvider';
 import { KeyboardShortcutHandler } from '@/components/providers/KeyboardShortcutHandler';
+import { QueryProvider } from '@/components/providers/QueryProvider';
 
 export const metadata: Metadata = {
   title: 'AthenaPeX Productivity Manager',
@@ -24,10 +25,12 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-athena-navy-deep text-athena-platinum font-inter antialiased">
-        <AthenaThemeProvider defaultTheme="dark" storageKey="athenapex-ui-theme">
-          <KeyboardShortcutHandler />
-          {children}
-        </AthenaThemeProvider>
+        <QueryProvider>
+          <AthenaThemeProvider defaultTheme="dark" storageKey="athenapex-ui-theme">
+            <KeyboardShortcutHandler />
+            {children}
+          </AthenaThemeProvider>
+        </QueryProvider>
       </body>
     </html>
   );

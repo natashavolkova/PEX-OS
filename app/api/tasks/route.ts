@@ -1,57 +1,119 @@
 // ============================================================================
 // ATHENAPEX PRODUCTIVITY MANAGER - TASKS API
-// ATHENA Architecture | REST API Endpoints
+// ATHENA Architecture | Neon DB with Prisma (Optimized Queries)
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 
-// GET /api/tasks - List all tasks
+// Athena admin user ID
+const ATHENA_USER_ID = 'athena-supreme-user-001';
+
+// GET /api/tasks - List all tasks (optimized with pagination and filters)
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const projectId = searchParams.get('projectId');
   const status = searchParams.get('status');
   const priority = searchParams.get('priority');
   const page = parseInt(searchParams.get('page') || '1');
-  const limit = parseInt(searchParams.get('limit') || '50');
-  const sortBy = searchParams.get('sortBy') || 'roi';
+  const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50); // Max 50 for performance
 
-  // In production, fetch from database with filters
-  return NextResponse.json({
-    data: [],
-    total: 0,
-    page,
-    limit,
-    hasMore: false,
-  });
+  try {
+    // Build where clause
+    const where: Record<string, unknown> = {
+      userId: ATHENA_USER_ID,
+    };
+    if (status) where.status = status;
+    if (priority) where.priority = priority;
+
+    // Optimized query - only needed fields, with pagination
+    const [tasks, total] = await Promise.all([
+      prisma.task.findMany({
+        where,
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          priority: true,
+          dueDate: true,
+          tags: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.task.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      data: tasks,
+      total,
+      page,
+      limit,
+      hasMore: page * limit < total,
+    });
+  } catch (error) {
+    console.error('[API] GET /api/tasks error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Database error' },
+      { status: 500 }
+    );
+  }
 }
 
 // POST /api/tasks - Create new task
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
-    const impactScore = body.impactScore || 5;
-    const effortScore = body.effortScore || 5;
-    const roiScore = effortScore > 0 ? impactScore / effortScore : impactScore;
 
-    const newTask = {
-      id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      ...body,
-      roiScore: Math.round(roiScore * 10) / 10,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
+    if (!body.title) {
+      return NextResponse.json(
+        { success: false, error: 'Title is required' },
+        { status: 400 }
+      );
+    }
 
-    // In production, save to database
+    // Ensure user exists (upsert)
+    await prisma.user.upsert({
+      where: { id: ATHENA_USER_ID },
+      update: {},
+      create: {
+        id: ATHENA_USER_ID,
+        email: 'athena@pex-os.ai',
+        name: 'Athena',
+      },
+    });
+
+    const task = await prisma.task.create({
+      data: {
+        title: body.title,
+        status: body.status || 'todo',
+        priority: body.priority || 'medium',
+        dueDate: body.dueDate ? new Date(body.dueDate) : null,
+        tags: body.tags || [],
+        userId: ATHENA_USER_ID,
+      },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        priority: true,
+        dueDate: true,
+        tags: true,
+        createdAt: true,
+      },
+    });
 
     return NextResponse.json({
-      data: newTask,
       success: true,
+      data: task,
       message: 'Task created successfully',
     });
   } catch (error) {
+    console.error('[API] POST /api/tasks error:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to create task' },
+      { success: false, error: 'Failed to create task' },
       { status: 400 }
     );
   }

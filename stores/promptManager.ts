@@ -99,7 +99,7 @@ const updateItemInTree = (
 
 // --- INITIAL STATE ---
 
-const initialMasterKey = 'MASTER-ADMIN-001';
+const initialMasterKey = 'ATHENA-MASTER-2024-X9K7P2QM';
 
 const initialData: TreeNode[] = [
   {
@@ -167,7 +167,7 @@ const initialData: TreeNode[] = [
 ];
 
 const initialUser: User = {
-  name: 'Natasha (ENTJ)',
+  name: 'Athena',
   role: 'master',
   keyId: initialMasterKey,
   avatar: null,

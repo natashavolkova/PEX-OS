@@ -16,6 +16,10 @@ const nextConfig = {
   },
   // Transpile Monaco editor
   transpilePackages: ['@monaco-editor/react'],
+  // ESLint v9 - run separately via npm run lint
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;

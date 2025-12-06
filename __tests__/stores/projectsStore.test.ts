@@ -4,7 +4,7 @@
 // ============================================================================
 
 import { act } from '@testing-library/react';
-import { useProjectsStore } from '@/stores/domains/projectsStore';
+import { useProjectsStore } from '../../stores/domains/projectsStore';
 
 describe('useProjectsStore', () => {
     beforeEach(() => {

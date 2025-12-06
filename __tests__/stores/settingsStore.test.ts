@@ -3,7 +3,7 @@
 // Testing domain store for settings and ENTJ rules
 // ============================================================================
 
-import { useSettingsStore } from '@/stores/domains/settingsStore';
+import { useSettingsStore } from '../../stores/domains/settingsStore';
 
 describe('useSettingsStore', () => {
     beforeEach(() => {
@@ -111,13 +111,13 @@ describe('useSettingsStore', () => {
             });
 
             const { actions } = useSettingsStore.getState();
-            actions.toggleENTJRule('rule-1');
+            actions.toggleRule('rule-1');
 
             const { entjRules } = useSettingsStore.getState();
             expect(entjRules[0].enabled).toBe(false);
 
             // Toggle back
-            actions.toggleENTJRule('rule-1');
+            actions.toggleRule('rule-1');
             expect(useSettingsStore.getState().entjRules[0].enabled).toBe(true);
         });
     });

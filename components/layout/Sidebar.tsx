@@ -1,5 +1,10 @@
 'use client';
 
+// ============================================================================
+// ATHENAPEX - SIDEBAR COMPONENT
+// Dynamic badges from stores
+// ============================================================================
+
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
@@ -15,71 +20,81 @@ import {
     Bot,
     Settings,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    LucideIcon
 } from 'lucide-react';
+import { useSidebarCounts, SidebarCounts } from '@/hooks/useSidebarCounts';
 
-const menuItems = [
+interface MenuItem {
+    icon: LucideIcon;
+    label: string;
+    href: string;
+    countKey: keyof SidebarCounts;
+    color: string;
+}
+
+const menuItems: MenuItem[] = [
     {
         icon: BarChart3,
         label: 'Analytics',
         href: '/pex-os/analytics',
-        badge: '5',
+        countKey: 'analytics',
         color: 'text-purple-400'
     },
     {
         icon: Brain,
         label: 'Prompts',
         href: '/pex-os/prompts',
-        badge: '1',
+        countKey: 'prompts',
         color: 'text-blue-400'
     },
     {
         icon: FolderKanban,
         label: 'Projects',
         href: '/pex-os/projects',
-        badge: '2',
+        countKey: 'projects',
         color: 'text-green-400'
     },
     {
         icon: CheckSquare,
         label: 'Tasks',
         href: '/pex-os/tasks',
-        badge: '3',
+        countKey: 'tasks',
         color: 'text-orange-400'
     },
     {
         icon: Target,
         label: 'Battle Plan',
         href: '/pex-os/battle-plan',
-        badge: '4',
+        countKey: 'battlePlan',
         color: 'text-red-400'
     },
     {
         icon: Youtube,
         label: 'YouTube',
         href: '/pex-os/youtube',
-        badge: '6',
+        countKey: 'youtube',
         color: 'text-red-500'
     },
     {
         icon: FileText,
         label: 'Templates',
         href: '/pex-os/templates',
-        badge: '7',
+        countKey: 'templates',
         color: 'text-cyan-400'
     },
     {
         icon: Terminal,
         label: 'Neovim',
         href: '/pex-os/neovim',
-        badge: '8',
+        countKey: 'neovim',
         color: 'text-green-500'
     },
     {
         icon: Bot,
         label: 'AI Agent',
         href: '/pex-os/ai-agent',
-        badge: null,
+        countKey: 'aiAgent',
         color: 'text-athena-gold'
     },
 ];
@@ -87,6 +102,7 @@ const menuItems = [
 export default function Sidebar() {
     const pathname = usePathname();
     const [collapsed, setCollapsed] = useState(false);
+    const counts = useSidebarCounts();
 
     return (
         <aside
@@ -139,6 +155,8 @@ export default function Sidebar() {
                 {menuItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = pathname === item.href;
+                    const count = counts[item.countKey];
+                    const showBadge = count !== null && count > 0;
 
                     return (
                         <Link
@@ -174,8 +192,8 @@ export default function Sidebar() {
                                         {item.label}
                                     </span>
 
-                                    {/* Badge */}
-                                    {item.badge && (
+                                    {/* Badge - Dynamic Count */}
+                                    {showBadge && (
                                         <span className={`
                       text-xs px-2 py-0.5 rounded-full font-medium
                       ${isActive
@@ -184,7 +202,7 @@ export default function Sidebar() {
                                             }
                       transition-all duration-200
                     `}>
-                                            {item.badge}
+                                            {count}
                                         </span>
                                     )}
                                 </>

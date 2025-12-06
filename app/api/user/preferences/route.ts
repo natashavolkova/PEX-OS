@@ -3,8 +3,9 @@ import prisma from '@/lib/prisma';
 
 // ATHENA User ID (hardcoded as per project standard)
 const ATHENA_USER_ID = 'athena-supreme-user-001';
+const ATHENA_EMAIL = 'athena@pex-os.dev';
 
-// PATCH /api/user/preferences - Update user preferences
+// PATCH /api/user/preferences - Update user preferences (with upsert)
 export async function PATCH(request: NextRequest) {
     try {
         const body = await request.json();
@@ -18,10 +19,16 @@ export async function PATCH(request: NextRequest) {
             );
         }
 
-        // Update user preferences in database
-        const updatedUser = await prisma.user.update({
+        // Upsert user preferences in database (create if not exists)
+        const updatedUser = await prisma.user.upsert({
             where: { id: ATHENA_USER_ID },
-            data: {
+            create: {
+                id: ATHENA_USER_ID,
+                email: ATHENA_EMAIL,
+                name: 'Athena Commander',
+                gridDensity: gridDensity || 'standard',
+            },
+            update: {
                 ...(gridDensity && { gridDensity }),
             },
             select: {
@@ -43,22 +50,23 @@ export async function PATCH(request: NextRequest) {
     }
 }
 
-// GET /api/user/preferences - Get user preferences
+// GET /api/user/preferences - Get user preferences (auto-create user if not exists)
 export async function GET() {
     try {
-        const user = await prisma.user.findUnique({
+        // Upsert to ensure user always exists
+        const user = await prisma.user.upsert({
             where: { id: ATHENA_USER_ID },
+            create: {
+                id: ATHENA_USER_ID,
+                email: ATHENA_EMAIL,
+                name: 'Athena Commander',
+                gridDensity: 'standard',
+            },
+            update: {},
             select: {
                 gridDensity: true,
             },
         });
-
-        if (!user) {
-            return NextResponse.json(
-                { error: 'User not found' },
-                { status: 404 }
-            );
-        }
 
         return NextResponse.json({
             success: true,

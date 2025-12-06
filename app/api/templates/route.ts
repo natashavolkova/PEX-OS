@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 // Mock user ID for development
-const MOCK_USER_ID = 'user_athena_dev';
+const MOCK_USER_ID = 'athena-supreme-user-001';
 
 // GET /api/templates - List all templates
 export async function GET(request: NextRequest) {

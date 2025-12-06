@@ -1,80 +1,91 @@
 // ============================================================================
-// ATHENAPEX - NEOVIM API
-// CRUD for Neovim configurations
+// NEOVIM CONFIG API - Turso/Drizzle
+// ATHENA Architecture | Simplified for migration
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import * as neovimDb from '@/lib/db/neovim';
-import { getCurrentUserId } from '@/lib/db/users';
+import { db } from '@/lib/db';
+import { neovimConfigs, users } from '@/lib/db/schema';
+import { eq, desc } from 'drizzle-orm';
+import { generateId, nowISO, parseJsonField, stringifyJsonField, ATHENA_USER_ID, ATHENA_EMAIL, ATHENA_NAME } from '@/lib/db/helpers';
 
-// GET /api/neovim - Get all configs
-export async function GET(request: NextRequest) {
+// GET /api/neovim - List configs
+export async function GET() {
     try {
-        const { searchParams } = new URL(request.url);
-        const base = searchParams.get('base') as neovimDb.NeovimBase | null;
-        const search = searchParams.get('search') || undefined;
+        const results = await db.select({
+            id: neovimConfigs.id,
+            name: neovimConfigs.name,
+            base: neovimConfigs.base,
+            lspConfigs: neovimConfigs.lspConfigs,
+            plugins: neovimConfigs.plugins,
+            content: neovimConfigs.content,
+            createdAt: neovimConfigs.createdAt,
+        })
+            .from(neovimConfigs)
+            .where(eq(neovimConfigs.userId, ATHENA_USER_ID))
+            .orderBy(desc(neovimConfigs.createdAt))
+            .limit(20);
 
-        const userId = await getCurrentUserId();
-        const { configs, total } = await neovimDb.getConfigs(userId, {
-            base: base || undefined,
-            search,
-        });
+        const parsed = results.map(c => ({
+            ...c,
+            lspConfigs: parseJsonField<string[]>(c.lspConfigs, []),
+            plugins: parseJsonField<string[]>(c.plugins, []),
+        }));
 
         return NextResponse.json({
-            data: configs,
-            total,
             success: true,
+            data: parsed,
         });
     } catch (error) {
-        console.error('Neovim configs fetch error:', error);
+        console.error('[API] GET /api/neovim error:', error);
         return NextResponse.json(
-            { success: false, message: 'Failed to fetch configs' },
+            { success: false, error: 'Database error' },
             { status: 500 }
         );
     }
 }
 
-// POST /api/neovim - Create new config
+// POST /api/neovim - Create config
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { name, base, lspConfigs, plugins } = body;
 
-        if (!name || !base) {
-            return NextResponse.json(
-                { success: false, message: 'Name and base are required' },
-                { status: 400 }
-            );
+        // Ensure user exists
+        const existingUser = await db.select().from(users).where(eq(users.id, ATHENA_USER_ID)).limit(1);
+        if (existingUser.length === 0) {
+            await db.insert(users).values({
+                id: ATHENA_USER_ID,
+                email: ATHENA_EMAIL,
+                name: ATHENA_NAME,
+                createdAt: nowISO(),
+                updatedAt: nowISO(),
+            });
         }
 
-        const userId = await getCurrentUserId();
+        const newConfig = {
+            id: generateId(),
+            name: body.name || 'New Config',
+            base: body.base || 'lazyvim',
+            lspConfigs: stringifyJsonField(body.lspConfigs || []),
+            plugins: stringifyJsonField(body.plugins || []),
+            content: body.content || '',
+            createdAt: nowISO(),
+            updatedAt: nowISO(),
+            userId: ATHENA_USER_ID,
+        };
 
-        // Generate config content
-        const content = neovimDb.generateConfigContent(
-            base,
-            lspConfigs || [],
-            plugins || []
-        );
-
-        const config = await neovimDb.createConfig(userId, {
-            name,
-            base,
-            lspConfigs: lspConfigs || [],
-            plugins: plugins || [],
-            content,
-        });
+        await db.insert(neovimConfigs).values(newConfig);
 
         return NextResponse.json({
-            data: config,
             success: true,
-            message: 'Config created successfully',
+            data: newConfig,
+            message: 'Config created',
         });
     } catch (error) {
-        console.error('Neovim config create error:', error);
+        console.error('[API] POST /api/neovim error:', error);
         return NextResponse.json(
-            { success: false, message: 'Failed to create config' },
-            { status: 500 }
+            { success: false, error: 'Failed to create config' },
+            { status: 400 }
         );
     }
 }
-

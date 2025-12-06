@@ -1,86 +1,61 @@
 // ============================================================================
-// ATHENAPEX - EXPORT PROMPTS API
-// Export all prompts and folders to a backup format
+// PROMPTS EXPORT API - Turso/Drizzle
+// ATHENA Architecture | Temporarily simplified for migration
 // ============================================================================
 
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { getCurrentUserId } from '@/lib/db/users';
+import { db } from '@/lib/db';
+import { folders, prompts } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
+import { ATHENA_USER_ID, parseJsonField } from '@/lib/db/helpers';
 
-// GET /api/prompts/export - Export all prompts and folders
+// GET /api/prompts/export - Export prompts as JSON
 export async function GET() {
     try {
-        const userId = await getCurrentUserId();
+        const allFolders = await db.select().from(folders).where(eq(folders.userId, ATHENA_USER_ID));
+        const allPrompts = await db.select().from(prompts).where(eq(prompts.userId, ATHENA_USER_ID));
 
-        // Get all folders with their prompts
-        const folders = await prisma.folder.findMany({
-            where: { userId },
-            include: {
-                prompts: true,
-                children: {
-                    include: {
-                        prompts: true
-                    }
-                }
-            },
-            orderBy: { createdAt: 'asc' }
-        });
-
-        // Transform to backup format
-        const backupFolders = folders.map(folder => ({
-            id: folder.id,
-            name: folder.name,
-            icon: folder.emoji || '📁',
-            emoji: folder.emoji,
-            type: folder.type,
-            parentId: folder.parentId,
-            createdAt: folder.createdAt.toISOString(),
-            updatedAt: folder.updatedAt.toISOString(),
-            prompts: folder.prompts.map(prompt => ({
-                id: prompt.id,
-                folderId: prompt.folderId,
-                title: prompt.title,
-                content: prompt.content,
-                theme: prompt.category,
-                tags: prompt.tags,
-                createdAt: prompt.createdAt.toISOString(),
-                updatedAt: prompt.updatedAt.toISOString(),
-            })),
-            children: folder.children?.map(child => ({
-                id: child.id,
-                name: child.name,
-                icon: child.emoji || '📁',
-                prompts: child.prompts.map(prompt => ({
-                    id: prompt.id,
-                    folderId: prompt.folderId,
-                    title: prompt.title,
-                    content: prompt.content,
-                    theme: prompt.category,
-                    tags: prompt.tags,
-                    createdAt: prompt.createdAt.toISOString(),
-                    updatedAt: prompt.updatedAt.toISOString(),
-                }))
-            })) || []
+        // Convert prompts tags from JSON string to array
+        const parsedPrompts = allPrompts.map(p => ({
+            ...p,
+            tags: parseJsonField<string[]>(p.tags, []),
         }));
 
-        const backup = {
-            folders: backupFolders,
-            exportedAt: new Date().toISOString(),
-            settings: {
-                theme: 'dark',
-                autoSave: true,
-            }
+        // Build tree structure
+        const buildTree = (parentId: string | null): any[] => {
+            const childFolders = allFolders.filter(f => f.parentId === parentId);
+            const childPrompts = parsedPrompts.filter(p => p.folderId === parentId);
+
+            return [
+                ...childFolders.map(f => ({
+                    id: f.id,
+                    name: f.name,
+                    type: 'folder',
+                    emoji: f.emoji,
+                    children: buildTree(f.id),
+                })),
+                ...childPrompts.map(p => ({
+                    id: p.id,
+                    name: p.title,
+                    type: 'prompt',
+                    emoji: p.emoji,
+                    content: p.content,
+                    category: p.category,
+                    tags: p.tags,
+                })),
+            ];
         };
+
+        const data = buildTree(null);
 
         return NextResponse.json({
             success: true,
-            data: backup
+            data,
         });
-
     } catch (error) {
-        console.error('Export prompts error:', error);
+        console.error('[API] GET /api/prompts/export error:', error);
         return NextResponse.json(
-            { success: false, message: 'Failed to export prompts' },
+            { success: false, error: 'Export failed' },
             { status: 500 }
         );
     }

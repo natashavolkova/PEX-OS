@@ -1,70 +1,94 @@
 // ============================================================================
-// ATHENAPEX PRODUCTIVITY MANAGER - PROJECTS API
-// ATHENA Architecture | REST API Endpoints
+// PROJECTS API - Turso/Drizzle
+// ATHENA Architecture | Optimized for Serverless
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { ProjectService } from '@/lib/api/projects';
+import { db } from '@/lib/db';
+import { projects, users } from '@/lib/db/schema';
+import { eq, desc } from 'drizzle-orm';
+import { generateId, nowISO, ATHENA_USER_ID, ATHENA_EMAIL, ATHENA_NAME } from '@/lib/db/helpers';
 
-// GET /api/projects - List all projects
-export async function GET(request: NextRequest) {
+// GET /api/projects - List projects
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
-
-    const projects = await ProjectService.fetchProjects();
-
-    let filtered = projects;
-
-    if (status) {
-      filtered = projects.filter((p) => p.status === status);
-    }
-
-    const total = filtered.length;
-    const paginated = filtered.slice((page - 1) * limit, page * limit);
+    const results = await db.select({
+      id: projects.id,
+      name: projects.name,
+      description: projects.description,
+      status: projects.status,
+      progress: projects.progress,
+      members: projects.members,
+      dueDate: projects.dueDate,
+      createdAt: projects.createdAt,
+    })
+      .from(projects)
+      .where(eq(projects.userId, ATHENA_USER_ID))
+      .orderBy(desc(projects.createdAt))
+      .limit(50);
 
     return NextResponse.json({
-      data: paginated,
-      total,
-      page,
-      limit,
-      hasMore: page * limit < total,
-      success: true
+      success: true,
+      data: results,
     });
   } catch (error) {
+    console.error('[API] GET /api/projects error:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch projects' },
+      { success: false, error: 'Database error' },
       { status: 500 }
     );
   }
 }
 
-// POST /api/projects - Create new project
+// POST /api/projects - Create project
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    // Validate required fields
     if (!body.name) {
       return NextResponse.json(
-        { success: false, message: 'Project name is required' },
+        { success: false, error: 'Name is required' },
         { status: 400 }
       );
     }
 
-    const newProject = await ProjectService.createProject(body);
+    // Ensure user exists
+    const existingUser = await db.select().from(users).where(eq(users.id, ATHENA_USER_ID)).limit(1);
+    if (existingUser.length === 0) {
+      await db.insert(users).values({
+        id: ATHENA_USER_ID,
+        email: ATHENA_EMAIL,
+        name: ATHENA_NAME,
+        createdAt: nowISO(),
+        updatedAt: nowISO(),
+      });
+    }
+
+    const newProject = {
+      id: generateId(),
+      name: body.name,
+      description: body.description || null,
+      status: body.status || 'active',
+      progress: body.progress || 0,
+      members: body.members || 1,
+      dueDate: body.dueDate || null,
+      createdAt: nowISO(),
+      updatedAt: nowISO(),
+      userId: ATHENA_USER_ID,
+    };
+
+    await db.insert(projects).values(newProject);
 
     return NextResponse.json({
-      data: newProject,
       success: true,
-      message: 'Project created successfully',
+      data: newProject,
+      message: 'Project created',
     });
   } catch (error) {
+    console.error('[API] POST /api/projects error:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to create project' },
-      { status: 500 }
+      { success: false, error: 'Failed to create project' },
+      { status: 400 }
     );
   }
 }

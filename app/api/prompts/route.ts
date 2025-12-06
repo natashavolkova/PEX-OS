@@ -1,89 +1,108 @@
 // ============================================================================
-// ATHENAPEX PRODUCTIVITY MANAGER - PROMPTS API
-// ATHENA Architecture | REST API Endpoints with Versioning
+// PROMPTS API - Turso/Drizzle
+// ATHENA Architecture | Optimized for Serverless
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { DataService } from '@/lib/api/prompts';
+import { db } from '@/lib/db';
+import { prompts, users } from '@/lib/db/schema';
+import { eq, desc } from 'drizzle-orm';
+import { generateId, nowISO, parseJsonField, stringifyJsonField, ATHENA_USER_ID, ATHENA_EMAIL, ATHENA_NAME } from '@/lib/db/helpers';
 
-// GET /api/prompts - List all folders and prompts
-export async function GET(request: NextRequest) {
+// GET /api/prompts - List prompts
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const folderId = searchParams.get('folderId') || undefined;
-    const search = searchParams.get('search') || undefined;
-    const tags = searchParams.get('tags') ? searchParams.get('tags')?.split(',') : undefined;
-    const type = searchParams.get('type') || undefined; // 'folder', 'prompt', or undefined for all
+    const results = await db.select({
+      id: prompts.id,
+      title: prompts.title,
+      content: prompts.content,
+      type: prompts.type,
+      emoji: prompts.emoji,
+      category: prompts.category,
+      tags: prompts.tags,
+      version: prompts.version,
+      isFavorite: prompts.isFavorite,
+      folderId: prompts.folderId,
+      createdAt: prompts.createdAt,
+    })
+      .from(prompts)
+      .where(eq(prompts.userId, ATHENA_USER_ID))
+      .orderBy(desc(prompts.createdAt))
+      .limit(100);
 
-    const data = await DataService.fetchData();
-
-    // If type specified, filter by type
-    let filteredData = data;
-
-    if (type === 'prompt') {
-      filteredData = data.filter((item): item is any => item.type === 'prompt');
-    } else if (type === 'folder') {
-      filteredData = data.filter((item): item is any => item.type === 'folder');
-    }
-    // Otherwise return all data (folders + prompts)
-
-    // Apply additional filters only to prompts
-    if (folderId) {
-      filteredData = filteredData.filter(p => p.type !== 'prompt' || p.folderId === folderId);
-    }
-
-    if (search) {
-      const searchLower = search.toLowerCase();
-      filteredData = filteredData.filter((p: any) =>
-        p.name?.toLowerCase().includes(searchLower) ||
-        (p.content && p.content.toLowerCase().includes(searchLower))
-      );
-    }
-
-    if (tags && tags.length > 0) {
-      filteredData = filteredData.filter(p =>
-        p.type !== 'prompt' || (p.tags && p.tags.some((tag: string) => tags.includes(tag)))
-      );
-    }
+    const parsed = results.map(p => ({
+      ...p,
+      tags: parseJsonField<string[]>(p.tags, []),
+    }));
 
     return NextResponse.json({
-      data: filteredData,
-      total: filteredData.length,
-      success: true
+      success: true,
+      data: parsed,
     });
   } catch (error) {
+    console.error('[API] GET /api/prompts error:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch prompts' },
+      { success: false, error: 'Database error' },
       { status: 500 }
     );
   }
 }
 
-// POST /api/prompts - Create new prompt
+// POST /api/prompts - Create prompt
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    // Validate required fields
     if (!body.title || !body.content) {
       return NextResponse.json(
-        { success: false, message: 'Title and content are required' },
+        { success: false, error: 'Title and content are required' },
         { status: 400 }
       );
     }
 
-    const newPrompt = await DataService.createPrompt(body);
+    // Ensure user exists
+    const existingUser = await db.select().from(users).where(eq(users.id, ATHENA_USER_ID)).limit(1);
+    if (existingUser.length === 0) {
+      await db.insert(users).values({
+        id: ATHENA_USER_ID,
+        email: ATHENA_EMAIL,
+        name: ATHENA_NAME,
+        createdAt: nowISO(),
+        updatedAt: nowISO(),
+      });
+    }
+
+    const newPrompt = {
+      id: generateId(),
+      title: body.title,
+      content: body.content,
+      type: body.type || 'prompt',
+      emoji: body.emoji || '📄',
+      category: body.category || null,
+      tags: stringifyJsonField(body.tags || []),
+      version: 1,
+      isFavorite: false,
+      folderId: body.folderId || null,
+      createdAt: nowISO(),
+      updatedAt: nowISO(),
+      userId: ATHENA_USER_ID,
+    };
+
+    await db.insert(prompts).values(newPrompt);
 
     return NextResponse.json({
-      data: newPrompt,
       success: true,
-      message: 'Prompt created successfully',
+      data: {
+        ...newPrompt,
+        tags: body.tags || [],
+      },
+      message: 'Prompt created',
     });
   } catch (error) {
-    console.error('Create prompt error:', error);
+    console.error('[API] POST /api/prompts error:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to create prompt' },
-      { status: 500 }
+      { success: false, error: 'Failed to create prompt' },
+      { status: 400 }
     );
   }
 }

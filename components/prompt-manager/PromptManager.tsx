@@ -122,24 +122,16 @@ export const PromptManager: React.FC = () => {
         showToast(`Vista: ${VIEW_LABELS[views[e.key]]}`, 'info');
       }
 
-      // Ctrl+N: New folder
+      // Ctrl+N: New folder (always allowed - locked only prevents drag & drop)
       if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
         e.preventDefault();
-        if (!isLocked) {
-          openCreateModal('folder', selectedFolder?.id || null);
-        } else {
-          showToast('Desbloqueie para criar', 'warning');
-        }
+        openCreateModal('folder', selectedFolder?.id || null);
       }
 
-      // Ctrl+P: New prompt (when not locked)
+      // Ctrl+P: New prompt (always allowed - locked only prevents drag & drop)
       if ((e.ctrlKey || e.metaKey) && e.key === 'p' && !e.shiftKey) {
         e.preventDefault();
-        if (!isLocked) {
-          openCreateModal('prompt', selectedFolder?.id || null);
-        } else {
-          showToast('Desbloqueie para criar', 'warning');
-        }
+        openCreateModal('prompt', selectedFolder?.id || null);
       }
     };
 
@@ -233,8 +225,8 @@ export const PromptManager: React.FC = () => {
             <button
               onClick={() => setIsLocked(!isLocked)}
               className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${isLocked
-                  ? 'text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20'
-                  : 'text-green-400 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20'
+                ? 'text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20'
+                : 'text-green-400 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20'
                 }`}
             >
               {isLocked ? <Lock size={12} /> : <Unlock size={12} />}

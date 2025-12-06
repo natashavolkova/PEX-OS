@@ -173,7 +173,6 @@ export function Header() {
                         <Sparkles className="h-4 w-4 text-athena-navy-deep" />
                     </div>
                     <span className="text-sm font-medium text-athena-platinum">Commander</span>
-                    <ChevronDown className="h-4 w-4 text-athena-silver/60" />
                 </Link>
             </div>
         </header>

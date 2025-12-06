@@ -127,9 +127,8 @@ const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
             >
               <ChevronRight
                 size={12}
-                className={`text-gray-400 transition-transform duration-200 ${
-                  isExpanded ? 'rotate-90' : ''
-                }`}
+                className={`text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''
+                  }`}
               />
             </button>
           ) : (
@@ -280,10 +279,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
   }, []);
 
   const handleNewFolder = () => {
-    if (isLocked) {
-      showToast('Desbloqueie para criar', 'warning');
-      return;
-    }
+    // Locked mode only prevents drag & drop, not creation
     showToast('Criar pasta...', 'info');
   };
 
@@ -349,8 +345,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={handleNewFolder}
-              disabled={isLocked}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#2979ff] hover:bg-[#2264d1] text-white text-[10px] font-bold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#2979ff] hover:bg-[#2264d1] text-white text-[10px] font-bold rounded-lg transition-all"
             >
               <Plus size={12} />
               Nova Pasta
@@ -358,11 +353,10 @@ export const SidePanel: React.FC<SidePanelProps> = ({
             <Tooltip content={isLocked ? 'Desbloquear' : 'Bloquear'} position="bottom">
               <button
                 onClick={() => setIsLocked(!isLocked)}
-                className={`p-1.5 rounded-lg transition-colors ${
-                  isLocked
+                className={`p-1.5 rounded-lg transition-colors ${isLocked
                     ? 'text-red-400 bg-red-500/10 hover:bg-red-500/20'
                     : 'text-green-400 bg-green-500/10 hover:bg-green-500/20'
-                }`}
+                  }`}
               >
                 {isLocked ? <Lock size={14} /> : <Unlock size={14} />}
               </button>

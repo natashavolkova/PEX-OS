@@ -21,6 +21,8 @@ model User {
   analyticsEvents AnalyticsEvent[]
   youtubeVideos   YouTubeVideo[]
   neovimConfigs   NeovimConfig[]
+  notifications   Notification[]
+  templates       Template[]
 }
 
 model Project {
@@ -134,3 +136,46 @@ model NeovimConfig {
   @@index([userId])
 }
 
+// ============================================================================
+// NOTIFICATIONS MODEL (Batch #18)
+// ============================================================================
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String   // 'task_due', 'focus_complete', 'achievement', 'system', 'reminder'
+  title     String
+  message   String
+  priority  String   @default("normal") // 'low', 'normal', 'high', 'urgent'
+  isRead    Boolean  @default(false)
+  actionUrl String?  // Optional URL to navigate when clicked
+  metadata  Json?    // Additional notification data
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// TEMPLATES MODEL (Batch #20)
+// ============================================================================
+
+model Template {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String   @default("general") // 'general', 'project', 'prompt', 'battle-plan'
+  content     Json     // Template structure/content
+  emoji       String?
+  tags        String[]
+  isPublic    Boolean  @default(false)
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([category])
+}

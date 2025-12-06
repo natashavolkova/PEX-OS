@@ -22,6 +22,18 @@ interface AnalyticsState {
     promptAnalyses: PromptAnalysis[];
     currentFocusWindow: FocusWindow | null;
 
+    // API State
+    isLoading: boolean;
+    lastFetchedAt: number | null;
+    statsCache: {
+        totalPrompts: number;
+        activeProjects: number;
+        totalFocusHours: number;
+        completedTasks: number;
+        youtubeVideos: number;
+        neovimConfigs: number;
+    } | null;
+
     actions: {
         // Focus Windows
         startFocusWindow: (type: FocusWindow['type']) => void;
@@ -39,6 +51,10 @@ interface AnalyticsState {
         // Prompt Versions
         addPromptVersion: (promptId: string, content: string, changelog: string) => void;
         getPromptVersions: (promptId: string) => PromptVersion[];
+
+        // API Methods
+        fetchDashboardStats: () => Promise<void>;
+        fetchHeatmapData: () => Promise<void>;
     };
 }
 
@@ -54,6 +70,11 @@ export const useAnalyticsStore = create<AnalyticsState>()(
                 promptVersions: [],
                 promptAnalyses: [],
                 currentFocusWindow: null,
+
+                // API State - initial values
+                isLoading: false,
+                lastFetchedAt: null,
+                statsCache: null,
 
                 actions: {
                     // Focus Windows
@@ -171,6 +192,56 @@ export const useAnalyticsStore = create<AnalyticsState>()(
 
                     getPromptVersions: (promptId) =>
                         get().promptVersions.filter((v) => v.promptId === promptId),
+
+                    // API Methods
+                    fetchDashboardStats: async () => {
+                        set({ isLoading: true });
+                        try {
+                            const res = await fetch('/api/analytics/stats');
+                            const data = await res.json();
+                            if (data.success && data.data) {
+                                set({
+                                    statsCache: data.data,
+                                    lastFetchedAt: Date.now(),
+                                });
+                            }
+                        } catch (error) {
+                            console.error('fetchDashboardStats error:', error);
+                        } finally {
+                            set({ isLoading: false });
+                        }
+                    },
+
+                    fetchHeatmapData: async () => {
+                        set({ isLoading: true });
+                        try {
+                            const res = await fetch('/api/analytics?type=heatmap');
+                            const data = await res.json();
+                            if (data.success && data.data) {
+                                // Transform heatmap data into dailyMetrics format
+                                const metrics = data.data.map((d: any) => ({
+                                    date: d.date,
+                                    hourlyActivity: d.hours || [],
+                                    productivityScore: d.score || 0,
+                                    focusMinutes: 0,
+                                    tasksCompleted: 0,
+                                    tasksCreated: 0,
+                                    promptsCreated: 0,
+                                    promptsRefined: 0,
+                                    peakHours: [],
+                                    deadZones: [],
+                                }));
+                                set({
+                                    dailyMetrics: metrics,
+                                    lastFetchedAt: Date.now(),
+                                });
+                            }
+                        } catch (error) {
+                            console.error('fetchHeatmapData error:', error);
+                        } finally {
+                            set({ isLoading: false });
+                        }
+                    },
                 },
             }),
             {

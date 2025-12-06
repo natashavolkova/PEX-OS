@@ -274,6 +274,20 @@ export const AnalyticsDashboard: React.FC = () => {
   // Check if system has any data
   const hasData = stats.totalPrompts > 0 || stats.activeProjects > 0 || stats.completedTasks > 0;
 
+  // Heatmap configuration
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+
+  // Peak hours data (empty state)
+  const peakHours = [
+    { hour: '6 AM', value: 0 },
+    { hour: '9 AM', value: 0 },
+    { hour: '12 PM', value: 0 },
+    { hour: '3 PM', value: 0 },
+    { hour: '6 PM', value: 0 },
+    { hour: '9 PM', value: 0 },
+  ];
+
   return (
     <div className="h-full overflow-y-auto p-6 bg-[#0f111a] custom-scrollbar">
       {/* Stats Cards */}
@@ -327,40 +341,125 @@ export const AnalyticsDashboard: React.FC = () => {
         <QuickActions />
       </div>
 
-      {/* Heatmap - Full Width */}
-      <div className="mb-6">
-        <EmptyHeatmap />
-      </div>
-
-      {/* Peak Hours + Insights - 2 Columns Below Heatmap */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Peak Hours */}
-        <PeakHoursChart />
-
-        {/* Productivity Insights */}
-        <div className="bg-[#1e2330] border border-white/5 rounded-xl p-4">
-          <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-4">
-            <Brain size={16} className="text-purple-400" />
-            Productivity Insights
+      {/* Unified Analytics Container - Heatmap + Peak Hours + Insights */}
+      <div className="bg-[#1e2330] border border-white/5 rounded-xl p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <Activity size={20} className="text-[#2979ff]" />
+            Weekly Activity Heatmap
           </h3>
-
-          <div className="space-y-3">
-            <InsightCard
-              type="tip"
-              title="Welcome to Athena"
-              description="Start creating prompts and completing tasks to generate personalized productivity insights."
-              priority="low"
-            />
-            {stats.completedTasks === 0 && (
-              <InsightCard
-                type="tip"
-                title="No completed tasks"
-                description="Create your first task and complete it to start tracking your productivity metrics."
-                priority="medium"
-              />
-            )}
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            <span>Less</span>
+            <div className="flex gap-1">
+              <div className="w-4 h-4 bg-[#1e2330] border border-white/10 rounded-sm" />
+              <div className="w-4 h-4 bg-[#2979ff]/20 rounded-sm" />
+              <div className="w-4 h-4 bg-[#2979ff]/40 rounded-sm" />
+              <div className="w-4 h-4 bg-[#2979ff]/60 rounded-sm" />
+              <div className="w-4 h-4 bg-[#2979ff] rounded-sm" />
+            </div>
+            <span>More</span>
           </div>
         </div>
+
+        {/* Main Grid: Heatmap (left) + Sidebar (right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+          {/* Heatmap Grid */}
+          <div className="overflow-x-auto">
+            <div className="min-w-[600px]">
+              {/* Hours header */}
+              <div className="flex mb-2">
+                <div className="w-14 shrink-0" />
+                {hours.filter((h) => h % 2 === 0).map((hour) => (
+                  <div
+                    key={hour}
+                    className="flex-1 text-xs text-gray-500 text-center"
+                    style={{ minWidth: '24px' }}
+                  >
+                    {hour}:00
+                  </div>
+                ))}
+              </div>
+
+              {/* Grid */}
+              {days.map((day) => (
+                <div key={day} className="flex items-center mb-1">
+                  <div className="w-14 text-sm text-gray-400 shrink-0 font-medium">{day}</div>
+                  <div className="flex-1 flex gap-0.5">
+                    {hours.map((hour) => (
+                      <div
+                        key={hour}
+                        className="flex-1 h-6 bg-[#1e2330] border border-white/5 rounded hover:border-[#2979ff]/30 transition-all cursor-pointer"
+                        style={{ minWidth: '24px' }}
+                        title={`${day} ${hour}:00 - No activity`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right Sidebar: Peak Hours + Insights */}
+          <div className="flex flex-col gap-4 border-l border-white/5 pl-6">
+            {/* Peak Productivity Hours */}
+            <div>
+              <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-3">
+                <Sun size={16} className="text-yellow-400" />
+                Peak Productivity Hours
+              </h4>
+              <div className="space-y-2">
+                {peakHours.map(({ hour, value }) => (
+                  <div key={hour} className="flex items-center gap-2">
+                    <div className="w-10 text-xs text-gray-400">{hour}</div>
+                    <div className="flex-1 h-3 bg-[#0f111a] rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-yellow-500/30 to-yellow-500/60 rounded-full transition-all"
+                        style={{ width: `${value}%` }}
+                      />
+                    </div>
+                    <div className="w-8 text-xs text-gray-500 text-right">{value}%</div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[10px] text-gray-500 mt-2 text-center">Complete tasks to discover your peak hours</p>
+            </div>
+
+            {/* Divider */}
+            <div className="border-t border-white/5" />
+
+            {/* Productivity Insights */}
+            <div>
+              <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-3">
+                <Brain size={16} className="text-purple-400" />
+                Productivity Insights
+              </h4>
+              <div className="space-y-2">
+                <InsightCard
+                  type="tip"
+                  title="Welcome to Athena"
+                  description="Start creating prompts and completing tasks to generate personalized productivity insights."
+                  priority="low"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Empty state message with action - only shows when no data */}
+        {!hasData && (
+          <div className="mt-6 text-center py-4 border-t border-white/5">
+            <Lightbulb className="w-8 h-8 text-athena-gold/40 mx-auto mb-2" />
+            <p className="text-sm text-gray-400 mb-1">No activity data yet</p>
+            <p className="text-xs text-gray-500 mb-3">Complete tasks to see your productivity patterns</p>
+            <a
+              href="/pex-os/tasks"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#2979ff]/10 text-[#2979ff] hover:bg-[#2979ff]/20 border border-[#2979ff]/20 hover:border-[#2979ff]/40 transition-all text-sm font-medium"
+            >
+              <Target size={16} />
+              Go to Tasks
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

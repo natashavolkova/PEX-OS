@@ -91,6 +91,12 @@ interface ProjectsState {
     selectedProjectId: string | null;
     selectedTaskId: string | null;
 
+    // API Sync State
+    isLoading: boolean;
+    isSyncing: boolean;
+    lastSyncedAt: number | null;
+    syncError: string | null;
+
     actions: {
         // Projects
         addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'tasksCount' | 'completedTasksCount'>) => string;
@@ -114,6 +120,14 @@ interface ProjectsState {
         // Utilities
         getProjectTasks: (projectId: string) => Task[];
         getHighROITasks: (limit?: number) => Task[];
+
+        // API Sync Methods
+        fetchProjects: () => Promise<void>;
+        fetchTasks: () => Promise<void>;
+        syncProjectToAPI: (project: Project) => Promise<boolean>;
+        syncTaskToAPI: (task: Task) => Promise<boolean>;
+        hydrateFromAPI: () => Promise<void>;
+        clearSyncError: () => void;
     };
 }
 
@@ -128,6 +142,12 @@ export const useProjectsStore = create<ProjectsState>()(
                 taskLogs: [],
                 selectedProjectId: null,
                 selectedTaskId: null,
+
+                // API Sync State - initial values
+                isLoading: false,
+                isSyncing: false,
+                lastSyncedAt: null,
+                syncError: null,
 
                 actions: {
                     // Projects
@@ -145,15 +165,23 @@ export const useProjectsStore = create<ProjectsState>()(
                         set((state) => ({
                             projects: [newProject, ...state.projects],
                         }));
+                        // Sync to API in background
+                        get().actions.syncProjectToAPI(newProject);
                         return id;
                     },
 
-                    updateProject: (id, updates) =>
+                    updateProject: (id, updates) => {
                         set((state) => ({
                             projects: state.projects.map((p) =>
                                 p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p
                             ),
-                        })),
+                        }));
+                        // Sync updated project to API
+                        const updatedProject = get().projects.find(p => p.id === id);
+                        if (updatedProject) {
+                            get().actions.syncProjectToAPI(updatedProject);
+                        }
+                    },
 
                     deleteProject: (id) =>
                         set((state) => ({
@@ -304,6 +332,119 @@ export const useProjectsStore = create<ProjectsState>()(
                             .filter((t) => t.status !== 'completed' && t.status !== 'cancelled')
                             .sort((a, b) => b.roiScore - a.roiScore)
                             .slice(0, limit),
+
+                    // API Sync Methods
+                    fetchProjects: async () => {
+                        set({ isLoading: true, syncError: null });
+                        try {
+                            const res = await fetch('/api/projects');
+                            const data = await res.json();
+                            if (data.success && data.data) {
+                                set({
+                                    projects: data.data,
+                                    lastSyncedAt: Date.now(),
+                                });
+                            }
+                        } catch (error) {
+                            set({ syncError: 'Failed to fetch projects from API' });
+                            console.error('fetchProjects error:', error);
+                        } finally {
+                            set({ isLoading: false });
+                        }
+                    },
+
+                    syncProjectToAPI: async (project) => {
+                        set({ isSyncing: true });
+                        try {
+                            const res = await fetch('/api/projects', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(project),
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                                set({ lastSyncedAt: Date.now() });
+                                return true;
+                            }
+                            return false;
+                        } catch (error) {
+                            set({ syncError: 'Failed to sync project to API' });
+                            console.error('syncProjectToAPI error:', error);
+                            return false;
+                        } finally {
+                            set({ isSyncing: false });
+                        }
+                    },
+
+                    fetchTasks: async () => {
+                        set({ isLoading: true, syncError: null });
+                        try {
+                            const res = await fetch('/api/tasks');
+                            const data = await res.json();
+                            if (data.success && data.data) {
+                                set({
+                                    tasks: data.data,
+                                    lastSyncedAt: Date.now(),
+                                });
+                            }
+                        } catch (error) {
+                            set({ syncError: 'Failed to fetch tasks from API' });
+                            console.error('fetchTasks error:', error);
+                        } finally {
+                            set({ isLoading: false });
+                        }
+                    },
+
+                    syncTaskToAPI: async (task) => {
+                        set({ isSyncing: true });
+                        try {
+                            const res = await fetch('/api/tasks', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(task),
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                                set({ lastSyncedAt: Date.now() });
+                                return true;
+                            }
+                            return false;
+                        } catch (error) {
+                            set({ syncError: 'Failed to sync task to API' });
+                            console.error('syncTaskToAPI error:', error);
+                            return false;
+                        } finally {
+                            set({ isSyncing: false });
+                        }
+                    },
+
+                    hydrateFromAPI: async () => {
+                        set({ isLoading: true, syncError: null });
+                        try {
+                            // Fetch projects
+                            const projectsRes = await fetch('/api/projects');
+                            const projectsData = await projectsRes.json();
+
+                            // Fetch tasks
+                            const tasksRes = await fetch('/api/tasks');
+                            const tasksData = await tasksRes.json();
+
+                            if (projectsData.success && projectsData.data) {
+                                set({ projects: projectsData.data });
+                            }
+                            if (tasksData.success && tasksData.data) {
+                                set({ tasks: tasksData.data });
+                            }
+                            set({ lastSyncedAt: Date.now() });
+                        } catch (error) {
+                            set({ syncError: 'Failed to hydrate from API' });
+                            console.error('hydrateFromAPI error:', error);
+                        } finally {
+                            set({ isLoading: false });
+                        }
+                    },
+
+                    clearSyncError: () => set({ syncError: null }),
                 },
             }),
             {

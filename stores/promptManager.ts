@@ -205,46 +205,51 @@ interface PromptManagerState {
   // Data
   data: TreeNode[];
   sharedData: SharedItem[];
-  
+
   // Selection State
   selectedFolder: Folder | null;
   selectedSubfolder: Folder | null;
   selectedPrompt: Prompt | null;
-  
+
   // Navigation
   activeView: ViewType;
   lastMainView: ViewType;
   sequentialPath: string[];
   slideDirection: 'left' | 'right' | 'none';
-  
+
   // UI State
   isLocked: boolean;
   isLoading: boolean;
   searchQuery: string;
   toast: Toast | null;
-  
+
   // Drag & Drop
   dragState: DragState;
   moveSelector: MoveSelector;
   justDroppedId: string | null;
-  
+
   // Modals
   editModal: EditModalState;
+  createModal: {
+    isOpen: boolean;
+    type: 'folder' | 'prompt';
+    parentId: string | null;
+  };
   isSettingsOpen: boolean;
   isNotificationsOpen: boolean;
   isHistoryOpen: boolean;
   isMasterLoginOpen: boolean;
   isPromptViewerOpen: boolean;
-  
+
   // User
   currentUser: User;
   preferences: UserPreferences;
-  
+
   // Notifications & Keys
   notifications: Notification[];
   generatedKeys: AccessKey[];
   masterKey: string;
-  
+
   // Actions
   actions: {
     // Data Management
@@ -254,20 +259,20 @@ interface PromptManagerState {
     deleteItem: (id: string) => void;
     moveItem: (itemId: string, targetFolderId: string | null) => void;
     importPackage: (pkg: Folder, targetFolderId?: string | null) => void;
-    
+
     // Selection
     setSelectedFolder: (folder: Folder | null) => void;
     setSelectedSubfolder: (folder: Folder | null) => void;
     setSelectedPrompt: (prompt: Prompt | null) => void;
     clearSelection: () => void;
-    
+
     // Navigation
     setActiveView: (view: ViewType) => void;
     navigateToFolder: (folder: Folder) => void;
     navigateToIndex: (index: number) => void;
     goBack: () => void;
     goToRoot: () => void;
-    
+
     // UI State
     setIsLocked: (locked: boolean) => void;
     setIsLoading: (loading: boolean) => void;
@@ -275,38 +280,40 @@ interface PromptManagerState {
     showToast: (message: string, type: Toast['type']) => void;
     clearToast: () => void;
     setJustDroppedId: (id: string | null) => void;
-    
+
     // Drag & Drop
     setDragState: (state: Partial<DragState>) => void;
     setMoveSelector: (selector: Partial<MoveSelector>) => void;
     closeMoveSelector: () => void;
-    
+
     // Modals
     openEditModal: (item: TreeNode, fullEdit?: boolean, isImport?: boolean) => void;
     closeEditModal: () => void;
+    openCreateModal: (type: 'folder' | 'prompt', parentId?: string | null) => void;
+    closeCreateModal: () => void;
     setSettingsOpen: (open: boolean) => void;
     setNotificationsOpen: (open: boolean) => void;
     setHistoryOpen: (open: boolean) => void;
     setMasterLoginOpen: (open: boolean) => void;
     setPromptViewerOpen: (open: boolean) => void;
-    
+
     // User
     setCurrentUser: (user: User) => void;
     updatePreferences: (prefs: Partial<UserPreferences>) => void;
     login: (userName: string, accessKey: string) => boolean;
     logout: () => void;
-    
+
     // Notifications
     addNotification: (notification: Omit<Notification, 'id'>) => void;
     markNotificationRead: (id: number) => void;
     markAllNotificationsRead: () => void;
     clearNotifications: () => void;
-    
+
     // Keys Management
     generateKey: (userName: string) => string;
     revokeKey: (keyId: string) => void;
     validateKey: (key: string) => AccessKey | null;
-    
+
     // Utilities
     findItem: (id: string) => TreeNode | null;
     getValidMoveTargets: (draggedId: string) => Folder[];
@@ -353,6 +360,11 @@ export const usePromptManagerStore = create<PromptManagerState>()(
           isFullEdit: false,
           isImport: false,
         },
+        createModal: {
+          isOpen: false,
+          type: 'folder',
+          parentId: null,
+        },
         isSettingsOpen: false,
         isNotificationsOpen: false,
         isHistoryOpen: false,
@@ -369,32 +381,32 @@ export const usePromptManagerStore = create<PromptManagerState>()(
         actions: {
           // Data Management
           setData: (data) => set({ data }),
-          
+
           addItem: (item, parentId = null) =>
             set((state) => ({
               data: addItemToFolder(state.data, parentId, item),
             })),
-          
+
           updateItem: (id, updates) =>
             set((state) => ({
               data: updateItemInTree(state.data, id, updates),
             })),
-          
+
           deleteItem: (id) => {
             const state = get();
             const item = state.actions.findItem(id);
             const itemName = item?.name || 'Item';
-            
+
             set((s) => ({
               data: removeItemById(s.data, id),
               selectedFolder: s.selectedFolder?.id === id ? null : s.selectedFolder,
               selectedSubfolder: s.selectedSubfolder?.id === id ? null : s.selectedSubfolder,
               selectedPrompt: s.selectedPrompt?.id === id ? null : s.selectedPrompt,
             }));
-            
+
             state.actions.showToast(`"${itemName}" excluído!`, 'success');
           },
-          
+
           moveItem: (itemId, targetFolderId) => {
             const state = get();
             const item = state.actions.findItem(itemId);
@@ -417,7 +429,7 @@ export const usePromptManagerStore = create<PromptManagerState>()(
             // Clear drop feedback
             setTimeout(() => set({ justDroppedId: null }), 300);
           },
-          
+
           importPackage: (pkg, targetFolderId = null) => {
             const newPkg: Folder = {
               ...pkg,
@@ -431,12 +443,12 @@ export const usePromptManagerStore = create<PromptManagerState>()(
           // Selection
           setSelectedFolder: (folder) =>
             set({ selectedFolder: folder, selectedSubfolder: null, selectedPrompt: null }),
-          
+
           setSelectedSubfolder: (folder) =>
             set({ selectedSubfolder: folder, selectedPrompt: null }),
-          
+
           setSelectedPrompt: (prompt) => set({ selectedPrompt: prompt }),
-          
+
           clearSelection: () =>
             set({ selectedFolder: null, selectedSubfolder: null, selectedPrompt: null }),
 
@@ -447,25 +459,25 @@ export const usePromptManagerStore = create<PromptManagerState>()(
               lastMainView: view !== 'shared' ? view : state.lastMainView,
               sequentialPath: view === 'sequential' ? [] : state.sequentialPath,
             })),
-          
+
           navigateToFolder: (folder) =>
             set((state) => ({
               sequentialPath: [...state.sequentialPath, folder.id],
               slideDirection: 'left',
             })),
-          
+
           navigateToIndex: (index) =>
             set((state) => ({
               sequentialPath: state.sequentialPath.slice(0, index + 1),
               slideDirection: 'right',
             })),
-          
+
           goBack: () =>
             set((state) => ({
               sequentialPath: state.sequentialPath.slice(0, -1),
               slideDirection: 'right',
             })),
-          
+
           goToRoot: () =>
             set({
               sequentialPath: [],
@@ -477,18 +489,18 @@ export const usePromptManagerStore = create<PromptManagerState>()(
             set({ isLocked: locked });
             get().actions.showToast(locked ? 'Bloqueado' : 'Desbloqueado', 'info');
           },
-          
+
           setIsLoading: (loading) => set({ isLoading: loading }),
-          
+
           setSearchQuery: (query) => set({ searchQuery: query }),
-          
+
           showToast: (message, type) => {
             set({ toast: { message, type } });
             setTimeout(() => set({ toast: null }), 3000);
           },
-          
+
           clearToast: () => set({ toast: null }),
-          
+
           setJustDroppedId: (id) => set({ justDroppedId: id }),
 
           // Drag & Drop
@@ -496,12 +508,12 @@ export const usePromptManagerStore = create<PromptManagerState>()(
             set((prev) => ({
               dragState: { ...prev.dragState, ...state },
             })),
-          
+
           setMoveSelector: (selector) =>
             set((prev) => ({
               moveSelector: { ...prev.moveSelector, ...selector },
             })),
-          
+
           closeMoveSelector: () =>
             set({
               moveSelector: {
@@ -517,12 +529,22 @@ export const usePromptManagerStore = create<PromptManagerState>()(
             set({
               editModal: { isOpen: true, item, isFullEdit: fullEdit, isImport },
             }),
-          
+
           closeEditModal: () =>
             set({
               editModal: { isOpen: false, item: null, isFullEdit: false, isImport: false },
             }),
-          
+
+          openCreateModal: (type, parentId = null) =>
+            set({
+              createModal: { isOpen: true, type, parentId },
+            }),
+
+          closeCreateModal: () =>
+            set({
+              createModal: { isOpen: false, type: 'folder', parentId: null },
+            }),
+
           setSettingsOpen: (open) => set({ isSettingsOpen: open }),
           setNotificationsOpen: (open) => set({ isNotificationsOpen: open }),
           setHistoryOpen: (open) => set({ isHistoryOpen: open }),
@@ -531,25 +553,25 @@ export const usePromptManagerStore = create<PromptManagerState>()(
 
           // User
           setCurrentUser: (user) => set({ currentUser: user }),
-          
+
           updatePreferences: (prefs) =>
             set((state) => ({
               preferences: { ...state.preferences, ...prefs },
             })),
-          
+
           login: (userName, accessKey) => {
             const state = get();
             const keyMatch = state.generatedKeys.find(
               (k) => k.key === accessKey && k.userName === userName && k.active
             );
-            
+
             if (accessKey === state.masterKey) {
               set({
                 currentUser: { ...initialUser },
               });
               return true;
             }
-            
+
             if (keyMatch) {
               set({
                 currentUser: {
@@ -562,10 +584,10 @@ export const usePromptManagerStore = create<PromptManagerState>()(
               get().actions.showToast(`Bem-vindo, ${userName}!`, 'success');
               return true;
             }
-            
+
             return false;
           },
-          
+
           logout: () => set({ currentUser: initialUser }),
 
           // Notifications
@@ -576,19 +598,19 @@ export const usePromptManagerStore = create<PromptManagerState>()(
                 ...state.notifications,
               ],
             })),
-          
+
           markNotificationRead: (id) =>
             set((state) => ({
               notifications: state.notifications.map((n) =>
                 n.id === id ? { ...n, read: true } : n
               ),
             })),
-          
+
           markAllNotificationsRead: () =>
             set((state) => ({
               notifications: state.notifications.map((n) => ({ ...n, read: true })),
             })),
-          
+
           clearNotifications: () => set({ notifications: [] }),
 
           // Keys Management
@@ -607,14 +629,14 @@ export const usePromptManagerStore = create<PromptManagerState>()(
             get().actions.showToast(`Chave gerada para ${userName}`, 'success');
             return newKey;
           },
-          
+
           revokeKey: (keyId) =>
             set((state) => ({
               generatedKeys: state.generatedKeys.map((k) =>
                 k.id === keyId ? { ...k, active: false } : k
               ),
             })),
-          
+
           validateKey: (key) => {
             const state = get();
             return state.generatedKeys.find((k) => k.key === key && k.active) || null;
@@ -622,7 +644,7 @@ export const usePromptManagerStore = create<PromptManagerState>()(
 
           // Utilities
           findItem: (id) => findItemById(get().data, id),
-          
+
           getValidMoveTargets: (draggedId) => {
             const targets: Folder[] = [];
             const traverse = (items: TreeNode[]) => {
@@ -637,7 +659,7 @@ export const usePromptManagerStore = create<PromptManagerState>()(
             traverse(get().data);
             return targets;
           },
-          
+
           isDescendant: (parentId, childId) => {
             const parent = get().actions.findItem(parentId);
             if (!parent || parent.type !== 'folder') return false;
@@ -654,7 +676,7 @@ export const usePromptManagerStore = create<PromptManagerState>()(
 
             return checkChildren(parent.children || []);
           },
-          
+
           getCurrentSequentialNodes: () => {
             const state = get();
             let currentNodes = state.data;

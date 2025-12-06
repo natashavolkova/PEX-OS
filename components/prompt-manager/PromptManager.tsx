@@ -60,17 +60,9 @@ export const PromptManager: React.FC = () => {
   const toast = usePromptManagerStore((s) => s.toast);
   const isLocked = usePromptManagerStore((s) => s.isLocked);
   const selectedFolder = usePromptManagerStore((s) => s.selectedFolder);
-  const { setSearchQuery, setIsLocked, showToast, setActiveView } =
+  const createModal = usePromptManagerStore((s) => s.createModal);
+  const { setSearchQuery, setIsLocked, showToast, setActiveView, openCreateModal, closeCreateModal } =
     usePromptManagerStore((s) => s.actions);
-
-  // Create Modal State
-  const {
-    isOpen: isCreateOpen,
-    type: createType,
-    parentId: createParentId,
-    openCreateModal,
-    closeCreateModal,
-  } = useCreateModal();
 
   // Delete Modal State
   const {
@@ -272,10 +264,10 @@ export const PromptManager: React.FC = () => {
 
       {/* Create Modal */}
       <CreateModal
-        isOpen={isCreateOpen}
+        isOpen={createModal.isOpen}
         onClose={closeCreateModal}
-        type={createType}
-        parentId={createParentId}
+        type={createModal.type}
+        parentId={createModal.parentId}
       />
 
       {/* Delete Modal */}

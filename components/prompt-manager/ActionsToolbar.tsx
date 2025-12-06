@@ -38,26 +38,18 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
   const isLocked = usePromptManagerStore((s) => s.isLocked);
   const selectedFolder = usePromptManagerStore((s) => s.selectedFolder);
   const selectedPrompt = usePromptManagerStore((s) => s.selectedPrompt);
-  const { showToast, openEditModal } = usePromptManagerStore((s) => s.actions);
+  const { showToast, openEditModal, openCreateModal } = usePromptManagerStore((s) => s.actions);
 
   // --- Handlers ---
 
   const handleNewFolder = () => {
-    if (isLocked) {
-      showToast('Desbloqueie para criar pastas', 'warning');
-      return;
-    }
-    // Create new folder modal
-    showToast('Criar nova pasta...', 'info');
+    // Locked mode only prevents drag & drop, not creation
+    openCreateModal('folder', selectedFolder?.id || null);
   };
 
   const handleNewPrompt = () => {
-    if (isLocked) {
-      showToast('Desbloqueie para criar prompts', 'warning');
-      return;
-    }
-    // Create new prompt modal
-    showToast('Criar novo prompt...', 'info');
+    // Locked mode only prevents drag & drop, not creation
+    openCreateModal('prompt', selectedFolder?.id || null);
   };
 
   const handleExport = async () => {
@@ -150,12 +142,12 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
     return (
       <div className={`flex items-center gap-1 ${className}`}>
         <Tooltip content="Nova Pasta" position="bottom">
-          <button onClick={handleNewFolder} className={iconBtnClass} disabled={isLocked}>
+          <button onClick={handleNewFolder} className={iconBtnClass}>
             <FolderPlus size={16} />
           </button>
         </Tooltip>
         <Tooltip content="Novo Prompt" position="bottom">
-          <button onClick={handleNewPrompt} className={iconBtnClass} disabled={isLocked}>
+          <button onClick={handleNewPrompt} className={iconBtnClass}>
             <FilePlus size={16} />
           </button>
         </Tooltip>
@@ -184,10 +176,10 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
         </h3>
 
         <div className="grid grid-cols-2 gap-2">
-          <button onClick={handleNewFolder} className={primaryBtnClass} disabled={isLocked}>
+          <button onClick={handleNewFolder} className={primaryBtnClass}>
             <FolderPlus size={14} /> Nova Pasta
           </button>
-          <button onClick={handleNewPrompt} className={primaryBtnClass} disabled={isLocked}>
+          <button onClick={handleNewPrompt} className={primaryBtnClass}>
             <FilePlus size={14} /> Novo Prompt
           </button>
         </div>
@@ -232,13 +224,13 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
       {/* Primary Actions */}
       <div className="flex items-center gap-1 bg-[#0f111a] p-1 rounded-lg border border-white/5">
         <ShortcutTooltip label="Nova Pasta" shortcut="Ctrl+N" position="bottom">
-          <button onClick={handleNewFolder} className={iconBtnClass} disabled={isLocked}>
+          <button onClick={handleNewFolder} className={iconBtnClass}>
             <FolderPlus size={16} />
           </button>
         </ShortcutTooltip>
 
         <ShortcutTooltip label="Novo Prompt" shortcut="Ctrl+P" position="bottom">
-          <button onClick={handleNewPrompt} className={iconBtnClass} disabled={isLocked}>
+          <button onClick={handleNewPrompt} className={iconBtnClass}>
             <FilePlus size={16} />
           </button>
         </ShortcutTooltip>
@@ -296,8 +288,8 @@ interface FABProps {
 
 export const FloatingActionButton: React.FC<FABProps> = ({ className = '' }) => {
   const [isOpen, setIsOpen] = React.useState(false);
-  const isLocked = usePromptManagerStore((s) => s.isLocked);
-  const { showToast } = usePromptManagerStore((s) => s.actions);
+  const selectedFolder = usePromptManagerStore((s) => s.selectedFolder);
+  const { openCreateModal } = usePromptManagerStore((s) => s.actions);
 
   return (
     <div className={`fixed bottom-6 right-6 z-50 ${className}`}>
@@ -307,11 +299,7 @@ export const FloatingActionButton: React.FC<FABProps> = ({ className = '' }) => 
           <Tooltip content="Nova Pasta" position="left">
             <button
               onClick={() => {
-                if (isLocked) {
-                  showToast('Desbloqueie para criar', 'warning');
-                  return;
-                }
-                showToast('Criar pasta...', 'info');
+                openCreateModal('folder', selectedFolder?.id || null);
                 setIsOpen(false);
               }}
               className="w-12 h-12 rounded-full bg-[#1e2330] border border-white/10 shadow-lg flex items-center justify-center text-gray-300 hover:text-white hover:bg-[#2979ff]/10 hover:border-[#2979ff]/50 transition-all"
@@ -323,11 +311,7 @@ export const FloatingActionButton: React.FC<FABProps> = ({ className = '' }) => 
           <Tooltip content="Novo Prompt" position="left">
             <button
               onClick={() => {
-                if (isLocked) {
-                  showToast('Desbloqueie para criar', 'warning');
-                  return;
-                }
-                showToast('Criar prompt...', 'info');
+                openCreateModal('prompt', selectedFolder?.id || null);
                 setIsOpen(false);
               }}
               className="w-12 h-12 rounded-full bg-[#1e2330] border border-white/10 shadow-lg flex items-center justify-center text-gray-300 hover:text-white hover:bg-[#2979ff]/10 hover:border-[#2979ff]/50 transition-all"

@@ -1,153 +1,183 @@
 // ============================================================================
 // ATHENAPEX - NOTIFICATIONS API
-// ATHENA Architecture | REST API Endpoints
+// ATHENA Architecture | Turso/Drizzle (SQLite) - Optimized for Serverless
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { db } from '@/lib/db';
+import { notifications, users } from '@/lib/db/schema';
+import { eq, desc, and } from 'drizzle-orm';
+import { generateId, nowISO, parseJsonField, stringifyJsonField, ATHENA_USER_ID, ATHENA_EMAIL, ATHENA_NAME } from '@/lib/db/helpers';
 
-// Mock user ID for development
-const MOCK_USER_ID = 'athena-supreme-user-001';
-
-// GET /api/notifications - List all notifications
+// GET /api/notifications - List notifications
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const unreadOnly = searchParams.get('unread') === 'true';
-        const limit = parseInt(searchParams.get('limit') || '20');
 
-        const notifications = await prisma.notification.findMany({
-            where: {
-                userId: MOCK_USER_ID,
-                ...(unreadOnly && { isRead: false }),
-            },
-            orderBy: { createdAt: 'desc' },
-            take: limit,
-        });
+        let query = db.select({
+            id: notifications.id,
+            type: notifications.type,
+            title: notifications.title,
+            message: notifications.message,
+            priority: notifications.priority,
+            isRead: notifications.isRead,
+            actionUrl: notifications.actionUrl,
+            createdAt: notifications.createdAt,
+        })
+            .from(notifications)
+            .where(eq(notifications.userId, ATHENA_USER_ID))
+            .orderBy(desc(notifications.createdAt))
+            .limit(50);
 
-        const unreadCount = await prisma.notification.count({
-            where: {
-                userId: MOCK_USER_ID,
-                isRead: false,
-            },
-        });
+        let results = await query;
+
+        // Filter unread if needed
+        if (unreadOnly) {
+            results = results.filter(n => !n.isRead);
+        }
 
         return NextResponse.json({
-            data: notifications,
-            unreadCount,
             success: true,
+            data: results,
+            unreadCount: results.filter(n => !n.isRead).length,
         });
     } catch (error) {
-        console.error('GET /api/notifications error:', error);
+        console.error('[API] GET /api/notifications error:', error);
         return NextResponse.json(
-            { success: false, message: 'Failed to fetch notifications' },
+            { success: false, error: 'Database error' },
             { status: 500 }
         );
     }
 }
 
-// POST /api/notifications - Create new notification
+// POST /api/notifications - Create notification
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
 
         if (!body.title || !body.message) {
             return NextResponse.json(
-                { success: false, message: 'Title and message are required' },
+                { success: false, error: 'Title and message are required' },
                 { status: 400 }
             );
         }
 
-        const notification = await prisma.notification.create({
-            data: {
-                type: body.type || 'system',
-                title: body.title,
-                message: body.message,
-                priority: body.priority || 'normal',
-                actionUrl: body.actionUrl,
-                metadata: body.metadata,
-                userId: MOCK_USER_ID,
-            },
-        });
-
-        return NextResponse.json({
-            data: notification,
-            success: true,
-            message: 'Notification created successfully',
-        });
-    } catch (error) {
-        console.error('POST /api/notifications error:', error);
-        return NextResponse.json(
-            { success: false, message: 'Failed to create notification' },
-            { status: 500 }
-        );
-    }
-}
-
-// PATCH /api/notifications - Mark notifications as read
-export async function PATCH(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const { ids, markAllRead } = body;
-
-        if (markAllRead) {
-            // Mark all notifications as read
-            await prisma.notification.updateMany({
-                where: {
-                    userId: MOCK_USER_ID,
-                    isRead: false,
-                },
-                data: { isRead: true },
-            });
-        } else if (ids && Array.isArray(ids)) {
-            // Mark specific notifications as read
-            await prisma.notification.updateMany({
-                where: {
-                    id: { in: ids },
-                    userId: MOCK_USER_ID,
-                },
-                data: { isRead: true },
+        // Ensure user exists
+        const existingUser = await db.select().from(users).where(eq(users.id, ATHENA_USER_ID)).limit(1);
+        if (existingUser.length === 0) {
+            await db.insert(users).values({
+                id: ATHENA_USER_ID,
+                email: ATHENA_EMAIL,
+                name: ATHENA_NAME,
+                createdAt: nowISO(),
+                updatedAt: nowISO(),
             });
         }
 
+        const newNotification = {
+            id: generateId(),
+            type: body.type || 'system',
+            title: body.title,
+            message: body.message,
+            priority: body.priority || 'normal',
+            isRead: false,
+            actionUrl: body.actionUrl || null,
+            metadata: body.metadata ? stringifyJsonField(body.metadata) : null,
+            createdAt: nowISO(),
+            userId: ATHENA_USER_ID,
+        };
+
+        await db.insert(notifications).values(newNotification);
+
         return NextResponse.json({
             success: true,
-            message: 'Notifications updated',
+            data: newNotification,
+            message: 'Notification created',
         });
     } catch (error) {
-        console.error('PATCH /api/notifications error:', error);
+        console.error('[API] POST /api/notifications error:', error);
         return NextResponse.json(
-            { success: false, message: 'Failed to update notifications' },
+            { success: false, error: 'Failed to create notification' },
+            { status: 400 }
+        );
+    }
+}
+
+// PATCH /api/notifications - Mark as read
+export async function PATCH(request: NextRequest) {
+    try {
+        const body = await request.json();
+        const { id, markAllRead } = body;
+
+        if (markAllRead) {
+            // Mark all as read
+            await db.update(notifications)
+                .set({ isRead: true })
+                .where(eq(notifications.userId, ATHENA_USER_ID));
+
+            return NextResponse.json({
+                success: true,
+                message: 'All notifications marked as read',
+            });
+        }
+
+        if (!id) {
+            return NextResponse.json(
+                { success: false, error: 'Notification ID required' },
+                { status: 400 }
+            );
+        }
+
+        await db.update(notifications)
+            .set({ isRead: true })
+            .where(eq(notifications.id, id));
+
+        return NextResponse.json({
+            success: true,
+            message: 'Notification marked as read',
+        });
+    } catch (error) {
+        console.error('[API] PATCH /api/notifications error:', error);
+        return NextResponse.json(
+            { success: false, error: 'Update failed' },
             { status: 500 }
         );
     }
 }
 
-// DELETE /api/notifications - Delete notification
+// DELETE /api/notifications - Delete notification or clear all
 export async function DELETE(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
+        const clearAll = searchParams.get('clearAll') === 'true';
+
+        if (clearAll) {
+            await db.delete(notifications).where(eq(notifications.userId, ATHENA_USER_ID));
+            return NextResponse.json({
+                success: true,
+                message: 'All notifications cleared',
+            });
+        }
 
         if (!id) {
             return NextResponse.json(
-                { success: false, message: 'Notification ID is required' },
+                { success: false, error: 'Notification ID required' },
                 { status: 400 }
             );
         }
 
-        await prisma.notification.delete({
-            where: { id },
-        });
+        await db.delete(notifications).where(eq(notifications.id, id));
 
         return NextResponse.json({
             success: true,
             message: 'Notification deleted',
         });
     } catch (error) {
-        console.error('DELETE /api/notifications error:', error);
+        console.error('[API] DELETE /api/notifications error:', error);
         return NextResponse.json(
-            { success: false, message: 'Failed to delete notification' },
+            { success: false, error: 'Delete failed' },
             { status: 500 }
         );
     }

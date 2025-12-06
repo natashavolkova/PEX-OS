@@ -1,57 +1,50 @@
 // ============================================================================
 // ATHENAPEX PRODUCTIVITY MANAGER - TASKS API
-// ATHENA Architecture | Neon DB with Prisma (Optimized Queries)
+// ATHENA Architecture | Turso/Drizzle (SQLite) - Optimized for Serverless
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { db } from '@/lib/db';
+import { tasks, users } from '@/lib/db/schema';
+import { eq, desc } from 'drizzle-orm';
+import { generateId, nowISO, parseJsonField, stringifyJsonField, ATHENA_USER_ID, ATHENA_EMAIL, ATHENA_NAME } from '@/lib/db/helpers';
 
-// Athena admin user ID
-const ATHENA_USER_ID = 'athena-supreme-user-001';
-
-// GET /api/tasks - List all tasks (optimized with pagination and filters)
+// GET /api/tasks - List all tasks (optimized with pagination)
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get('status');
   const priority = searchParams.get('priority');
   const page = parseInt(searchParams.get('page') || '1');
-  const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50); // Max 50 for performance
+  const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50);
 
   try {
-    // Build where clause
-    const where: Record<string, unknown> = {
-      userId: ATHENA_USER_ID,
-    };
-    if (status) where.status = status;
-    if (priority) where.priority = priority;
+    // Get tasks for Athena user
+    const allTasks = await db.select({
+      id: tasks.id,
+      title: tasks.title,
+      status: tasks.status,
+      priority: tasks.priority,
+      dueDate: tasks.dueDate,
+      tags: tasks.tags,
+      createdAt: tasks.createdAt,
+    })
+      .from(tasks)
+      .where(eq(tasks.userId, ATHENA_USER_ID))
+      .orderBy(desc(tasks.createdAt))
+      .limit(limit)
+      .offset((page - 1) * limit);
 
-    // Optimized query - only needed fields, with pagination
-    const [tasks, total] = await Promise.all([
-      prisma.task.findMany({
-        where,
-        select: {
-          id: true,
-          title: true,
-          status: true,
-          priority: true,
-          dueDate: true,
-          tags: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.task.count({ where }),
-    ]);
+    // Parse tags from JSON TEXT
+    const parsedTasks = allTasks.map(task => ({
+      ...task,
+      tags: parseJsonField<string[]>(task.tags, []),
+    }));
 
     return NextResponse.json({
       success: true,
-      data: tasks,
-      total,
+      data: parsedTasks,
       page,
       limit,
-      hasMore: page * limit < total,
     });
   } catch (error) {
     console.error('[API] GET /api/tasks error:', error);
@@ -74,40 +67,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Ensure user exists (upsert)
-    await prisma.user.upsert({
-      where: { id: ATHENA_USER_ID },
-      update: {},
-      create: {
+    // Ensure Athena user exists
+    const existingUser = await db.select().from(users).where(eq(users.id, ATHENA_USER_ID)).limit(1);
+    if (existingUser.length === 0) {
+      await db.insert(users).values({
         id: ATHENA_USER_ID,
-        email: 'athena@pex-os.ai',
-        name: 'Athena',
-      },
-    });
+        email: ATHENA_EMAIL,
+        name: ATHENA_NAME,
+        createdAt: nowISO(),
+        updatedAt: nowISO(),
+      });
+    }
 
-    const task = await prisma.task.create({
-      data: {
-        title: body.title,
-        status: body.status || 'todo',
-        priority: body.priority || 'medium',
-        dueDate: body.dueDate ? new Date(body.dueDate) : null,
-        tags: body.tags || [],
-        userId: ATHENA_USER_ID,
-      },
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        priority: true,
-        dueDate: true,
-        tags: true,
-        createdAt: true,
-      },
-    });
+    const newTask = {
+      id: generateId(),
+      title: body.title,
+      status: body.status || 'todo',
+      priority: body.priority || 'medium',
+      dueDate: body.dueDate || null,
+      tags: stringifyJsonField(body.tags || []),
+      createdAt: nowISO(),
+      updatedAt: nowISO(),
+      userId: ATHENA_USER_ID,
+    };
+
+    await db.insert(tasks).values(newTask);
 
     return NextResponse.json({
       success: true,
-      data: task,
+      data: {
+        ...newTask,
+        tags: body.tags || [],
+      },
       message: 'Task created successfully',
     });
   } catch (error) {

@@ -1,83 +1,89 @@
+// ============================================================================
+// USER PREFERENCES API - TURSO/DRIZZLE
+// ATHENA Architecture | Serverless Optimized
+// ============================================================================
+
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
+import { db } from '@/lib/db';
+import { users } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
+import { nowISO, ATHENA_USER_ID, ATHENA_EMAIL, ATHENA_NAME } from '@/lib/db/helpers';
 
-// ATHENA User ID (hardcoded as per project standard)
-const ATHENA_USER_ID = 'athena-supreme-user-001';
-const ATHENA_EMAIL = 'athena@pex-os.dev';
-
-// PATCH /api/user/preferences - Update user preferences (with upsert)
-export async function PATCH(request: NextRequest) {
+// POST /api/user/preferences - Update preferences
+export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { gridDensity } = body;
 
-        // Validate gridDensity value
-        if (gridDensity && !['standard', 'high'].includes(gridDensity)) {
-            return NextResponse.json(
-                { error: 'Invalid gridDensity value. Must be "standard" or "high".' },
-                { status: 400 }
-            );
-        }
+        // Ensure user exists (upsert pattern)
+        const existingUser = await db.select().from(users).where(eq(users.id, ATHENA_USER_ID)).limit(1);
 
-        // Upsert user preferences in database (create if not exists)
-        const updatedUser = await prisma.user.upsert({
-            where: { id: ATHENA_USER_ID },
-            create: {
+        if (existingUser.length === 0) {
+            await db.insert(users).values({
                 id: ATHENA_USER_ID,
                 email: ATHENA_EMAIL,
-                name: 'Athena Commander',
-                gridDensity: gridDensity || 'standard',
-            },
-            update: {
-                ...(gridDensity && { gridDensity }),
-            },
-            select: {
-                id: true,
-                gridDensity: true,
-            },
-        });
+                name: ATHENA_NAME,
+                gridDensity: body.gridDensity || 'standard',
+                createdAt: nowISO(),
+                updatedAt: nowISO(),
+            });
+        } else {
+            const updateData: Record<string, unknown> = {
+                updatedAt: nowISO(),
+            };
+            if (body.gridDensity) updateData.gridDensity = body.gridDensity;
+            if (body.name) updateData.name = body.name;
+
+            await db.update(users).set(updateData).where(eq(users.id, ATHENA_USER_ID));
+        }
+
+        const result = await db.select().from(users).where(eq(users.id, ATHENA_USER_ID)).limit(1);
 
         return NextResponse.json({
             success: true,
-            data: updatedUser,
+            data: result[0],
+            message: 'Preferences updated',
         });
     } catch (error) {
-        console.error('[API] Error updating user preferences:', error);
+        console.error('[API] POST /api/user/preferences error:', error);
         return NextResponse.json(
-            { error: 'Failed to update preferences' },
+            { success: false, error: 'Failed to update preferences' },
             { status: 500 }
         );
     }
 }
 
-// GET /api/user/preferences - Get user preferences (auto-create user if not exists)
+// GET /api/user/preferences - Get preferences
 export async function GET() {
     try {
-        // Upsert to ensure user always exists
-        const user = await prisma.user.upsert({
-            where: { id: ATHENA_USER_ID },
-            create: {
+        // Ensure user exists
+        const existingUser = await db.select().from(users).where(eq(users.id, ATHENA_USER_ID)).limit(1);
+
+        if (existingUser.length === 0) {
+            // Create default user if not exists
+            await db.insert(users).values({
                 id: ATHENA_USER_ID,
                 email: ATHENA_EMAIL,
-                name: 'Athena Commander',
+                name: ATHENA_NAME,
                 gridDensity: 'standard',
-            },
-            update: {},
-            select: {
-                gridDensity: true,
-            },
-        });
+                createdAt: nowISO(),
+                updatedAt: nowISO(),
+            });
+
+            const newUser = await db.select().from(users).where(eq(users.id, ATHENA_USER_ID)).limit(1);
+            return NextResponse.json({
+                success: true,
+                data: newUser[0],
+            });
+        }
 
         return NextResponse.json({
             success: true,
-            data: {
-                gridDensity: user.gridDensity || 'standard',
-            },
+            data: existingUser[0],
         });
     } catch (error) {
-        console.error('[API] Error fetching user preferences:', error);
+        console.error('[API] GET /api/user/preferences error:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch preferences' },
+            { success: false, error: 'Failed to get preferences' },
             { status: 500 }
         );
     }

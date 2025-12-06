@@ -1,51 +1,53 @@
 // ============================================================================
-// ATHENAPEX PRODUCTIVITY MANAGER - YOUTUBE API
-// ATHENA Architecture | Video Reference Management
-// Uses Prisma YouTubeVideo model
+// ATHENAPEX - YOUTUBE API
+// ATHENA Architecture | Turso/Drizzle (SQLite) - Optimized for Serverless
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { getCurrentUserId } from '@/lib/db/users';
+import { db } from '@/lib/db';
+import { youtubeVideos, users } from '@/lib/db/schema';
+import { eq, like, or, desc } from 'drizzle-orm';
+import { generateId, nowISO, parseJsonField, stringifyJsonField, ATHENA_USER_ID, ATHENA_EMAIL, ATHENA_NAME } from '@/lib/db/helpers';
 
 // GET /api/youtube - List all YouTube references
 export async function GET(request: NextRequest) {
   try {
-    const userId = await getCurrentUserId();
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const status = searchParams.get('status');
 
-    // Optimized query - only needed fields
-    const videos = await prisma.youTubeVideo.findMany({
-      where: {
-        userId,
-        ...(search && {
-          OR: [
-            { title: { contains: search, mode: 'insensitive' } },
-            { channelName: { contains: search, mode: 'insensitive' } },
-          ],
-        }),
-        ...(status && { watchStatus: status }),
-      },
-      select: {
-        id: true,
-        videoId: true,
-        title: true,
-        channelName: true,
-        thumbnailUrl: true,
-        watchStatus: true,
-        notes: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 50, // Limit for performance
-    });
+    let results = await db.select({
+      id: youtubeVideos.id,
+      videoId: youtubeVideos.videoId,
+      title: youtubeVideos.title,
+      channelName: youtubeVideos.channelName,
+      thumbnailUrl: youtubeVideos.thumbnailUrl,
+      watchStatus: youtubeVideos.watchStatus,
+      notes: youtubeVideos.notes,
+      createdAt: youtubeVideos.createdAt,
+    })
+      .from(youtubeVideos)
+      .where(eq(youtubeVideos.userId, ATHENA_USER_ID))
+      .orderBy(desc(youtubeVideos.createdAt))
+      .limit(50);
+
+    // Filter in-memory for search (SQLite LIKE is case-sensitive)
+    if (search) {
+      const searchLower = search.toLowerCase();
+      results = results.filter(v =>
+        v.title.toLowerCase().includes(searchLower) ||
+        (v.channelName?.toLowerCase().includes(searchLower))
+      );
+    }
+
+    if (status) {
+      results = results.filter(v => v.watchStatus === status);
+    }
 
     return NextResponse.json({
-      data: videos,
-      total: videos.length,
       success: true,
+      data: results,
+      total: results.length,
     });
   } catch (error) {
     console.error('YouTube GET error:', error);
@@ -59,9 +61,7 @@ export async function GET(request: NextRequest) {
 // POST /api/youtube - Add new YouTube reference
 export async function POST(request: NextRequest) {
   try {
-    const userId = await getCurrentUserId();
     const body = await request.json();
-
     const videoId = extractVideoId(body.url);
 
     if (!videoId) {
@@ -72,33 +72,45 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if video already exists
-    const existing = await prisma.youTubeVideo.findUnique({
-      where: { videoId },
-    });
-
-    if (existing) {
+    const existing = await db.select().from(youtubeVideos).where(eq(youtubeVideos.videoId, videoId)).limit(1);
+    if (existing.length > 0) {
       return NextResponse.json(
         { success: false, message: 'Video already added' },
         { status: 409 }
       );
     }
 
-    const newVideo = await prisma.youTubeVideo.create({
-      data: {
-        userId,
-        videoId,
-        title: body.title || 'Untitled Video',
-        channelName: body.channelName || null,
-        thumbnailUrl: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
-        watchStatus: 'unwatched',
-        notes: body.notes || null,
-        insights: body.insights || [],
-      },
-    });
+    // Ensure user exists
+    const existingUser = await db.select().from(users).where(eq(users.id, ATHENA_USER_ID)).limit(1);
+    if (existingUser.length === 0) {
+      await db.insert(users).values({
+        id: ATHENA_USER_ID,
+        email: ATHENA_EMAIL,
+        name: ATHENA_NAME,
+        createdAt: nowISO(),
+        updatedAt: nowISO(),
+      });
+    }
+
+    const newVideo = {
+      id: generateId(),
+      videoId,
+      title: body.title || 'Untitled Video',
+      channelName: body.channelName || null,
+      thumbnailUrl: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+      watchStatus: 'unwatched',
+      notes: body.notes || null,
+      insights: stringifyJsonField(body.insights || []),
+      createdAt: nowISO(),
+      updatedAt: nowISO(),
+      userId: ATHENA_USER_ID,
+    };
+
+    await db.insert(youtubeVideos).values(newVideo);
 
     return NextResponse.json({
-      data: newVideo,
       success: true,
+      data: newVideo,
       message: 'YouTube reference added',
     });
   } catch (error) {
@@ -113,7 +125,6 @@ export async function POST(request: NextRequest) {
 // PUT /api/youtube - Update YouTube reference
 export async function PUT(request: NextRequest) {
   try {
-    const userId = await getCurrentUserId();
     const body = await request.json();
 
     if (!body.id) {
@@ -123,19 +134,21 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const updated = await prisma.youTubeVideo.update({
-      where: { id: body.id },
-      data: {
-        ...(body.title && { title: body.title }),
-        ...(body.watchStatus && { watchStatus: body.watchStatus }),
-        ...(body.notes !== undefined && { notes: body.notes }),
-        ...(body.insights && { insights: body.insights }),
-      },
-    });
+    const updateData: Record<string, unknown> = {
+      updatedAt: nowISO(),
+    };
+    if (body.title) updateData.title = body.title;
+    if (body.watchStatus) updateData.watchStatus = body.watchStatus;
+    if (body.notes !== undefined) updateData.notes = body.notes;
+    if (body.insights) updateData.insights = stringifyJsonField(body.insights);
+
+    await db.update(youtubeVideos).set(updateData).where(eq(youtubeVideos.id, body.id));
+
+    const result = await db.select().from(youtubeVideos).where(eq(youtubeVideos.id, body.id)).limit(1);
 
     return NextResponse.json({
-      data: updated,
       success: true,
+      data: result[0],
       message: 'Video updated',
     });
   } catch (error) {
@@ -160,9 +173,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await prisma.youTubeVideo.delete({
-      where: { id },
-    });
+    await db.delete(youtubeVideos).where(eq(youtubeVideos.id, id));
 
     return NextResponse.json({
       success: true,

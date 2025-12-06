@@ -1,11 +1,67 @@
 'use client';
 
-import { useState } from 'react';
-import { Bot, Send, Settings, Play, Zap, Code, FileCode, Terminal } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Bot, Send, Settings, Play, Zap, Code, FileCode, Terminal, RefreshCw, Power } from 'lucide-react';
+import { useAgentStore } from '@/stores';
 
 export default function AIAgentPage() {
-    const [status, setStatus] = useState<'disconnected' | 'connected' | 'running'>('disconnected');
-    const [messages, setMessages] = useState<Array<{ role: 'user' | 'agent', content: string }>>([]);
+    const { agentStatus, agentTasks, actions } = useAgentStore();
+    const [messages, setMessages] = useState<Array<{ role: 'user' | 'agent', content: string, timestamp: number }>>([]);
+    const [inputValue, setInputValue] = useState('');
+    const [isConnecting, setIsConnecting] = useState(false);
+
+    const handleConnect = async () => {
+        setIsConnecting(true);
+        // Simulate connection delay
+        setTimeout(() => {
+            actions.setAgentStatus({
+                connected: !agentStatus.connected,
+                lastPing: Date.now(),
+            });
+            setIsConnecting(false);
+
+            if (!agentStatus.connected) {
+                setMessages(prev => [...prev, {
+                    role: 'agent',
+                    content: '🤖 Fara-7B connected and ready. How can I assist you today?',
+                    timestamp: Date.now()
+                }]);
+            }
+        }, 1000);
+    };
+
+    const handleSendMessage = () => {
+        if (!inputValue.trim() || !agentStatus.connected) return;
+
+        const userMessage = { role: 'user' as const, content: inputValue, timestamp: Date.now() };
+        setMessages(prev => [...prev, userMessage]);
+        setInputValue('');
+
+        // Simulate agent response
+        setTimeout(() => {
+            setMessages(prev => [...prev, {
+                role: 'agent',
+                content: `Processing: "${inputValue}"\n\nThis is a simulated response. In production, this would connect to your local Fara-7B instance.`,
+                timestamp: Date.now()
+            }]);
+        }, 800);
+    };
+
+    const handleQuickAction = (action: string) => {
+        if (!agentStatus.connected) return;
+
+        const taskId = actions.addAgentTask({
+            type: 'automation',
+            status: 'queued',
+            payload: { actionType: action },
+        });
+
+        setMessages(prev => [...prev, {
+            role: 'agent',
+            content: `🚀 Task queued: ${action} (ID: ${taskId.slice(-8)})`,
+            timestamp: Date.now()
+        }]);
+    };
 
     return (
         <div className="h-full bg-athena-navy-deep">
@@ -58,10 +114,11 @@ export default function AIAgentPage() {
                                 className="flex-1 bg-athena-navy-deep/80 border border-athena-gold/30 rounded-lg px-5 py-3 text-athena-platinum placeholder:text-athena-silver/30 focus:border-athena-gold focus:ring-2 focus:ring-athena-gold/20 outline-none transition-all"
                             />
                             <button
-                                onClick={() => setStatus(status === 'connected' ? 'disconnected' : 'connected')}
-                                className="bg-gradient-to-r from-athena-gold to-athena-gold-dark hover:from-athena-gold-dark hover:to-athena-gold text-athena-navy-deep px-8 py-3 rounded-lg font-semibold transition-all shadow-lg hover:shadow-athena-glow"
+                                onClick={handleConnect}
+                                disabled={isConnecting}
+                                className="bg-gradient-to-r from-athena-gold to-athena-gold-dark hover:from-athena-gold-dark hover:to-athena-gold text-athena-navy-deep px-8 py-3 rounded-lg font-semibold transition-all shadow-lg hover:shadow-athena-glow disabled:opacity-50"
                             >
-                                {status === 'connected' ? 'Disconnect' : 'Connect'}
+                                {isConnecting ? 'Connecting...' : agentStatus.connected ? 'Disconnect' : 'Connect'}
                             </button>
                         </div>
                     </div>
@@ -104,12 +161,14 @@ export default function AIAgentPage() {
                                 type="text"
                                 placeholder="Send command to Fara-7B..."
                                 className="flex-1 bg-athena-navy-deep/80 border border-athena-gold/30 rounded-lg px-5 py-3 text-athena-platinum placeholder:text-athena-silver/30 focus:border-athena-gold focus:ring-2 focus:ring-athena-gold/20 outline-none transition-all"
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
                                 onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && e.currentTarget.value) {
-                                        setMessages([...messages, { role: 'user', content: e.currentTarget.value }]);
-                                        e.currentTarget.value = '';
+                                    if (e.key === 'Enter') {
+                                        handleSendMessage();
                                     }
                                 }}
+                                disabled={!agentStatus.connected}
                             />
                             <button className="bg-gradient-to-r from-athena-gold to-athena-gold-dark hover:from-athena-gold-dark hover:to-athena-gold text-athena-navy-deep px-6 py-3 rounded-lg transition-all shadow-lg hover:shadow-athena-glow">
                                 <Send className="w-5 h-5" />

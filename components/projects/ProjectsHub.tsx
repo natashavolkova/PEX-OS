@@ -27,7 +27,7 @@ import {
   LayoutGrid,
   List,
 } from 'lucide-react';
-import { useProductivityStore } from '@/stores/productivityStore';
+import { useProductivityStore } from '@/stores';
 import type { Project } from '@/types';
 
 // --- PROJECT CARD COMPONENT ---
@@ -84,7 +84,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
             </span>
           </div>
         </div>
-        
+
         <div className="relative">
           <button
             onClick={(e) => {
@@ -95,7 +95,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
           >
             <MoreVertical size={14} />
           </button>
-          
+
           {showMenu && (
             <div className="absolute right-0 top-full mt-1 bg-[#252b3b] border border-white/10 rounded-lg shadow-xl z-20 py-1 min-w-[120px] animate-pop-in-menu">
               <button
@@ -383,7 +383,7 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, onClose
 export const ProjectsHub: React.FC = () => {
   const projects = useProductivityStore((s) => s.projects);
   const { setSelectedProject, archiveProject, deleteProject } = useProductivityStore((s) => s.actions);
-  
+
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [filter, setFilter] = useState<'all' | 'active' | 'archived' | 'completed'>('all');
   const [sortBy, setSortBy] = useState<'updated' | 'priority' | 'roi'>('updated');
@@ -516,7 +516,7 @@ export const ProjectsHub: React.FC = () => {
                 key={project.id}
                 project={project}
                 onSelect={() => setSelectedProject(project.id)}
-                onEdit={() => {}}
+                onEdit={() => { }}
                 onArchive={() => archiveProject(project.id)}
                 onDelete={() => deleteProject(project.id)}
               />

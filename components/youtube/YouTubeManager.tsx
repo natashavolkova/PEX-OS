@@ -25,7 +25,7 @@ import {
   List,
   ChevronRight,
 } from 'lucide-react';
-import { useProductivityStore } from '@/stores/productivityStore';
+import { useProductivityStore } from '@/stores';
 import type { YouTubeReference, YouTubeInsight } from '@/types';
 
 // --- YOUTUBE CARD COMPONENT ---
@@ -57,12 +57,12 @@ const YouTubeCard: React.FC<YouTubeCardProps> = ({ reference, onSelect, onDelete
             <Youtube size={48} className="text-red-500/50" />
           </div>
         )}
-        
+
         {/* Duration Badge */}
         <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] px-1.5 py-0.5 rounded">
           {reference.duration}
         </div>
-        
+
         {/* Output Generated Badge */}
         {reference.outputGenerated && (
           <div className="absolute top-2 left-2 bg-green-500/90 text-white text-[9px] px-1.5 py-0.5 rounded flex items-center gap-1">
@@ -82,7 +82,7 @@ const YouTubeCard: React.FC<YouTubeCardProps> = ({ reference, onSelect, onDelete
           >
             <MoreVertical size={14} />
           </button>
-          
+
           {showMenu && (
             <>
               <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }} />
@@ -117,9 +117,9 @@ const YouTubeCard: React.FC<YouTubeCardProps> = ({ reference, onSelect, onDelete
         <h3 className="text-sm font-medium text-white line-clamp-2 mb-1 group-hover:text-red-400 transition-colors">
           {reference.title}
         </h3>
-        
+
         <div className="text-[10px] text-gray-500 mb-2">{reference.channelName}</div>
-        
+
         {/* Tags */}
         <div className="flex flex-wrap gap-1 mb-2">
           {reference.tags.slice(0, 3).map((tag, i) => (
@@ -159,7 +159,7 @@ interface AddYouTubeModalProps {
 
 const AddYouTubeModal: React.FC<AddYouTubeModalProps> = ({ isOpen, onClose }) => {
   const { addYoutubeRef } = useProductivityStore((s) => s.actions);
-  
+
   const [form, setForm] = useState({
     url: '',
     title: '',
@@ -334,13 +334,13 @@ const InsightPanel: React.FC<InsightPanelProps> = ({ reference, onClose, onAddIn
 
   const handleAddInsight = () => {
     if (!newInsight.content.trim()) return;
-    
+
     onAddInsight({
       content: newInsight.content,
       timestamp: newInsight.timestamp || undefined,
       category: newInsight.category,
     });
-    
+
     setNewInsight({ content: '', timestamp: '', category: 'key_point' });
   };
 
@@ -377,7 +377,7 @@ const InsightPanel: React.FC<InsightPanelProps> = ({ reference, onClose, onAddIn
       {/* Add Insight Form */}
       <div className="bg-[#1e2330] border border-white/5 rounded-lg p-3 mb-4">
         <h4 className="text-xs font-bold text-gray-400 mb-2">Add New Insight</h4>
-        
+
         <div className="space-y-2">
           <div className="flex gap-2">
             <input
@@ -399,7 +399,7 @@ const InsightPanel: React.FC<InsightPanelProps> = ({ reference, onClose, onAddIn
               <option value="idea">💡 Idea</option>
             </select>
           </div>
-          
+
           <textarea
             value={newInsight.content}
             onChange={(e) => setNewInsight({ ...newInsight, content: e.target.value })}
@@ -407,7 +407,7 @@ const InsightPanel: React.FC<InsightPanelProps> = ({ reference, onClose, onAddIn
             rows={3}
             className="w-full bg-[#0f111a] border border-white/10 rounded p-2 text-xs text-gray-200 focus:outline-none resize-none"
           />
-          
+
           <button
             onClick={handleAddInsight}
             disabled={!newInsight.content.trim()}
@@ -445,7 +445,7 @@ const InsightPanel: React.FC<InsightPanelProps> = ({ reference, onClose, onAddIn
 export const YouTubeManager: React.FC = () => {
   const youtubeRefs = useProductivityStore((s) => s.youtubeRefs);
   const { deleteYoutubeRef, addYoutubeInsight } = useProductivityStore((s) => s.actions);
-  
+
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [selectedRef, setSelectedRef] = useState<YouTubeReference | null>(null);
   const [searchQuery, setSearchQuery] = useState('');

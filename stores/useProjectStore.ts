@@ -62,5 +62,5 @@ export const useProjectStore = create<ProjectStoreState>((set) => ({
     toggleShowCompleted: () => set((s) => ({ showCompleted: !s.showCompleted })),
 }));
 
-// Re-export main store for complex operations
-export { useProductivityStore } from './productivityStore';
+// Re-export main store for complex operations (via compatibility layer)
+export { useProductivityStore } from './productivityCompat';

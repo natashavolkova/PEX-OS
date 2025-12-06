@@ -25,7 +25,7 @@ import {
   Edit3,
   Calendar,
 } from 'lucide-react';
-import { useProductivityStore } from '@/stores/productivityStore';
+import { useProductivityStore } from '@/stores';
 import type { BattlePlan, BattleObjective } from '@/types';
 
 // --- OBJECTIVE ITEM COMPONENT ---
@@ -58,23 +58,22 @@ const ObjectiveItem: React.FC<ObjectiveItemProps> = ({ objective, onStatusChange
         <div className={`shrink-0 p-1.5 rounded border ${statusColors[objective.status]}`}>
           {statusIcons[objective.status]}
         </div>
-        
+
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <h4 className="text-sm font-medium text-white truncate">{objective.name}</h4>
-            <span className={`text-[9px] px-1.5 py-0.5 rounded-full border ${
-              objective.priority === 'critical' ? 'text-red-400 border-red-500/20' :
-              objective.priority === 'high' ? 'text-orange-400 border-orange-500/20' :
-              'text-yellow-400 border-yellow-500/20'
-            }`}>
+            <span className={`text-[9px] px-1.5 py-0.5 rounded-full border ${objective.priority === 'critical' ? 'text-red-400 border-red-500/20' :
+                objective.priority === 'high' ? 'text-orange-400 border-orange-500/20' :
+                  'text-yellow-400 border-yellow-500/20'
+              }`}>
               {objective.priority}
             </span>
           </div>
-          
+
           <p className="text-[10px] text-gray-400 line-clamp-2 mb-2">
             {objective.description}
           </p>
-          
+
           <div className="flex items-center gap-3">
             <span className="text-[9px] text-gray-500">
               Impact: <span className="text-green-400 font-bold">{objective.impactScore}/10</span>
@@ -122,7 +121,7 @@ interface BattlePlanCardProps {
 
 const BattlePlanCard: React.FC<BattlePlanCardProps> = ({ plan, onSelect, onDelete }) => {
   const [showMenu, setShowMenu] = useState(false);
-  
+
   const statusColors = {
     planning: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
     active: 'bg-green-500/10 text-green-400 border-green-500/20',
@@ -154,7 +153,7 @@ const BattlePlanCard: React.FC<BattlePlanCardProps> = ({ plan, onSelect, onDelet
             </span>
           </div>
         </div>
-        
+
         <div className="relative">
           <button
             onClick={(e) => {
@@ -165,7 +164,7 @@ const BattlePlanCard: React.FC<BattlePlanCardProps> = ({ plan, onSelect, onDelet
           >
             <MoreVertical size={14} />
           </button>
-          
+
           {showMenu && (
             <>
               <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }} />
@@ -250,7 +249,7 @@ interface CreatePlanModalProps {
 
 const CreatePlanModal: React.FC<CreatePlanModalProps> = ({ isOpen, onClose }) => {
   const { addBattlePlan } = useProductivityStore((s) => s.actions);
-  
+
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -391,7 +390,7 @@ const CreatePlanModal: React.FC<CreatePlanModalProps> = ({ isOpen, onClose }) =>
 export const BattlePlanView: React.FC = () => {
   const battlePlans = useProductivityStore((s) => s.battlePlans);
   const { deleteBattlePlan, updateBattlePlan } = useProductivityStore((s) => s.actions);
-  
+
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<BattlePlan | null>(null);
   const [filter, setFilter] = useState<'all' | 'active' | 'planning' | 'completed'>('all');
@@ -509,7 +508,7 @@ export const BattlePlanView: React.FC = () => {
                 <label className="text-[10px] uppercase font-bold text-gray-400">Objectives</label>
                 <button className="text-[10px] text-[#2979ff] hover:text-[#2264d1]">+ Add</button>
               </div>
-              
+
               {selectedPlan.objectives.length === 0 ? (
                 <p className="text-xs text-gray-500 italic">No objectives defined</p>
               ) : (
@@ -541,11 +540,10 @@ export const BattlePlanView: React.FC = () => {
                   {selectedPlan.pivotTriggers.map((trigger) => (
                     <div
                       key={trigger.id}
-                      className={`p-2 rounded-lg border text-xs ${
-                        trigger.triggered
+                      className={`p-2 rounded-lg border text-xs ${trigger.triggered
                           ? 'bg-yellow-500/10 border-yellow-500/20'
                           : 'bg-[#0f111a] border-white/5'
-                      }`}
+                        }`}
                     >
                       <div className="text-gray-300">If: {trigger.condition}</div>
                       <div className="text-gray-500 mt-1">Then: {trigger.action}</div>

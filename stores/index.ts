@@ -15,5 +15,11 @@ export { useUIStore, useSidebarCollapsed, useSearchOpen, useNotifications } from
 // Prompts
 export { usePromptStore, usePromptManagerStore } from './usePromptStore';
 
-// Projects
-export { useProjectStore, useProductivityStore } from './useProjectStore';
+// Projects (UI state)
+export { useProjectStore } from './useProjectStore';
+
+// Productivity (Compatibility Layer - combines all domain stores)
+export { useProductivityStore } from './productivityCompat';
+
+// Domain Stores (Modular - PREFERRED)
+export * from './domains';

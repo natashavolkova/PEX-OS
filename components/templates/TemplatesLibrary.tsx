@@ -24,7 +24,7 @@ import {
   ChevronRight,
   X,
 } from 'lucide-react';
-import { useProductivityStore } from '@/stores/productivityStore';
+import { useProductivityStore } from '@/stores';
 import type { StrategicTemplate, TemplateVariable } from '@/types';
 
 // --- TEMPLATE CARD COMPONENT ---
@@ -179,7 +179,7 @@ const UseTemplateModal: React.FC<UseTemplateModalProps> = ({ isOpen, onClose, te
 
   const handleGenerate = () => {
     let result = template.content;
-    
+
     Object.entries(values).forEach(([key, value]) => {
       result = result.replace(new RegExp(`{{${key}}}`, 'g'), value || `[${key}]`);
     });
@@ -222,7 +222,7 @@ const UseTemplateModal: React.FC<UseTemplateModalProps> = ({ isOpen, onClose, te
                     {variable.required && <span className="text-red-400">*</span>}
                   </label>
                   <p className="text-[9px] text-gray-500 mb-1">{variable.description}</p>
-                  
+
                   {variable.type === 'textarea' ? (
                     <textarea
                       value={values[variable.name] || ''}
@@ -275,7 +275,7 @@ const UseTemplateModal: React.FC<UseTemplateModalProps> = ({ isOpen, onClose, te
                 </button>
               )}
             </div>
-            
+
             {showOutput ? (
               <pre className="flex-1 bg-[#0f111a] border border-white/5 rounded-lg p-3 text-xs text-gray-300 font-mono whitespace-pre-wrap overflow-y-auto">
                 {output}
@@ -337,7 +337,7 @@ export const TemplatesLibrary: React.FC = () => {
     (t) =>
       (selectedCategory === 'all' || t.category === selectedCategory) &&
       (t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       t.description.toLowerCase().includes(searchQuery.toLowerCase()))
+        t.description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   return (
@@ -350,11 +350,10 @@ export const TemplatesLibrary: React.FC = () => {
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all flex items-center gap-2 ${
-                selectedCategory === cat.id
+              className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all flex items-center gap-2 ${selectedCategory === cat.id
                   ? 'bg-[#2979ff] text-white'
                   : 'text-gray-400 hover:bg-white/5 hover:text-white'
-              }`}
+                }`}
             >
               <span>{cat.icon}</span>
               {cat.label}
@@ -399,7 +398,7 @@ export const TemplatesLibrary: React.FC = () => {
                   key={template.id}
                   template={template}
                   onUse={() => setSelectedTemplate(template)}
-                  onEdit={() => {}}
+                  onEdit={() => { }}
                   onDelete={() => deleteTemplate(template.id)}
                 />
               ))}

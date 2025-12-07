@@ -1,18 +1,33 @@
 // ============================================================================
 // PROMPTS API - Turso/Drizzle
-// ATHENA Architecture | Optimized for Serverless
+// ATHENA Architecture | Returns folders AND prompts for tree building
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { prompts, users } from '@/lib/db/schema';
+import { prompts, folders, users } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { generateId, nowISO, parseJsonField, stringifyJsonField, ATHENA_USER_ID, ATHENA_EMAIL, ATHENA_NAME } from '@/lib/db/helpers';
 
-// GET /api/prompts - List prompts
+// GET /api/prompts - List folders AND prompts for tree building
 export async function GET() {
   try {
-    const results = await db.select({
+    // Fetch all folders
+    const folderResults = await db.select({
+      id: folders.id,
+      name: folders.name,
+      type: folders.type,
+      emoji: folders.emoji,
+      isSystem: folders.isSystem,
+      parentId: folders.parentId,
+      createdAt: folders.createdAt,
+      updatedAt: folders.updatedAt,
+    })
+      .from(folders)
+      .where(eq(folders.userId, ATHENA_USER_ID));
+
+    // Fetch all prompts
+    const promptResults = await db.select({
       id: prompts.id,
       title: prompts.title,
       content: prompts.content,
@@ -27,22 +42,38 @@ export async function GET() {
     })
       .from(prompts)
       .where(eq(prompts.userId, ATHENA_USER_ID))
-      .orderBy(desc(prompts.createdAt))
-      .limit(100);
+      .orderBy(desc(prompts.createdAt));
 
-    const parsed = results.map(p => ({
+    // Format folders for tree building
+    const formattedFolders = folderResults.map(f => ({
+      ...f,
+      type: 'folder' as const,
+      emoji: f.emoji || '📁',
+      isSystem: f.isSystem || false,
+    }));
+
+    // Format prompts for tree building
+    const formattedPrompts = promptResults.map(p => ({
       ...p,
+      name: p.title, // Add name alias for tree building
+      type: 'prompt' as const,
+      emoji: p.emoji || '📄',
       tags: parseJsonField<string[]>(p.tags, []),
     }));
 
+    // Combine into single array
+    const combined = [...formattedFolders, ...formattedPrompts];
+
+    console.log(`[API] GET /api/prompts: ${formattedFolders.length} folders, ${formattedPrompts.length} prompts`);
+
     return NextResponse.json({
       success: true,
-      data: parsed,
+      data: combined,
     });
   } catch (error) {
     console.error('[API] GET /api/prompts error:', error);
     return NextResponse.json(
-      { success: false, error: 'Database error' },
+      { success: false, error: 'Database error', details: String(error) },
       { status: 500 }
     );
   }

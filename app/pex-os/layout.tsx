@@ -5,7 +5,8 @@
 // Athena Architecture | Premium Olympian Theme | Global App Shell
 // ============================================================================
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import '@/styles/animations.css';
 
 import Sidebar from '@/components/layout/Sidebar';
@@ -18,8 +19,31 @@ export default function AthenaPexLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // NOTE: F5 redirect temporarily disabled for debugging
-  // Will be re-enabled after import issues are fixed
+  const router = useRouter();
+  const pathname = usePathname();
+  const hasRedirected = useRef(false);
+
+  // F5 Protocol: On page refresh, always redirect to /analytics (Dashboard)
+  useEffect(() => {
+    if (!hasRedirected.current) {
+      hasRedirected.current = true;
+
+      // Check navigation type
+      const navEntries = typeof window !== 'undefined'
+        ? window.performance?.getEntriesByType('navigation') as PerformanceNavigationTiming[]
+        : [];
+
+      const navType = navEntries?.[0]?.type;
+      const isRefresh = navType === 'reload';
+      const isDirectEntry = navType === 'navigate';
+
+      // Redirect to analytics on refresh or direct URL entry (except if already there)
+      if ((isRefresh || isDirectEntry) && pathname !== '/pex-os/analytics') {
+        console.log('[Layout] F5 Protocol: Redirecting to /analytics');
+        router.replace('/pex-os/analytics');
+      }
+    }
+  }, [router, pathname]);
 
   return (
     <AuthGuard>

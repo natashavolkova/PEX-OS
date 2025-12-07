@@ -190,10 +190,12 @@ export const SlideView: React.FC<SlideViewProps> = ({
   direction,
   className = '',
 }) => {
+  // Only apply slide animations during navigation, not when idle
+  // This prevents conflict with stagger-in animations on children
   const directionClasses = {
     left: 'animate-slide-left',
     right: 'animate-slide-right',
-    none: 'animate-in fade-in zoom-in-95 duration-300',
+    none: '', // No animation - let children's stagger-in work
   };
 
   return (

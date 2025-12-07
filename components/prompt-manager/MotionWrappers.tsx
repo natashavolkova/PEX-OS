@@ -270,14 +270,14 @@ export const createDragGhost = (name: string): HTMLElement => {
   ghost.style.top = '-1000px';
   ghost.innerText = name;
   document.body.appendChild(ghost);
-  
+
   // Clean up after drag
   setTimeout(() => {
     if (ghost.parentNode) {
       document.body.removeChild(ghost);
     }
   }, 0);
-  
+
   return ghost;
 };
 
@@ -301,22 +301,20 @@ export const motionStyles = `
     animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
   
-  /* Modal Bounce In */
+  /* Modal Bounce In - Optimized for snappy performance */
   @keyframes modalBounceIn {
     0% { 
       opacity: 0; 
-      transform: scale(0.9) translateY(30px); 
-    }
-    60% { 
-      opacity: 1; 
-      transform: scale(1.02) translateY(-5px); 
+      transform: scale(0.95) translateY(10px); 
     }
     100% { 
+      opacity: 1;
       transform: scale(1) translateY(0); 
     }
   }
   .animate-modal-bounce {
-    animation: modalBounceIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    animation: modalBounceIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    will-change: transform, opacity;
   }
   
   /* Success Pulse */

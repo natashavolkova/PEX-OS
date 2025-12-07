@@ -8,6 +8,7 @@ import { db } from '@/lib/db';
 import { prompts, folders, users } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { generateId, nowISO, parseJsonField, stringifyJsonField, ATHENA_USER_ID, ATHENA_EMAIL, ATHENA_NAME } from '@/lib/db/helpers';
+import { and } from 'drizzle-orm';
 
 // GET /api/prompts - List folders AND prompts for tree building
 export async function GET() {
@@ -134,6 +135,41 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { success: false, error: 'Failed to create prompt' },
       { status: 400 }
+    );
+  }
+}
+
+// DELETE /api/prompts - Delete prompt by ID
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: 'ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Delete the prompt (only if belongs to user)
+    const result = await db.delete(prompts)
+      .where(and(
+        eq(prompts.id, id),
+        eq(prompts.userId, ATHENA_USER_ID)
+      ));
+
+    console.log(`[API] DELETE /api/prompts: Deleted prompt ${id}`);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Prompt deleted',
+    });
+  } catch (error) {
+    console.error('[API] DELETE /api/prompts error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to delete prompt', details: String(error) },
+      { status: 500 }
     );
   }
 }

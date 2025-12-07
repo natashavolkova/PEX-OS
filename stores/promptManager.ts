@@ -257,7 +257,7 @@ interface PromptManagerState {
     setData: (data: TreeNode[]) => void;
     addItem: (item: TreeNode, parentId?: string | null) => void;
     updateItem: (id: string, updates: Partial<TreeNode>) => void;
-    deleteItem: (id: string) => void;
+    deleteItem: (id: string) => Promise<boolean>;
     moveItem: (itemId: string, targetFolderId: string | null) => void;
     importPackage: (pkg: Folder, targetFolderId?: string | null) => void;
 
@@ -395,19 +395,39 @@ export const usePromptManagerStore = create<PromptManagerState>()(
               data: updateItemInTree(state.data, id, updates),
             })),
 
-          deleteItem: (id) => {
+          deleteItem: async (id) => {
             const state = get();
             const item = state.actions.findItem(id);
             const itemName = item?.name || 'Item';
+            const isFolder = item?.type === 'folder';
 
-            set((s) => ({
-              data: removeItemById(s.data, id),
-              selectedFolder: s.selectedFolder?.id === id ? null : s.selectedFolder,
-              selectedSubfolder: s.selectedSubfolder?.id === id ? null : s.selectedSubfolder,
-              selectedPrompt: s.selectedPrompt?.id === id ? null : s.selectedPrompt,
-            }));
+            try {
+              // Call API to delete from Turso
+              const endpoint = isFolder ? '/api/folders' : '/api/prompts';
+              const response = await fetch(`${endpoint}?id=${id}`, {
+                method: 'DELETE'
+              });
 
-            state.actions.showToast(`"${itemName}" excluído!`, 'success');
+              if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Failed to delete');
+              }
+
+              // Only update local state after successful API call
+              set((s) => ({
+                data: removeItemById(s.data, id),
+                selectedFolder: s.selectedFolder?.id === id ? null : s.selectedFolder,
+                selectedSubfolder: s.selectedSubfolder?.id === id ? null : s.selectedSubfolder,
+                selectedPrompt: s.selectedPrompt?.id === id ? null : s.selectedPrompt,
+              }));
+
+              state.actions.showToast(`"${itemName}" excluído!`, 'success');
+              return true;
+            } catch (error) {
+              console.error('[Store] deleteItem error:', error);
+              state.actions.showToast(`Erro ao excluir "${itemName}"`, 'error');
+              return false;
+            }
           },
 
           moveItem: (itemId, targetFolderId) => {

@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   CheckSquare,
   Square,
+  Loader2,
 } from 'lucide-react';
 import { Overlay, ModalAnimation } from '../MotionWrappers';
 import { usePromptManagerStore } from '@/stores/promptManager';
@@ -98,6 +99,7 @@ const ItemRow: React.FC<ItemRowProps> = ({ item, isSelected, onToggle, childCoun
 export const DeleteModal: React.FC<DeleteModalProps> = ({ isOpen, onClose }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isConfirmStep, setIsConfirmStep] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const data = usePromptManagerStore((s) => s.data);
   const sequentialPath = usePromptManagerStore((s) => s.sequentialPath);
@@ -124,6 +126,7 @@ export const DeleteModal: React.FC<DeleteModalProps> = ({ isOpen, onClose }) => 
     if (isOpen) {
       setSelectedIds(new Set());
       setIsConfirmStep(false);
+      setIsDeleting(false);
     }
   }, [isOpen]);
 
@@ -170,17 +173,31 @@ export const DeleteModal: React.FC<DeleteModalProps> = ({ isOpen, onClose }) => 
     }
   };
 
-  // Handle delete
-  const handleDelete = () => {
-    if (selectedIds.size === 0) return;
+  // Handle delete - async with backend integration
+  const handleDelete = async () => {
+    if (selectedIds.size === 0 || isDeleting) return;
+    setIsDeleting(true);
 
-    // Delete each selected item
     const idsToDelete = Array.from(selectedIds);
-    idsToDelete.forEach((id) => {
-      deleteItem(id);
-    });
+    let successCount = 0;
 
-    showToast(`${idsToDelete.length} ${idsToDelete.length === 1 ? 'item excluído' : 'itens excluídos'}!`, 'success');
+    // Delete sequentially to avoid race conditions
+    for (const id of idsToDelete) {
+      const success = await deleteItem(id);
+      if (success) {
+        successCount++;
+      } else {
+        // Stop on first error
+        setIsDeleting(false);
+        return;
+      }
+    }
+
+    showToast(
+      `${successCount} ${successCount === 1 ? 'item excluído' : 'itens excluídos'}!`,
+      'success'
+    );
+    setIsDeleting(false);
     onClose();
   };
 
@@ -376,10 +393,20 @@ export const DeleteModal: React.FC<DeleteModalProps> = ({ isOpen, onClose }) => 
                 </button>
                 <button
                   onClick={handleDelete}
-                  className="flex-1 px-5 py-2.5 text-xs font-bold rounded-lg text-white bg-red-500 hover:bg-red-600 transition-all shadow-lg shadow-red-900/20 flex items-center justify-center gap-2"
+                  disabled={isDeleting}
+                  className="flex-1 px-5 py-2.5 text-xs font-bold rounded-lg text-white bg-red-500 hover:bg-red-600 transition-all shadow-lg shadow-red-900/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Trash2 size={14} />
-                  Confirmar Exclusão
+                  {isDeleting ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Excluindo...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={14} />
+                      Confirmar Exclusão
+                    </>
+                  )}
                 </button>
               </div>
             </>

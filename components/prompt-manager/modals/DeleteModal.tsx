@@ -5,7 +5,7 @@
 // ATHENA Architecture | Context-Aware Batch Delete | Premium Dark Theme
 // ============================================================================
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   X,
   Trash2,
@@ -16,7 +16,6 @@ import {
   Square,
   Loader2,
 } from 'lucide-react';
-import { Overlay, ModalAnimation } from '../MotionWrappers';
 import { usePromptManagerStore } from '@/stores/promptManager';
 import type { TreeNode, Folder as FolderType, Prompt } from '@/types/prompt-manager';
 
@@ -100,6 +99,10 @@ export const DeleteModal: React.FC<DeleteModalProps> = ({ isOpen, onClose }) => 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isConfirmStep, setIsConfirmStep] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Click outside tracking - prevents close when dragging text selection
+  const mouseDownTargetRef = useRef<EventTarget | null>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   const data = usePromptManagerStore((s) => s.data);
   const sequentialPath = usePromptManagerStore((s) => s.sequentialPath);
@@ -210,210 +213,251 @@ export const DeleteModal: React.FC<DeleteModalProps> = ({ isOpen, onClose }) => 
     setIsConfirmStep(true);
   };
 
+  // Handle overlay click - only close if BOTH mousedown AND mouseup were on overlay
+  const handleOverlayMouseDown = (e: React.MouseEvent) => {
+    mouseDownTargetRef.current = e.target;
+  };
+
+  const handleOverlayMouseUp = (e: React.MouseEvent) => {
+    // Only close if click started AND ended on the overlay (not the modal)
+    if (
+      mouseDownTargetRef.current === overlayRef.current &&
+      e.target === overlayRef.current
+    ) {
+      onClose();
+    }
+    mouseDownTargetRef.current = null;
+  };
+
   return (
-    <Overlay onClick={onClose}>
-      <ModalAnimation>
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className="bg-[#1e2330] rounded-xl border border-white/10 shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 shrink-0">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <Trash2 size={18} className="text-red-400" />
-              {isConfirmStep ? 'Confirmar Exclusão' : 'Gerenciar Exclusões'}
-            </h3>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-white/5"
-            >
-              <X size={16} />
-            </button>
-          </div>
+    <div
+      ref={overlayRef}
+      onMouseDown={handleOverlayMouseDown}
+      onMouseUp={handleOverlayMouseUp}
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 animate-fade-in"
+      style={{
+        animation: 'fadeIn 0.15s ease-out forwards',
+      }}
+    >
+      <style jsx>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes modalIn {
+          from { 
+            opacity: 0; 
+            transform: scale(0.96) translateY(8px); 
+          }
+          to { 
+            opacity: 1; 
+            transform: scale(1) translateY(0); 
+          }
+        }
+      `}</style>
+      <div
+        className="bg-[#1e2330] rounded-xl border border-white/10 shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh]"
+        style={{
+          animation: 'modalIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+          willChange: 'transform, opacity',
+        }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 shrink-0">
+          <h3 className="text-base font-bold text-white flex items-center gap-2">
+            <Trash2 size={18} className="text-red-400" />
+            {isConfirmStep ? 'Confirmar Exclusão' : 'Gerenciar Exclusões'}
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-white/5"
+          >
+            <X size={16} />
+          </button>
+        </div>
 
-          {/* Content */}
-          {!isConfirmStep ? (
-            <>
-              {/* Toolbar */}
-              <div className="flex items-center justify-between px-5 py-3 border-b border-white/5 bg-white/[0.02]">
-                <div className="text-xs text-gray-400">
-                  <span className="text-white font-medium">{title}</span>
-                  <span className="mx-2">•</span>
-                  {totalItems} {totalItems === 1 ? 'item' : 'itens'}
-                </div>
-                {totalItems > 0 && (
-                  <button
-                    onClick={toggleAll}
-                    className="text-xs text-gray-400 hover:text-white flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white/5 transition-all"
-                  >
-                    {selectedIds.size === totalItems ? (
-                      <>
-                        <CheckSquare size={12} /> Desmarcar
-                      </>
-                    ) : (
-                      <>
-                        <Square size={12} /> Selecionar Todos
-                      </>
-                    )}
-                  </button>
-                )}
+        {/* Content */}
+        {!isConfirmStep ? (
+          <>
+            {/* Toolbar */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-white/5 bg-white/[0.02]">
+              <div className="text-xs text-gray-400">
+                <span className="text-white font-medium">{title}</span>
+                <span className="mx-2">•</span>
+                {totalItems} {totalItems === 1 ? 'item' : 'itens'}
               </div>
+              {totalItems > 0 && (
+                <button
+                  onClick={toggleAll}
+                  className="text-xs text-gray-400 hover:text-white flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white/5 transition-all"
+                >
+                  {selectedIds.size === totalItems ? (
+                    <>
+                      <CheckSquare size={12} /> Desmarcar
+                    </>
+                  ) : (
+                    <>
+                      <Square size={12} /> Selecionar Todos
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
 
-              {/* Items List */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-                {totalItems === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-gray-500">
-                    <Folder size={40} className="opacity-30 mb-3" />
-                    <p className="text-sm">Nenhum item neste nível</p>
-                    <p className="text-xs text-gray-600 mt-1">Navegue para uma pasta com conteúdo</p>
-                  </div>
-                ) : (
-                  <>
-                    {/* Folders Section */}
-                    {folders.length > 0 && (
-                      <div className="mb-4">
+            {/* Items List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+              {totalItems === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+                  <Folder size={40} className="opacity-30 mb-3" />
+                  <p className="text-sm">Nenhum item neste nível</p>
+                  <p className="text-xs text-gray-600 mt-1">Navegue para uma pasta com conteúdo</p>
+                </div>
+              ) : (
+                <>
+                  {/* Folders Section */}
+                  {folders.length > 0 && (
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-2 px-1">
+                        <Folder size={12} className="text-blue-400" />
+                        <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">
+                          Pastas ({folders.length})
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {folders.map((folder) => (
+                          <ItemRow
+                            key={folder.id}
+                            item={folder}
+                            isSelected={selectedIds.has(folder.id)}
+                            onToggle={() => toggleItem(folder.id)}
+                            childCount={getChildCount(folder)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Prompts Section */}
+                  {prompts.length > 0 && (
+                    <div>
+                      {folders.length > 0 && (
                         <div className="flex items-center gap-2 mb-2 px-1">
-                          <Folder size={12} className="text-blue-400" />
+                          <FileText size={12} className="text-emerald-400" />
                           <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">
-                            Pastas ({folders.length})
+                            Prompts ({prompts.length})
                           </span>
                         </div>
-                        <div className="space-y-2">
-                          {folders.map((folder) => (
-                            <ItemRow
-                              key={folder.id}
-                              item={folder}
-                              isSelected={selectedIds.has(folder.id)}
-                              onToggle={() => toggleItem(folder.id)}
-                              childCount={getChildCount(folder)}
-                            />
-                          ))}
-                        </div>
+                      )}
+                      <div className="space-y-2">
+                        {prompts.map((prompt) => (
+                          <ItemRow
+                            key={prompt.id}
+                            item={prompt}
+                            isSelected={selectedIds.has(prompt.id)}
+                            onToggle={() => toggleItem(prompt.id)}
+                          />
+                        ))}
                       </div>
-                    )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
 
-                    {/* Prompts Section */}
-                    {prompts.length > 0 && (
-                      <div>
-                        {folders.length > 0 && (
-                          <div className="flex items-center gap-2 mb-2 px-1">
-                            <FileText size={12} className="text-emerald-400" />
-                            <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">
-                              Prompts ({prompts.length})
-                            </span>
-                          </div>
-                        )}
-                        <div className="space-y-2">
-                          {prompts.map((prompt) => (
-                            <ItemRow
-                              key={prompt.id}
-                              item={prompt}
-                              isSelected={selectedIds.has(prompt.id)}
-                              onToggle={() => toggleItem(prompt.id)}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
+            {/* Footer */}
+            <div className="flex items-center justify-between px-5 py-4 border-t border-white/5 shrink-0 bg-[#1e2330]">
+              <div className="text-xs text-gray-400">
+                {selectedCount > 0 ? (
+                  <span className="text-red-400 font-medium">{selectedCount} selecionado{selectedCount > 1 ? 's' : ''}</span>
+                ) : (
+                  'Nenhum item selecionado'
                 )}
               </div>
-
-              {/* Footer */}
-              <div className="flex items-center justify-between px-5 py-4 border-t border-white/5 shrink-0 bg-[#1e2330]">
-                <div className="text-xs text-gray-400">
-                  {selectedCount > 0 ? (
-                    <span className="text-red-400 font-medium">{selectedCount} selecionado{selectedCount > 1 ? 's' : ''}</span>
-                  ) : (
-                    'Nenhum item selecionado'
-                  )}
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={onClose}
-                    className="px-4 py-2 text-xs font-medium rounded-lg text-gray-300 border border-white/10 hover:bg-white/10 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleProceed}
-                    disabled={selectedCount === 0}
-                    className="px-5 py-2 text-xs font-bold rounded-lg text-white bg-red-500 hover:bg-red-600 transition-all shadow-lg shadow-red-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    <Trash2 size={14} />
-                    Excluir ({selectedCount})
-                  </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 text-xs font-medium rounded-lg text-gray-300 border border-white/10 hover:bg-white/10 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleProceed}
+                  disabled={selectedCount === 0}
+                  className="px-5 py-2 text-xs font-bold rounded-lg text-white bg-red-500 hover:bg-red-600 transition-all shadow-lg shadow-red-900/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <Trash2 size={14} />
+                  Excluir ({selectedCount})
+                </button>
+              </div>
+            </div>
+          </>
+        ) : (
+          /* Confirmation Step */
+          <>
+            <div className="p-6 flex-1">
+              <div className="flex items-center justify-center mb-6">
+                <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center">
+                  <AlertTriangle size={32} className="text-red-400" />
                 </div>
               </div>
-            </>
-          ) : (
-            /* Confirmation Step */
-            <>
-              <div className="p-6 flex-1">
-                <div className="flex items-center justify-center mb-6">
-                  <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center">
-                    <AlertTriangle size={32} className="text-red-400" />
-                  </div>
-                </div>
 
-                <h4 className="text-lg font-bold text-white text-center mb-2">
-                  Tem certeza?
-                </h4>
-                <p className="text-sm text-gray-400 text-center mb-6">
-                  Você está prestes a excluir <span className="text-red-400 font-bold">{selectedCount}</span> {selectedCount === 1 ? 'item' : 'itens'}.
-                  Esta ação não pode ser desfeita.
-                </p>
+              <h4 className="text-lg font-bold text-white text-center mb-2">
+                Tem certeza?
+              </h4>
+              <p className="text-sm text-gray-400 text-center mb-6">
+                Você está prestes a excluir <span className="text-red-400 font-bold">{selectedCount}</span> {selectedCount === 1 ? 'item' : 'itens'}.
+                Esta ação não pode ser desfeita.
+              </p>
 
-                {/* Selected items preview */}
-                <div className="bg-[#0f111a] rounded-lg border border-white/5 p-3 max-h-40 overflow-y-auto custom-scrollbar">
-                  <div className="text-[10px] uppercase font-bold text-gray-500 mb-2">Itens a excluir:</div>
-                  <div className="space-y-1">
-                    {nodes.filter((n) => selectedIds.has(n.id)).map((item) => (
-                      <div key={item.id} className="flex items-center gap-2 text-xs">
-                        <span className="text-base">{item.emoji || (item.type === 'folder' ? '📁' : '📄')}</span>
-                        <span className="text-gray-300 truncate">{item.name}</span>
-                        <span className={`
+              {/* Selected items preview */}
+              <div className="bg-[#0f111a] rounded-lg border border-white/5 p-3 max-h-40 overflow-y-auto custom-scrollbar">
+                <div className="text-[10px] uppercase font-bold text-gray-500 mb-2">Itens a excluir:</div>
+                <div className="space-y-1">
+                  {nodes.filter((n) => selectedIds.has(n.id)).map((item) => (
+                    <div key={item.id} className="flex items-center gap-2 text-xs">
+                      <span className="text-base">{item.emoji || (item.type === 'folder' ? '📁' : '📄')}</span>
+                      <span className="text-gray-300 truncate">{item.name}</span>
+                      <span className={`
                           px-1 py-0.5 rounded text-[8px] font-bold uppercase
                           ${item.type === 'folder' ? 'bg-blue-500/15 text-blue-400' : 'bg-emerald-500/15 text-emerald-400'}
                         `}>
-                          {item.type === 'folder' ? 'Pasta' : 'Prompt'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                        {item.type === 'folder' ? 'Pasta' : 'Prompt'}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
+            </div>
 
-              <div className="flex gap-3 px-5 py-4 border-t border-white/5 shrink-0">
-                <button
-                  onClick={() => setIsConfirmStep(false)}
-                  className="flex-1 px-4 py-2.5 text-xs font-medium rounded-lg text-gray-300 border border-white/10 hover:bg-white/10 transition-colors"
-                >
-                  ← Voltar
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={isDeleting}
-                  className="flex-1 px-5 py-2.5 text-xs font-bold rounded-lg text-white bg-red-500 hover:bg-red-600 transition-all shadow-lg shadow-red-900/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isDeleting ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" />
-                      Excluindo...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 size={14} />
-                      Confirmar Exclusão
-                    </>
-                  )}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </ModalAnimation>
-    </Overlay>
+            <div className="flex gap-3 px-5 py-4 border-t border-white/5 shrink-0">
+              <button
+                onClick={() => setIsConfirmStep(false)}
+                className="flex-1 px-4 py-2.5 text-xs font-medium rounded-lg text-gray-300 border border-white/10 hover:bg-white/10 transition-colors"
+              >
+                ← Voltar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="flex-1 px-5 py-2.5 text-xs font-bold rounded-lg text-white bg-red-500 hover:bg-red-600 transition-all shadow-lg shadow-red-900/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Excluindo...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={14} />
+                    Confirmar Exclusão
+                  </>
+                )}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 };
 

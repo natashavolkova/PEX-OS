@@ -99,10 +99,11 @@ export const ColumnWrapper: React.FC<ColumnWrapperProps> = ({
             <p className="text-[10px] mt-1 opacity-60 max-w-[150px]">{emptyDescription}</p>
           </div>
         ) : (
-          items.map((item) => (
+          items.map((item, index) => (
             <ColumnItem
               key={item.id}
               item={item}
+              index={index}
               isSelected={selectedId === item.id}
               onClick={() => onSelect(item)}
               onEdit={(e) => {

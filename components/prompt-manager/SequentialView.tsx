@@ -93,15 +93,19 @@ const FolderCard: React.FC<FolderCardProps> = ({
       className={`
         group relative flex flex-col min-h-[180px] w-full
         bg-gradient-to-br from-athena-navy/90 to-athena-navy-deep/80 
-        backdrop-blur-xl border rounded-xl p-5
-        transition-all duration-200 cursor-pointer
-        border-blue-500/25 hover:border-blue-400/50 hover:shadow-[0_0_25px_rgba(41,121,255,0.15)]
+        border rounded-xl p-5
+        transition-[transform,border-color,box-shadow] duration-200 cursor-pointer
+        border-blue-500/25 hover:border-blue-400/50 hover:shadow-blue-900/20
         ${!isLocked ? 'cursor-grab active:cursor-grabbing' : ''}
         ${isDragging ? 'opacity-40 scale-95 border-dashed' : ''}
-        ${isJustDropped ? 'animate-success-pulse ring-2 ring-green-500' : ''}
+        ${isJustDropped ? 'ring-2 ring-green-500' : ''}
         hover:scale-[1.01] hover:-translate-y-0.5
+        animate-stagger-in
       `}
-      style={{ animationDelay: `${index * 20}ms` }}
+      style={{
+        animationDelay: `${index * 50}ms`,
+        willChange: 'transform, opacity',
+      }}
     >
       <div className="absolute top-3 right-3 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-blue-500/15 text-blue-400">
         Pasta
@@ -539,8 +543,11 @@ export const SequentialView: React.FC = () => {
               {/* New Folder Button */}
               <button
                 onClick={handleNewFolder}
-                className="flex flex-col items-center justify-center gap-3 bg-white/[0.02] border border-dashed border-white/10 hover:border-[#2979ff]/40 hover:bg-[#2979ff]/5 rounded-xl p-5 cursor-pointer transition-all group min-h-[180px]"
-                style={{ animationDelay: `${folders.length * 20}ms` }}
+                className="flex flex-col items-center justify-center gap-3 bg-white/[0.02] border border-dashed border-white/10 hover:border-[#2979ff]/40 hover:bg-[#2979ff]/5 rounded-xl p-5 cursor-pointer transition-all group min-h-[180px] animate-stagger-in"
+                style={{
+                  animationDelay: `${folders.length * 50}ms`,
+                  willChange: 'transform, opacity',
+                }}
               >
                 <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center text-gray-400 group-hover:text-[#2979ff] group-hover:scale-105 transition-all">
                   <Plus size={24} />

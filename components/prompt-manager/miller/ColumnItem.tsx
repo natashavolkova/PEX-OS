@@ -11,6 +11,7 @@ import type { TreeNode, Folder as FolderType, Prompt } from '@/types/prompt-mana
 
 interface ColumnItemProps {
   item: TreeNode;
+  index: number;
   isSelected: boolean;
   onClick: () => void;
   onEdit: (e: React.MouseEvent) => void;
@@ -27,6 +28,7 @@ interface ColumnItemProps {
 
 export const ColumnItem: React.FC<ColumnItemProps> = ({
   item,
+  index,
   isSelected,
   onClick,
   onEdit,
@@ -54,13 +56,18 @@ export const ColumnItem: React.FC<ColumnItemProps> = ({
       data-item-id={item.id}
       className={`
         group flex items-center justify-between p-3 rounded-lg cursor-pointer 
-        transition-all border
-        ${isSelected 
-          ? 'bg-[#2979ff]/10 border-[#2979ff]/30' 
+        transition-[background,border,transform,opacity] duration-200 border
+        ${isSelected
+          ? 'bg-[#2979ff]/10 border-[#2979ff]/30'
           : 'bg-[#1e2330] border-white/5 hover:border-white/20'}
         ${isDragging ? 'opacity-40 scale-95' : ''}
-        ${isJustDropped ? 'ring-2 ring-green-500 animate-success-pulse' : ''}
+        ${isJustDropped ? 'ring-2 ring-green-500' : ''}
+        animate-stagger-in
       `}
+      style={{
+        animationDelay: `${index * 50}ms`,
+        willChange: 'transform, opacity',
+      }}
     >
       <div className="flex items-center gap-3 min-w-0">
         <span className="text-lg">{item.emoji || (isFolder ? '📁' : '📄')}</span>
@@ -69,7 +76,7 @@ export const ColumnItem: React.FC<ColumnItemProps> = ({
             {item.name}
           </p>
           <p className="text-[10px] text-gray-400">
-            {isFolder 
+            {isFolder
               ? `${(item as FolderType).children?.length || 0} itens`
               : (item as Prompt).category || 'Prompt'
             }
@@ -92,9 +99,9 @@ export const ColumnItem: React.FC<ColumnItemProps> = ({
           </button>
         )}
         {isFolder && (
-          <ChevronRight 
-            size={14} 
-            className={`text-gray-400 transition-colors ml-1 ${isSelected ? 'text-[#2979ff]' : ''}`} 
+          <ChevronRight
+            size={14}
+            className={`text-gray-400 transition-colors ml-1 ${isSelected ? 'text-[#2979ff]' : ''}`}
           />
         )}
       </div>

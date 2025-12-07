@@ -22,8 +22,11 @@ const SharedItemCard: React.FC<SharedItemCardProps> = ({ item, index }) => {
 
   return (
     <div
-      className="bg-[#1e2330] border border-white/5 hover:border-[#5b4eff]/50 rounded-xl p-5 transition-all hover:shadow-xl group animate-slide-up-fade"
-      style={{ animationDelay: `${index * 100}ms` }}
+      className="bg-[#1e2330] border border-white/5 hover:border-[#5b4eff]/50 rounded-xl p-5 transition-all hover:shadow-xl group animate-stagger-in"
+      style={{
+        animationDelay: `${index * 50}ms`,
+        willChange: 'transform, opacity',
+      }}
     >
       {/* Owner Info */}
       <div className="flex justify-between items-start mb-4">

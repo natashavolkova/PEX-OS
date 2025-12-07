@@ -76,7 +76,7 @@ export const SettingsModal: React.FC = () => {
     // Persist gridDensity to database
     try {
       await fetch('/api/user/preferences', {
-        method: 'PATCH',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gridDensity: localGridDensity }),
       });

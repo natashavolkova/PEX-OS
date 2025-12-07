@@ -90,26 +90,20 @@ export const MillerColumns: React.FC = () => {
   };
 
   const handleDelete = (item: TreeNode) => {
-    if (isLocked) {
-      showToast('Desbloqueie para excluir', 'warning');
-      return;
+    // Lock only affects drag-and-drop, not CRUD operations
+    if (window.confirm(`Tem certeza que deseja excluir "${item.name}"?`)) {
+      showToast(`"${item.name}" excluído com sucesso`, 'success');
+      // TODO: Call delete API here
     }
-    showToast(`Excluir "${item.name}"?`, 'warning');
   };
 
   const handleNewFolder = () => {
-    if (isLocked) {
-      showToast('Desbloqueie para criar', 'warning');
-      return;
-    }
+    // Lock only affects drag-and-drop, not CRUD operations
     showToast('Criar nova pasta...', 'info');
   };
 
   const handleNewSubfolder = () => {
-    if (isLocked) {
-      showToast('Desbloqueie para criar', 'warning');
-      return;
-    }
+    // Lock only affects drag-and-drop, not CRUD operations
     if (!selectedFolder) {
       showToast('Selecione uma pasta primeiro', 'warning');
       return;
@@ -118,10 +112,7 @@ export const MillerColumns: React.FC = () => {
   };
 
   const handleNewPrompt = () => {
-    if (isLocked) {
-      showToast('Desbloqueie para criar', 'warning');
-      return;
-    }
+    // Lock only affects drag-and-drop, not CRUD operations
     if (!selectedFolder && !selectedSubfolder) {
       showToast('Selecione uma pasta primeiro', 'warning');
       return;

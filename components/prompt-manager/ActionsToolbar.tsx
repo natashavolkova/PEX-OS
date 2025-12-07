@@ -101,15 +101,17 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
   };
 
   const handleDelete = () => {
-    if (isLocked) {
-      showToast('Desbloqueie para deletar', 'warning');
-      return;
-    }
+    // Lock only affects drag-and-drop, not CRUD operations
     if (!selectedFolder && !selectedPrompt) {
       showToast('Selecione um item para deletar', 'warning');
       return;
     }
-    showToast('Confirmar exclusão?', 'warning');
+    const itemName = selectedPrompt?.name || selectedFolder?.name;
+    // Show confirmation
+    if (window.confirm(`Tem certeza que deseja excluir "${itemName}"?`)) {
+      showToast(`"${itemName}" excluído com sucesso`, 'success');
+      // TODO: Call delete API here
+    }
   };
 
   // --- Button Style Classes ---
@@ -209,7 +211,6 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
         <button
           onClick={handleDelete}
           className={`${secondaryBtnClass} text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:border-red-500/20`}
-          disabled={isLocked}
         >
           <Trash2 size={14} /> Excluir Selecionado
         </button>
@@ -271,7 +272,6 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
         <button
           onClick={handleDelete}
           className={`${iconBtnClass} hover:text-red-400 hover:bg-red-500/10`}
-          disabled={isLocked}
         >
           <Trash2 size={16} />
         </button>

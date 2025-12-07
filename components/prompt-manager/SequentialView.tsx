@@ -50,6 +50,7 @@ interface FolderCardProps {
   onEdit: (item: TreeNode) => void;
   onShare: (item: TreeNode) => void;
   onDragStart: (e: React.DragEvent, item: TreeNode) => void;
+  onDragEnd: () => void;
   onDragOver: (e: React.DragEvent) => void;
   onDragLeave: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent, item: TreeNode) => void;
@@ -65,6 +66,7 @@ const FolderCard: React.FC<FolderCardProps> = ({
   onEdit,
   onShare,
   onDragStart,
+  onDragEnd,
   onDragOver,
   onDragLeave,
   onDrop,
@@ -76,6 +78,7 @@ const FolderCard: React.FC<FolderCardProps> = ({
     <div
       draggable={!isLocked}
       onDragStart={(e) => onDragStart(e, folder)}
+      onDragEnd={() => { }}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, folder)}
@@ -156,6 +159,7 @@ interface PromptCardProps {
   onEdit: (item: TreeNode) => void;
   onShare: (item: TreeNode) => void;
   onDragStart: (e: React.DragEvent, item: TreeNode) => void;
+  onDragEnd: () => void;
   onDragOver: (e: React.DragEvent) => void;
   onDragLeave: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent, item: TreeNode) => void;
@@ -172,6 +176,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
   onEdit,
   onShare,
   onDragStart,
+  onDragEnd,
   onDragOver,
   onDragLeave,
   onDrop,
@@ -184,6 +189,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
     <div
       draggable={!isLocked}
       onDragStart={(e) => onDragStart(e, prompt)}
+      onDragEnd={() => { }}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, prompt)}
@@ -426,11 +432,13 @@ export const SequentialView: React.FC = () => {
   };
 
   const handleNewFolder = () => {
-    if (isLocked) {
-      showToast('Desbloqueie para criar', 'warning');
-      return;
-    }
+    // Lock only affects drag-and-drop, not CRUD operations
     showToast('Criar nova pasta...', 'info');
+  };
+
+  // Handle drag end (reset opacity even if cancelled)
+  const handleDragEnd = () => {
+    setDragState({ draggedItemId: null, draggedItemType: null });
   };
 
   return (
@@ -504,6 +512,7 @@ export const SequentialView: React.FC = () => {
                   onEdit={handleEdit}
                   onShare={handleShare}
                   onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
@@ -555,6 +564,7 @@ export const SequentialView: React.FC = () => {
                   onEdit={handleEdit}
                   onShare={handleShare}
                   onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}

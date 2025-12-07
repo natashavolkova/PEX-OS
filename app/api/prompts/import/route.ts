@@ -1,6 +1,6 @@
 // ============================================================================
 // PROMPTS IMPORT API - Turso/Drizzle
-// ATHENA Architecture | Legacy Backup Support
+// ATHENA Architecture | Legacy Backup Support | 10MB Body Limit
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -9,13 +9,20 @@ import { folders, prompts, users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { ATHENA_USER_ID, ATHENA_EMAIL, ATHENA_NAME, nowISO, generateId, stringifyJsonField } from '@/lib/db/helpers';
 
-// --- LEGACY BACKUP FORMAT ---
-// {
-//   "folders": [
-//     { "id": "...", "name": "...", "prompts": [ { "id": "...", "title": "...", "content": "..." } ] }
-//   ]
-// }
+// --- ROUTE CONFIG: Increase body size limit to 10MB ---
+export const config = {
+    api: {
+        bodyParser: {
+            sizeLimit: '10mb',
+        },
+    },
+};
 
+// Also export route segment config for App Router
+export const runtime = 'nodejs';
+export const maxDuration = 60; // 60 seconds timeout
+
+// --- LEGACY BACKUP FORMAT ---
 interface LegacyPrompt {
     id: string;
     folderId?: string;
@@ -47,23 +54,49 @@ interface LegacyBackup {
 
 // POST /api/prompts/import - Import prompts from JSON (supports legacy format)
 export async function POST(request: NextRequest) {
-    try {
-        const body = await request.json();
+    console.log('[IMPORT API] Starting import request...');
 
-        // Try to detect format
+    try {
+        // Parse body with size validation
+        let body: any;
+        try {
+            const text = await request.text();
+            console.log('[IMPORT API] Body size:', text.length, 'bytes');
+
+            if (text.length > 10 * 1024 * 1024) {
+                return NextResponse.json(
+                    { success: false, error: 'Payload too large. Maximum 10MB allowed.' },
+                    { status: 413 }
+                );
+            }
+
+            body = JSON.parse(text);
+        } catch (parseError) {
+            console.error('[IMPORT API] JSON parse error:', parseError);
+            return NextResponse.json(
+                { success: false, error: 'Invalid JSON format', details: String(parseError) },
+                { status: 400 }
+            );
+        }
+
+        // Detect format
         const isLegacyFormat = body.folders && Array.isArray(body.folders);
         const isNewFormat = body.data && Array.isArray(body.data);
 
+        console.log('[IMPORT API] Format detected:', isLegacyFormat ? 'LEGACY' : isNewFormat ? 'NEW' : 'UNKNOWN');
+
         if (!isLegacyFormat && !isNewFormat) {
             return NextResponse.json(
-                { success: false, error: 'Invalid import data format' },
+                { success: false, error: 'Invalid import data format. Expected { folders: [...] } or { data: [...] }' },
                 { status: 400 }
             );
         }
 
         // Ensure user exists
+        console.log('[IMPORT API] Checking user exists...');
         const existingUser = await db.select().from(users).where(eq(users.id, ATHENA_USER_ID)).limit(1);
         if (existingUser.length === 0) {
+            console.log('[IMPORT API] Creating user...');
             await db.insert(users).values({
                 id: ATHENA_USER_ID,
                 email: ATHENA_EMAIL,
@@ -79,6 +112,7 @@ export async function POST(request: NextRequest) {
         if (isLegacyFormat) {
             // --- LEGACY FORMAT IMPORT ---
             const legacyData = body as LegacyBackup;
+            console.log('[IMPORT API] Legacy format - folders count:', legacyData.folders.length);
 
             // Create the master parent folder "Prompts AI"
             const masterFolderId = generateId();
@@ -88,14 +122,15 @@ export async function POST(request: NextRequest) {
                 type: 'folder',
                 emoji: '🤖',
                 isSystem: false,
-                parentId: null, // Root level
+                parentId: null,
                 userId: ATHENA_USER_ID,
                 createdAt: nowISO(),
                 updatedAt: nowISO(),
             });
             importedFolders++;
+            console.log('[IMPORT API] Created master folder "Prompts AI"');
 
-            // Import all legacy folders as children of "Prompts AI"
+            // Import all legacy folders as children
             for (const legacyFolder of legacyData.folders) {
                 const childFolderId = generateId();
                 await db.insert(folders).values({
@@ -104,14 +139,14 @@ export async function POST(request: NextRequest) {
                     type: 'folder',
                     emoji: legacyFolder.icon || legacyFolder.emoji || '📁',
                     isSystem: false,
-                    parentId: masterFolderId, // Child of "Prompts AI"
+                    parentId: masterFolderId,
                     userId: ATHENA_USER_ID,
                     createdAt: legacyFolder.createdAt || nowISO(),
                     updatedAt: legacyFolder.updatedAt || nowISO(),
                 });
                 importedFolders++;
 
-                // Import prompts inside this folder
+                // Import prompts
                 if (legacyFolder.prompts && Array.isArray(legacyFolder.prompts)) {
                     for (const legacyPrompt of legacyFolder.prompts) {
                         await db.insert(prompts).values({
@@ -124,7 +159,7 @@ export async function POST(request: NextRequest) {
                             tags: stringifyJsonField(legacyPrompt.tags || []),
                             version: 1,
                             isFavorite: false,
-                            folderId: childFolderId, // Inside the child folder
+                            folderId: childFolderId,
                             userId: ATHENA_USER_ID,
                             createdAt: legacyPrompt.createdAt || nowISO(),
                             updatedAt: legacyPrompt.updatedAt || nowISO(),
@@ -132,8 +167,10 @@ export async function POST(request: NextRequest) {
                         importedPrompts++;
                     }
                 }
+                console.log(`[IMPORT API] Imported folder "${legacyFolder.name}" with ${legacyFolder.prompts?.length || 0} prompts`);
             }
 
+            console.log('[IMPORT API] Legacy import complete:', { importedFolders, importedPrompts });
             return NextResponse.json({
                 success: true,
                 message: `Legacy import: Created "Prompts AI" folder with ${importedFolders - 1} subfolders and ${importedPrompts} prompts`,
@@ -144,6 +181,7 @@ export async function POST(request: NextRequest) {
 
         // --- NEW FORMAT IMPORT ---
         const { data } = body;
+        console.log('[IMPORT API] New format - items count:', data.length);
 
         const importItems = async (items: any[], parentId: string | null) => {
             for (const item of items) {
@@ -188,13 +226,14 @@ export async function POST(request: NextRequest) {
 
         await importItems(data, null);
 
+        console.log('[IMPORT API] New format import complete:', { importedFolders, importedPrompts });
         return NextResponse.json({
             success: true,
             message: `Imported ${importedFolders} folders and ${importedPrompts} prompts`,
             stats: { folders: importedFolders, prompts: importedPrompts },
         });
     } catch (error) {
-        console.error('[API] POST /api/prompts/import error:', error);
+        console.error('[IMPORT API] Critical error:', error);
         return NextResponse.json(
             { success: false, error: 'Import failed', details: String(error) },
             { status: 500 }

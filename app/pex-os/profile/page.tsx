@@ -100,7 +100,7 @@ export default function ProfilePage() {
         setSavingPrefs(true);
         try {
             const res = await fetch('/api/user/preferences', {
-                method: 'PATCH',
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ gridDensity: density }),
             });

@@ -322,6 +322,7 @@ export const SequentialView: React.FC = () => {
     setSelectedPrompt,
     showToast,
     moveItem,
+    setCreateFolderModalOpen,
   } = usePromptManagerStore((s) => s.actions);
 
   // Grid density: 'standard' = 4 cols, 'high' = 5 cols
@@ -432,8 +433,8 @@ export const SequentialView: React.FC = () => {
   };
 
   const handleNewFolder = () => {
-    // Lock only affects drag-and-drop, not CRUD operations
-    showToast('Criar nova pasta...', 'info');
+    // Opens the optimized CreateFolderModal
+    setCreateFolderModalOpen(true);
   };
 
   // Handle drag end (reset opacity even if cancelled)

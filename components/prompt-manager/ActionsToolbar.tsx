@@ -13,7 +13,6 @@ import {
   Download,
   Upload,
   Share2,
-  Link as LinkIcon,
   Copy,
   Trash2,
   MoreVertical,
@@ -39,7 +38,6 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
     setCreateFolderModalOpen,
     setCreatePromptModalOpen,
     setShareModalOpen,
-    setCopyLinkModalOpen,
   } = usePromptManagerStore((s) => s.actions);
 
   // Get current folder context for new items
@@ -92,11 +90,6 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
   const handleShare = () => {
     // Opens optimized Share Modal
     setShareModalOpen(true);
-  };
-
-  const handleCopyLink = () => {
-    // Opens optimized Copy Link Modal
-    setCopyLinkModalOpen(true);
   };
 
   const handleDelete = () => {
@@ -187,12 +180,9 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2">
           <button onClick={handleShare} className={secondaryBtnClass}>
             <Share2 size={14} /> Compartilhar
-          </button>
-          <button onClick={handleCopyLink} className={secondaryBtnClass}>
-            <LinkIcon size={14} /> Copiar Link
           </button>
         </div>
 
@@ -242,22 +232,16 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
         </Tooltip>
       </div>
 
-      {/* Share Actions */}
-      <div className="flex items-center gap-1 bg-[#0f111a] p-1 rounded-lg border border-white/5">
-        <Tooltip content="Compartilhar Pasta Atual" position="bottom">
-          <button onClick={handleShare} className={iconBtnClass}>
-            <Share2 size={16} />
-          </button>
-        </Tooltip>
+      {/* Ghost Actions - Share & Delete */}
+      <Tooltip content="Compartilhar" position="bottom">
+        <button
+          onClick={handleShare}
+          className={`${iconBtnClass} hover:text-purple-400 hover:bg-purple-500/10`}
+        >
+          <Share2 size={16} />
+        </button>
+      </Tooltip>
 
-        <Tooltip content="Copiar Link" position="bottom">
-          <button onClick={handleCopyLink} className={iconBtnClass}>
-            <LinkIcon size={16} />
-          </button>
-        </Tooltip>
-      </div>
-
-      {/* Delete - Contextual */}
       <Tooltip content="Gerenciar Exclusões" position="bottom">
         <button
           onClick={handleDelete}

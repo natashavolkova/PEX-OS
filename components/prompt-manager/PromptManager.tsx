@@ -6,7 +6,7 @@
 // ============================================================================
 
 import React, { useEffect, useState } from 'react';
-import { ActionsToolbar, FloatingActionButton } from './ActionsToolbar';
+import { ActionsToolbar } from './ActionsToolbar';
 import { SequentialView } from './SequentialView';
 import { MillerColumns } from './MillerColumns';
 import { HierarchyView } from './views/HierarchyView';
@@ -259,9 +259,6 @@ export const PromptManager: React.FC = () => {
           {renderView()}
         </div>
       </main>
-
-      {/* Floating Action Button */}
-      <FloatingActionButton />
 
       {/* Toast Notifications */}
       {toast && <Toast message={toast.message} type={toast.type} />}

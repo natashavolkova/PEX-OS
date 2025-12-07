@@ -441,3 +441,24 @@
 .hover-glow:hover {
   box-shadow: 0 0 20px rgba(41, 121, 255, 0.2);
 }
+
+/* ============================================
+   STAGGERED ANIMATION FOR CARDS
+   Ultra-fast sequential fade-in for performance
+   ============================================ */
+
+@keyframes staggerIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-stagger-in {
+  opacity: 0;
+  animation: staggerIn 0.2s ease-out forwards;
+}

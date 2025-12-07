@@ -205,16 +205,20 @@ const PromptCard: React.FC<PromptCardProps> = ({
         group relative flex flex-col h-full w-full
         ${isCompact ? 'min-h-[240px]' : 'min-h-[280px]'}
         bg-gradient-to-br from-[#1a1f2e] via-[#1e2536] to-[#1a1f2e]
-        backdrop-blur-xl ${isCompact ? 'rounded-xl' : 'rounded-2xl'} overflow-hidden
+        ${isCompact ? 'rounded-xl' : 'rounded-2xl'} overflow-hidden
         border border-white/[0.08] hover:border-emerald-500/40
-        shadow-[0_4px_24px_rgba(0,0,0,0.25)] hover:shadow-[0_8px_40px_rgba(16,185,129,0.15)]
-        transition-all duration-300 cursor-pointer
+        shadow-lg hover:shadow-emerald-900/20
+        transition-[transform,border-color,box-shadow] duration-200 cursor-pointer
         ${!isLocked ? 'cursor-grab active:cursor-grabbing' : ''}
         ${isDragging ? 'opacity-40 scale-95 border-dashed' : ''}
-        ${isJustDropped ? 'animate-success-pulse ring-2 ring-green-500' : ''}
+        ${isJustDropped ? 'ring-2 ring-green-500' : ''}
         hover:translate-y-[-2px]
+        animate-stagger-in
       `}
-      style={{ animationDelay: `${index * 25}ms` }}
+      style={{
+        animationDelay: `${index * 50}ms`,
+        willChange: 'transform, opacity',
+      }}
     >
       {/* Top Accent Bar */}
       <div className="h-1 w-full bg-gradient-to-r from-emerald-500/60 via-teal-400/60 to-cyan-400/60 shrink-0" />
@@ -323,6 +327,7 @@ export const SequentialView: React.FC = () => {
     showToast,
     moveItem,
     setCreateFolderModalOpen,
+    setCreatePromptModalOpen,
   } = usePromptManagerStore((s) => s.actions);
 
   // Grid density: 'standard' = 4 cols, 'high' = 5 cols
@@ -436,6 +441,14 @@ export const SequentialView: React.FC = () => {
     // Opens the optimized CreateFolderModal
     setCreateFolderModalOpen(true);
   };
+
+  const handleNewPrompt = () => {
+    // Opens the optimized CreatePromptModal
+    setCreatePromptModalOpen(true);
+  };
+
+  // Check if we're in a subfolder (can create prompts)
+  const isInSubfolder = sequentialPath.length >= 2;
 
   // Handle drag end (reset opacity even if cancelled)
   const handleDragEnd = () => {
@@ -575,6 +588,32 @@ export const SequentialView: React.FC = () => {
                   isCompact={gridDensity === 'high'}
                 />
               ))}
+
+              {/* New Prompt Placeholder - Only in Subfolders */}
+              {isInSubfolder && (
+                <button
+                  onClick={handleNewPrompt}
+                  className={`
+                    flex flex-col items-center justify-center gap-3 
+                    bg-white/[0.02] border border-dashed border-white/10 
+                    hover:border-emerald-500/40 hover:bg-emerald-500/5 
+                    ${gridDensity === 'high' ? 'rounded-xl min-h-[240px]' : 'rounded-2xl min-h-[280px]'}
+                    cursor-pointer transition-all group
+                    animate-stagger-in
+                  `}
+                  style={{
+                    animationDelay: `${prompts.length * 50}ms`,
+                    willChange: 'transform, opacity',
+                  }}
+                >
+                  <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-gray-400 group-hover:text-emerald-400 group-hover:scale-105 transition-all border border-emerald-500/20">
+                    <Plus size={24} />
+                  </div>
+                  <span className="text-sm font-medium text-gray-400 group-hover:text-emerald-400 transition-colors">
+                    Novo Prompt
+                  </span>
+                </button>
+              )}
             </SlideView>
           </div>
         )}

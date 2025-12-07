@@ -80,34 +80,40 @@ export const BackupService = {
             const text = await file.text();
             const backup = JSON.parse(text);
 
-            // Support both formats: { folders: [...] } or { data: [...] }
-            let importData;
+            // Send the backup data directly to the API
+            // API accepts: { folders: [...] } for legacy format OR { data: [...] } for new format
+            let importPayload;
 
             if (backup.folders && Array.isArray(backup.folders)) {
-                // New format from Backup_adaptado-EXEMPLO.json
-                // This will create "Prompts AI" as parent folder
-                importData = { folders: backup.folders };
+                // Legacy format from Backup_adaptado-EXEMPLO.json
+                // Send directly as { folders: [...] }
+                importPayload = { folders: backup.folders };
             } else if (backup.data && Array.isArray(backup.data)) {
-                // Old format
-                importData = { folders: backup.data };
+                // New format with data array
+                importPayload = { data: backup.data };
+            } else if (Array.isArray(backup)) {
+                // Direct array format
+                importPayload = { data: backup };
             } else {
-                throw new Error('Invalid backup format');
+                throw new Error('Invalid backup format - expected { folders: [...] } or { data: [...] }');
             }
 
-            // Call import API - creates "Prompts AI" as parent folder
-            const response = await apiClient.post<{ foldersImported: number; promptsImported: number }>(
-                '/prompts/import',
-                {
-                    data: importData,
-                    parentFolderName: 'Prompts AI'
-                }
-            );
+            console.log('[BackupService] Sending import payload:', Object.keys(importPayload));
 
-            if (response.success) {
-                console.log(`✅ Imported: ${response.data?.foldersImported} folders, ${response.data?.promptsImported} prompts`);
+            // Call import API - creates "Prompts AI" as parent folder for legacy format
+            const response = await fetch('/api/prompts/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(importPayload),
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                console.log(`✅ Imported: ${result.stats?.folders || 0} folders, ${result.stats?.prompts || 0} prompts`);
                 return true;
             } else {
-                console.error('Import failed:', response.message);
+                console.error('Import failed:', result.error, result.details);
                 return false;
             }
         } catch (error) {

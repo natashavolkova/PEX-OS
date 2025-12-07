@@ -236,6 +236,7 @@ interface PromptManagerState {
     parentId: string | null;
   };
   isSettingsOpen: boolean;
+  isDeleteModalOpen: boolean;
   isNotificationsOpen: boolean;
   isHistoryOpen: boolean;
   isMasterLoginOpen: boolean;
@@ -295,6 +296,7 @@ interface PromptManagerState {
     setNotificationsOpen: (open: boolean) => void;
     setHistoryOpen: (open: boolean) => void;
     setMasterLoginOpen: (open: boolean) => void;
+    setDeleteModalOpen: (open: boolean) => void;
     setPromptViewerOpen: (open: boolean) => void;
 
     // User
@@ -366,6 +368,7 @@ export const usePromptManagerStore = create<PromptManagerState>()(
           parentId: null,
         },
         isSettingsOpen: false,
+        isDeleteModalOpen: false,
         isNotificationsOpen: false,
         isHistoryOpen: false,
         isMasterLoginOpen: false,
@@ -549,6 +552,7 @@ export const usePromptManagerStore = create<PromptManagerState>()(
           setNotificationsOpen: (open) => set({ isNotificationsOpen: open }),
           setHistoryOpen: (open) => set({ isHistoryOpen: open }),
           setMasterLoginOpen: (open) => set({ isMasterLoginOpen: open }),
+          setDeleteModalOpen: (open) => set({ isDeleteModalOpen: open }),
           setPromptViewerOpen: (open) => set({ isPromptViewerOpen: open }),
 
           // User

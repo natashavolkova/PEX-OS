@@ -18,7 +18,7 @@ import { NotificationsModal } from './modals/NotificationsModal';
 import { MasterKeyModal } from './modals/MasterKeyModal';
 import { MoveSelectorModal } from './modals/MoveSelectorModal';
 import { CreateModal, useCreateModal } from './modals/CreateModal';
-import { DeleteModal, useDeleteModal } from './modals/DeleteModal';
+import { DeleteModal } from './modals/DeleteModal';
 import { Toast } from './Toast';
 import { TagBar } from './TagBar';
 import { usePromptManagerStore } from '@/stores/promptManager';
@@ -64,13 +64,9 @@ export const PromptManager: React.FC = () => {
   const { setSearchQuery, setIsLocked, showToast, setActiveView, openCreateModal, closeCreateModal } =
     usePromptManagerStore((s) => s.actions);
 
-  // Delete Modal State
-  const {
-    isOpen: isDeleteOpen,
-    item: deleteItem,
-    openDeleteModal,
-    closeDeleteModal,
-  } = useDeleteModal();
+  // Delete Modal State - from store
+  const isDeleteModalOpen = usePromptManagerStore((s) => s.isDeleteModalOpen);
+  const { setDeleteModalOpen } = usePromptManagerStore((s) => s.actions);
 
   // Tag Filter State
   const [filteredTags, setFilteredTags] = useState<string[]>([]);
@@ -272,9 +268,8 @@ export const PromptManager: React.FC = () => {
 
       {/* Delete Modal */}
       <DeleteModal
-        isOpen={isDeleteOpen}
-        onClose={closeDeleteModal}
-        item={deleteItem}
+        isOpen={isDeleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
       />
     </div>
   );

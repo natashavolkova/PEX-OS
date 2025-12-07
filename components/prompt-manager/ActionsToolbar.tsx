@@ -33,7 +33,7 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
 }) => {
   const sequentialPath = usePromptManagerStore((s) => s.sequentialPath);
   const { getCurrentSequentialNodes } = usePromptManagerStore((s) => s.actions);
-  const { showToast, openEditModal, openCreateModal, setSettingsOpen } = usePromptManagerStore((s) => s.actions);
+  const { showToast, openCreateModal, setDeleteModalOpen } = usePromptManagerStore((s) => s.actions);
 
   // Get current folder context for new items
   const getCurrentFolderId = (): string | null => {
@@ -107,14 +107,8 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
   };
 
   const handleDelete = () => {
-    // Modal-driven: Show modal with items from current folder to select for deletion
-    const { nodes, title } = getCurrentSequentialNodes();
-    if (nodes.length === 0) {
-      showToast('Pasta vazia - nada para excluir', 'info');
-      return;
-    }
-    // For now, show a message about the items available
-    showToast(`${nodes.length} itens em "${title}" - selecione nos cards para excluir`, 'info');
+    // Opens Delete Modal with items from current level
+    setDeleteModalOpen(true);
   };
 
   // --- Button Style Classes ---

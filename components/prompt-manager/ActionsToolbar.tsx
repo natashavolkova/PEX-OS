@@ -33,7 +33,14 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
 }) => {
   const sequentialPath = usePromptManagerStore((s) => s.sequentialPath);
   const { getCurrentSequentialNodes } = usePromptManagerStore((s) => s.actions);
-  const { showToast, openCreateModal, setDeleteModalOpen } = usePromptManagerStore((s) => s.actions);
+  const {
+    showToast,
+    setDeleteModalOpen,
+    setCreateFolderModalOpen,
+    setCreatePromptModalOpen,
+    setShareModalOpen,
+    setCopyLinkModalOpen,
+  } = usePromptManagerStore((s) => s.actions);
 
   // Get current folder context for new items
   const getCurrentFolderId = (): string | null => {
@@ -44,13 +51,13 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
   // --- Handlers: Modal-Driven Actions ---
 
   const handleNewFolder = () => {
-    // Opens Create Modal immediately - no selection required
-    openCreateModal('folder', getCurrentFolderId());
+    // Opens optimized Create Folder Modal
+    setCreateFolderModalOpen(true);
   };
 
   const handleNewPrompt = () => {
-    // Opens Create Modal immediately - no selection required
-    openCreateModal('prompt', getCurrentFolderId());
+    // Opens optimized Create Prompt Modal with golden rule
+    setCreatePromptModalOpen(true);
   };
 
   const handleExport = async () => {
@@ -83,27 +90,13 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
   };
 
   const handleShare = () => {
-    // Modal-driven: Opens share modal for current folder context
-    const { currentItem } = getCurrentSequentialNodes();
-    if (currentItem) {
-      showToast(`Compartilhando "${currentItem.name}"...`, 'info');
-    } else {
-      showToast('Navegue para uma pasta para compartilhar', 'info');
-    }
+    // Opens optimized Share Modal
+    setShareModalOpen(true);
   };
 
   const handleCopyLink = () => {
-    // Copy link for current folder context
-    const { currentItem } = getCurrentSequentialNodes();
-    if (currentItem) {
-      const link = `${window.location.origin}/share/${currentItem.id}`;
-      navigator.clipboard.writeText(link);
-      showToast('Link copiado!', 'success');
-    } else {
-      const link = window.location.href;
-      navigator.clipboard.writeText(link);
-      showToast('Link da página copiado!', 'success');
-    }
+    // Opens optimized Copy Link Modal
+    setCopyLinkModalOpen(true);
   };
 
   const handleDelete = () => {

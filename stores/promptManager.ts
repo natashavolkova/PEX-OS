@@ -241,6 +241,10 @@ interface PromptManagerState {
   isHistoryOpen: boolean;
   isMasterLoginOpen: boolean;
   isPromptViewerOpen: boolean;
+  isCreateFolderModalOpen: boolean;
+  isCreatePromptModalOpen: boolean;
+  isShareModalOpen: boolean;
+  isCopyLinkModalOpen: boolean;
 
   // User
   currentUser: User;
@@ -298,6 +302,10 @@ interface PromptManagerState {
     setMasterLoginOpen: (open: boolean) => void;
     setDeleteModalOpen: (open: boolean) => void;
     setPromptViewerOpen: (open: boolean) => void;
+    setCreateFolderModalOpen: (open: boolean) => void;
+    setCreatePromptModalOpen: (open: boolean) => void;
+    setShareModalOpen: (open: boolean) => void;
+    setCopyLinkModalOpen: (open: boolean) => void;
 
     // User
     setCurrentUser: (user: User) => void;
@@ -373,6 +381,10 @@ export const usePromptManagerStore = create<PromptManagerState>()(
         isHistoryOpen: false,
         isMasterLoginOpen: false,
         isPromptViewerOpen: false,
+        isCreateFolderModalOpen: false,
+        isCreatePromptModalOpen: false,
+        isShareModalOpen: false,
+        isCopyLinkModalOpen: false,
         currentUser: initialUser,
         preferences: initialPreferences,
         notifications: initialNotifications,
@@ -574,6 +586,10 @@ export const usePromptManagerStore = create<PromptManagerState>()(
           setMasterLoginOpen: (open) => set({ isMasterLoginOpen: open }),
           setDeleteModalOpen: (open) => set({ isDeleteModalOpen: open }),
           setPromptViewerOpen: (open) => set({ isPromptViewerOpen: open }),
+          setCreateFolderModalOpen: (open) => set({ isCreateFolderModalOpen: open }),
+          setCreatePromptModalOpen: (open) => set({ isCreatePromptModalOpen: open }),
+          setShareModalOpen: (open) => set({ isShareModalOpen: open }),
+          setCopyLinkModalOpen: (open) => set({ isCopyLinkModalOpen: open }),
 
           // User
           setCurrentUser: (user) => set({ currentUser: user }),

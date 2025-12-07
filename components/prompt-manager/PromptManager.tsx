@@ -19,6 +19,10 @@ import { MasterKeyModal } from './modals/MasterKeyModal';
 import { MoveSelectorModal } from './modals/MoveSelectorModal';
 import { CreateModal, useCreateModal } from './modals/CreateModal';
 import { DeleteModal } from './modals/DeleteModal';
+import { CreateFolderModal } from './modals/CreateFolderModal';
+import { CreatePromptModal } from './modals/CreatePromptModal';
+import { ShareModal } from './modals/ShareModal';
+import { CopyLinkModal } from './modals/CopyLinkModal';
 import { Toast } from './Toast';
 import { TagBar } from './TagBar';
 import { usePromptManagerStore } from '@/stores/promptManager';
@@ -67,6 +71,18 @@ export const PromptManager: React.FC = () => {
   // Delete Modal State - from store
   const isDeleteModalOpen = usePromptManagerStore((s) => s.isDeleteModalOpen);
   const { setDeleteModalOpen } = usePromptManagerStore((s) => s.actions);
+
+  // New Optimized Modals - from store
+  const isCreateFolderModalOpen = usePromptManagerStore((s) => s.isCreateFolderModalOpen);
+  const isCreatePromptModalOpen = usePromptManagerStore((s) => s.isCreatePromptModalOpen);
+  const isShareModalOpen = usePromptManagerStore((s) => s.isShareModalOpen);
+  const isCopyLinkModalOpen = usePromptManagerStore((s) => s.isCopyLinkModalOpen);
+  const {
+    setCreateFolderModalOpen,
+    setCreatePromptModalOpen,
+    setShareModalOpen,
+    setCopyLinkModalOpen,
+  } = usePromptManagerStore((s) => s.actions);
 
   // Tag Filter State
   const [filteredTags, setFilteredTags] = useState<string[]>([]);
@@ -270,6 +286,30 @@ export const PromptManager: React.FC = () => {
       <DeleteModal
         isOpen={isDeleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}
+      />
+
+      {/* Optimized Create Folder Modal */}
+      <CreateFolderModal
+        isOpen={isCreateFolderModalOpen}
+        onClose={() => setCreateFolderModalOpen(false)}
+      />
+
+      {/* Optimized Create Prompt Modal */}
+      <CreatePromptModal
+        isOpen={isCreatePromptModalOpen}
+        onClose={() => setCreatePromptModalOpen(false)}
+      />
+
+      {/* Optimized Share Modal */}
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+      />
+
+      {/* Optimized Copy Link Modal */}
+      <CopyLinkModal
+        isOpen={isCopyLinkModalOpen}
+        onClose={() => setCopyLinkModalOpen(false)}
       />
     </div>
   );

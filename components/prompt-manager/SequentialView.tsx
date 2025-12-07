@@ -78,7 +78,7 @@ const FolderCard: React.FC<FolderCardProps> = ({
     <div
       draggable={!isLocked}
       onDragStart={(e) => onDragStart(e, folder)}
-      onDragEnd={() => { }}
+      onDragEnd={onDragEnd}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, folder)}
@@ -189,7 +189,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
     <div
       draggable={!isLocked}
       onDragStart={(e) => onDragStart(e, prompt)}
-      onDragEnd={() => { }}
+      onDragEnd={onDragEnd}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, prompt)}

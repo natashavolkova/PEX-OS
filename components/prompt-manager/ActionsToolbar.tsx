@@ -2,7 +2,7 @@
 
 // ============================================================================
 // AthenaPeX PROMPT MANAGER - ACTIONS TOOLBAR
-// ATHENA Architecture | All Buttons Visible | Premium Dark Theme
+// ATHENA Architecture | Modal-Driven Actions | Premium Dark Theme
 // ============================================================================
 
 import React from 'react';
@@ -17,10 +17,6 @@ import {
   Copy,
   Trash2,
   MoreVertical,
-  Save,
-  RotateCcw,
-  ArrowDownToLine,
-  Package,
 } from 'lucide-react';
 import { Tooltip, ShortcutTooltip } from './TooltipWrapper';
 import { usePromptManagerStore } from '@/stores/promptManager';
@@ -35,21 +31,26 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
   className = '',
   variant = 'default',
 }) => {
-  const isLocked = usePromptManagerStore((s) => s.isLocked);
-  const selectedFolder = usePromptManagerStore((s) => s.selectedFolder);
-  const selectedPrompt = usePromptManagerStore((s) => s.selectedPrompt);
-  const { showToast, openEditModal, openCreateModal } = usePromptManagerStore((s) => s.actions);
+  const sequentialPath = usePromptManagerStore((s) => s.sequentialPath);
+  const { getCurrentSequentialNodes } = usePromptManagerStore((s) => s.actions);
+  const { showToast, openEditModal, openCreateModal, setSettingsOpen } = usePromptManagerStore((s) => s.actions);
 
-  // --- Handlers ---
+  // Get current folder context for new items
+  const getCurrentFolderId = (): string | null => {
+    if (sequentialPath.length === 0) return null;
+    return sequentialPath[sequentialPath.length - 1];
+  };
+
+  // --- Handlers: Modal-Driven Actions ---
 
   const handleNewFolder = () => {
-    // Locked mode only prevents drag & drop, not creation
-    openCreateModal('folder', selectedFolder?.id || null);
+    // Opens Create Modal immediately - no selection required
+    openCreateModal('folder', getCurrentFolderId());
   };
 
   const handleNewPrompt = () => {
-    // Locked mode only prevents drag & drop, not creation
-    openCreateModal('prompt', selectedFolder?.id || null);
+    // Opens Create Modal immediately - no selection required
+    openCreateModal('prompt', getCurrentFolderId());
   };
 
   const handleExport = async () => {
@@ -82,36 +83,38 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
   };
 
   const handleShare = () => {
-    if (!selectedFolder && !selectedPrompt) {
-      showToast('Selecione um item para compartilhar', 'warning');
-      return;
+    // Modal-driven: Opens share modal for current folder context
+    const { currentItem } = getCurrentSequentialNodes();
+    if (currentItem) {
+      showToast(`Compartilhando "${currentItem.name}"...`, 'info');
+    } else {
+      showToast('Navegue para uma pasta para compartilhar', 'info');
     }
-    showToast('Compartilhando...', 'info');
   };
 
   const handleCopyLink = () => {
-    if (!selectedFolder && !selectedPrompt) {
-      showToast('Selecione um item para gerar link', 'warning');
-      return;
+    // Copy link for current folder context
+    const { currentItem } = getCurrentSequentialNodes();
+    if (currentItem) {
+      const link = `${window.location.origin}/share/${currentItem.id}`;
+      navigator.clipboard.writeText(link);
+      showToast('Link copiado!', 'success');
+    } else {
+      const link = window.location.href;
+      navigator.clipboard.writeText(link);
+      showToast('Link da página copiado!', 'success');
     }
-    const item = selectedPrompt || selectedFolder;
-    const link = `${window.location.origin}/share/${item?.id}`;
-    navigator.clipboard.writeText(link);
-    showToast('Link copiado!', 'success');
   };
 
   const handleDelete = () => {
-    // Lock only affects drag-and-drop, not CRUD operations
-    if (!selectedFolder && !selectedPrompt) {
-      showToast('Selecione um item para deletar', 'warning');
+    // Modal-driven: Show modal with items from current folder to select for deletion
+    const { nodes, title } = getCurrentSequentialNodes();
+    if (nodes.length === 0) {
+      showToast('Pasta vazia - nada para excluir', 'info');
       return;
     }
-    const itemName = selectedPrompt?.name || selectedFolder?.name;
-    // Show confirmation
-    if (window.confirm(`Tem certeza que deseja excluir "${itemName}"?`)) {
-      showToast(`"${itemName}" excluído com sucesso`, 'success');
-      // TODO: Call delete API here
-    }
+    // For now, show a message about the items available
+    showToast(`${nodes.length} itens em "${title}" - selecione nos cards para excluir`, 'info');
   };
 
   // --- Button Style Classes ---
@@ -121,7 +124,7 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
     bg-[#2979ff] hover:bg-[#2264d1] text-white 
     text-xs font-bold rounded-lg transition-all 
     shadow-lg shadow-blue-900/20 hover:shadow-blue-900/40 
-    active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed
+    active:scale-[0.98]
   `;
 
   const secondaryBtnClass = `
@@ -212,7 +215,7 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
           onClick={handleDelete}
           className={`${secondaryBtnClass} text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:border-red-500/20`}
         >
-          <Trash2 size={14} /> Excluir Selecionado
+          <Trash2 size={14} /> Gerenciar Exclusões
         </button>
       </div>
     );
@@ -222,7 +225,7 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      {/* Primary Actions */}
+      {/* Primary Actions - Always opens modals */}
       <div className="flex items-center gap-1 bg-[#0f111a] p-1 rounded-lg border border-white/5">
         <ShortcutTooltip label="Nova Pasta" shortcut="Ctrl+N" position="bottom">
           <button onClick={handleNewFolder} className={iconBtnClass}>
@@ -254,7 +257,7 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
 
       {/* Share Actions */}
       <div className="flex items-center gap-1 bg-[#0f111a] p-1 rounded-lg border border-white/5">
-        <Tooltip content="Compartilhar" position="bottom">
+        <Tooltip content="Compartilhar Pasta Atual" position="bottom">
           <button onClick={handleShare} className={iconBtnClass}>
             <Share2 size={16} />
           </button>
@@ -267,8 +270,8 @@ export const ActionsToolbar: React.FC<ActionsToolbarProps> = ({
         </Tooltip>
       </div>
 
-      {/* Danger Actions */}
-      <Tooltip content="Excluir" position="bottom">
+      {/* Delete - Contextual */}
+      <Tooltip content="Gerenciar Exclusões" position="bottom">
         <button
           onClick={handleDelete}
           className={`${iconBtnClass} hover:text-red-400 hover:bg-red-500/10`}
@@ -288,8 +291,14 @@ interface FABProps {
 
 export const FloatingActionButton: React.FC<FABProps> = ({ className = '' }) => {
   const [isOpen, setIsOpen] = React.useState(false);
-  const selectedFolder = usePromptManagerStore((s) => s.selectedFolder);
+  const sequentialPath = usePromptManagerStore((s) => s.sequentialPath);
   const { openCreateModal } = usePromptManagerStore((s) => s.actions);
+
+  // Get current folder context
+  const getCurrentFolderId = (): string | null => {
+    if (sequentialPath.length === 0) return null;
+    return sequentialPath[sequentialPath.length - 1];
+  };
 
   return (
     <div className={`fixed bottom-6 right-6 z-50 ${className}`}>
@@ -299,7 +308,7 @@ export const FloatingActionButton: React.FC<FABProps> = ({ className = '' }) => 
           <Tooltip content="Nova Pasta" position="left">
             <button
               onClick={() => {
-                openCreateModal('folder', selectedFolder?.id || null);
+                openCreateModal('folder', getCurrentFolderId());
                 setIsOpen(false);
               }}
               className="w-12 h-12 rounded-full bg-[#1e2330] border border-white/10 shadow-lg flex items-center justify-center text-gray-300 hover:text-white hover:bg-[#2979ff]/10 hover:border-[#2979ff]/50 transition-all"
@@ -311,7 +320,7 @@ export const FloatingActionButton: React.FC<FABProps> = ({ className = '' }) => 
           <Tooltip content="Novo Prompt" position="left">
             <button
               onClick={() => {
-                openCreateModal('prompt', selectedFolder?.id || null);
+                openCreateModal('prompt', getCurrentFolderId());
                 setIsOpen(false);
               }}
               className="w-12 h-12 rounded-full bg-[#1e2330] border border-white/10 shadow-lg flex items-center justify-center text-gray-300 hover:text-white hover:bg-[#2979ff]/10 hover:border-[#2979ff]/50 transition-all"

@@ -540,12 +540,14 @@ export const SequentialView: React.FC = () => {
                 />
               ))}
 
-              {/* New Folder Button */}
+              {/* New Folder Button - Treated as item N+1 in stagger sequence */}
               <button
                 onClick={handleNewFolder}
                 className="flex flex-col items-center justify-center gap-3 bg-white/[0.02] border border-dashed border-white/10 hover:border-[#2979ff]/40 hover:bg-[#2979ff]/5 rounded-xl p-5 cursor-pointer transition-all group min-h-[180px] animate-stagger-in"
                 style={{
+                  opacity: 0, // Ensure hidden until animation starts
                   animationDelay: `${folders.length * 50}ms`,
+                  animationFillMode: 'forwards',
                   willChange: 'transform, opacity',
                 }}
               >
@@ -596,7 +598,7 @@ export const SequentialView: React.FC = () => {
                 />
               ))}
 
-              {/* New Prompt Placeholder - Only in Subfolders */}
+              {/* New Prompt Placeholder - Only in Subfolders, treated as item N+1 */}
               {isInSubfolder && (
                 <button
                   onClick={handleNewPrompt}
@@ -609,7 +611,9 @@ export const SequentialView: React.FC = () => {
                     animate-stagger-in
                   `}
                   style={{
+                    opacity: 0, // Ensure hidden until animation starts
                     animationDelay: `${prompts.length * 50}ms`,
+                    animationFillMode: 'forwards',
                     willChange: 'transform, opacity',
                   }}
                 >

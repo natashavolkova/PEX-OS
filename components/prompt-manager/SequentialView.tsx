@@ -339,6 +339,9 @@ export const SequentialView: React.FC = () => {
   const holdTimerRef = React.useRef<NodeJS.Timeout | null>(null);
   const [nestModeTarget, setNestModeTarget] = React.useState<string | null>(null);
 
+  // Magnetic collision: track mouse movement direction
+  const lastMouseXRef = React.useRef<number>(0);
+
   // Grid density: 'standard' = 4 cols, 'high' = 5 cols
   const gridDensity = preferences.gridDensity || 'standard';
 
@@ -404,8 +407,26 @@ export const SequentialView: React.FC = () => {
     const target = e.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     const mouseX = e.clientX;
-    const centerX = rect.left + rect.width / 2;
-    const isRight = mouseX > centerX;
+
+    // === MAGNETIC COLLISION DETECTION ===
+    // Edge tolerance: 30% padding for permissive hitbox
+    const leftEdge = rect.left + rect.width * 0.30;
+    const rightEdge = rect.left + rect.width * 0.70;
+
+    // Directional priority: Calculate mouse movement vector
+    const movingRight = mouseX > lastMouseXRef.current;
+    lastMouseXRef.current = mouseX;
+
+    // Determine side: magnetic detection with directional priority
+    let isRight: boolean;
+    if (mouseX > rightEdge) {
+      isRight = true;  // Clearly in RIGHT zone
+    } else if (mouseX < leftEdge) {
+      isRight = false; // Clearly in LEFT zone
+    } else {
+      // Dead zone eliminated: Use movement direction as tiebreaker
+      isRight = movingRight;
+    }
 
     // If already in nest mode for this target, show nest visual
     if (nestModeTarget === targetItem.id) {

@@ -620,8 +620,31 @@ export const SequentialView: React.FC = () => {
   const isInSubfolder = sequentialPath.length >= 2;
 
   // Handle drag end (reset opacity even if cancelled)
-  // === HARD RESET: Force cleanup of ALL visual states ===
+  // === SOVEREIGN YELLOW LINE: If indicator was visible, execute the swap ===
   const handleDragEnd = () => {
+    const draggedId = dragState.draggedItemId;
+    const storedTarget = lastValidTargetRef.current;
+
+    // === SOVEREIGN DROP: If we had a valid target, execute the swap ===
+    if (draggedId && storedTarget && draggedId !== storedTarget.id) {
+      // Check if we're in nest mode (hold-to-nest)
+      if (nestModeTarget === storedTarget.id) {
+        // Find the target item to check if it's a folder
+        const targetNode = nodes.find(n => n.id === storedTarget.id);
+        if (targetNode?.type === 'folder' && dragState.draggedItemType === 'folder') {
+          moveItem(draggedId, storedTarget.id);
+          showToast(`Movido para dentro da pasta`, 'success');
+        }
+      } else {
+        // Regular swap: same type items only
+        const draggedNode = nodes.find(n => n.id === draggedId);
+        const targetNode = nodes.find(n => n.id === storedTarget.id);
+        if (draggedNode && targetNode && draggedNode.type === targetNode.type) {
+          swapItems(draggedId, storedTarget.id);
+        }
+      }
+    }
+
     // Clear drag state
     setDragState({ draggedItemId: null, draggedItemType: null });
     setNestModeTarget(null);

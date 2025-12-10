@@ -245,6 +245,10 @@ interface PromptManagerState {
   isCreatePromptModalOpen: boolean;
   isShareModalOpen: boolean;
   isCopyLinkModalOpen: boolean;
+  isFilterTagsModalOpen: boolean;
+
+  // Tag Filtering
+  activeTagFilters: string[];
 
   // User
   currentUser: User;
@@ -263,6 +267,7 @@ interface PromptManagerState {
     updateItem: (id: string, updates: Partial<TreeNode>) => void;
     deleteItem: (id: string) => Promise<boolean>;
     moveItem: (itemId: string, targetFolderId: string | null) => void;
+    swapItems: (id1: string, id2: string) => void;
     importPackage: (pkg: Folder, targetFolderId?: string | null) => void;
 
     // Selection
@@ -306,6 +311,8 @@ interface PromptManagerState {
     setCreatePromptModalOpen: (open: boolean) => void;
     setShareModalOpen: (open: boolean) => void;
     setCopyLinkModalOpen: (open: boolean) => void;
+    setFilterTagsModalOpen: (open: boolean) => void;
+    setActiveTagFilters: (tags: string[]) => void;
 
     // User
     setCurrentUser: (user: User) => void;
@@ -385,6 +392,8 @@ export const usePromptManagerStore = create<PromptManagerState>()(
         isCreatePromptModalOpen: false,
         isShareModalOpen: false,
         isCopyLinkModalOpen: false,
+        isFilterTagsModalOpen: false,
+        activeTagFilters: [],
         currentUser: initialUser,
         preferences: initialPreferences,
         notifications: initialNotifications,
@@ -473,6 +482,48 @@ export const usePromptManagerStore = create<PromptManagerState>()(
             };
             get().actions.addItem(newPkg, targetFolderId);
             get().actions.showToast('Pacote importado com sucesso!', 'success');
+          },
+
+          // Swap items (reorder without nesting)
+          swapItems: (id1, id2) => {
+            if (id1 === id2) return;
+
+            set((state) => {
+              const sequentialPath = state.sequentialPath;
+
+              // Find the parent array (current level)
+              const getParentArray = (data: TreeNode[], path: string[]): TreeNode[] | null => {
+                if (path.length === 0) return data;
+
+                let current = data;
+                for (const pathId of path) {
+                  const folder = current.find(n => n.id === pathId && n.type === 'folder') as Folder | undefined;
+                  if (!folder?.children) return null;
+                  current = folder.children;
+                }
+                return current;
+              };
+
+              const deepClone = (data: TreeNode[]): TreeNode[] => JSON.parse(JSON.stringify(data));
+              const newData = deepClone(state.data);
+
+              // Get the parent array at current level
+              const parentArray = getParentArray(newData, sequentialPath);
+              if (!parentArray) return state;
+
+              const idx1 = parentArray.findIndex(n => n.id === id1);
+              const idx2 = parentArray.findIndex(n => n.id === id2);
+
+              if (idx1 === -1 || idx2 === -1) return state;
+
+              // Swap positions
+              [parentArray[idx1], parentArray[idx2]] = [parentArray[idx2], parentArray[idx1]];
+
+              get().actions.showToast('Itens reordenados', 'success');
+              return { data: newData, justDroppedId: id1 };
+            });
+
+            setTimeout(() => set({ justDroppedId: null }), 300);
           },
 
           // Selection
@@ -590,6 +641,8 @@ export const usePromptManagerStore = create<PromptManagerState>()(
           setCreatePromptModalOpen: (open) => set({ isCreatePromptModalOpen: open }),
           setShareModalOpen: (open) => set({ isShareModalOpen: open }),
           setCopyLinkModalOpen: (open) => set({ isCopyLinkModalOpen: open }),
+          setFilterTagsModalOpen: (open) => set({ isFilterTagsModalOpen: open }),
+          setActiveTagFilters: (tags) => set({ activeTagFilters: tags }),
 
           // User
           setCurrentUser: (user) => set({ currentUser: user }),

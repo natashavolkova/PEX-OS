@@ -23,6 +23,7 @@ import { CreateFolderModal } from './modals/CreateFolderModal';
 import { CreatePromptModal } from './modals/CreatePromptModal';
 import { ShareModal } from './modals/ShareModal';
 import { CopyLinkModal } from './modals/CopyLinkModal';
+import { FilterTagsModal } from './modals/FilterTagsModal';
 import { Toast } from './Toast';
 import { TagBar } from './TagBar';
 import { usePromptManagerStore } from '@/stores/promptManager';
@@ -308,6 +309,9 @@ export const PromptManager: React.FC = () => {
         isOpen={isCopyLinkModalOpen}
         onClose={() => setCopyLinkModalOpen(false)}
       />
+
+      {/* Filter Tags Modal */}
+      <FilterTagsModal />
     </div>
   );
 };

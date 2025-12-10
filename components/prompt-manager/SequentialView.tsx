@@ -329,7 +329,7 @@ export const SequentialView: React.FC = () => {
     setPromptViewerOpen,
     setSelectedPrompt,
     showToast,
-    moveItem,
+    swapItems,
     setCreateFolderModalOpen,
     setCreatePromptModalOpen,
   } = usePromptManagerStore((s) => s.actions);
@@ -413,10 +413,12 @@ export const SequentialView: React.FC = () => {
       return;
     }
 
-    if (targetItem.type === 'folder') {
-      moveItem(draggedId, targetItem.id);
+    // SWAP behavior - reorder items, never nest
+    // Only swap items of the same type
+    if (dragState.draggedItemType === targetItem.type) {
+      swapItems(draggedId, targetItem.id);
     } else {
-      showToast('Solte sobre uma pasta', 'info');
+      showToast('Só é possível reordenar itens do mesmo tipo', 'info');
     }
 
     setDragState({ draggedItemId: null, draggedItemType: null });

@@ -107,7 +107,7 @@ export const TagBar: React.FC<TagBarProps> = ({
   // Count occurrences of each tag
   const tagCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    
+
     const traverse = (items: TreeNode[]) => {
       for (const item of items) {
         if (item.type === 'prompt' && (item as Prompt).tags) {
@@ -120,7 +120,7 @@ export const TagBar: React.FC<TagBarProps> = ({
         }
       }
     };
-    
+
     traverse(data);
     return counts;
   }, [data]);
@@ -166,25 +166,48 @@ export const TagBar: React.FC<TagBarProps> = ({
 
   // --- Compact Variant ---
   if (variant === 'compact') {
+    const { setFilterTagsModalOpen } = usePromptManagerStore((s) => s.actions);
+    const activeFilters = usePromptManagerStore((s) => s.activeTagFilters);
+    const hasActiveFilters = activeFilters.length > 0;
+
     return (
       <div className={`flex items-center gap-2 ${className}`}>
-        <Filter size={14} className="text-gray-400" />
+        {/* Filter Button - Opens Modal */}
+        <button
+          onClick={() => setFilterTagsModalOpen(true)}
+          className={`
+            p-1.5 rounded-lg transition-all border
+            ${hasActiveFilters
+              ? 'bg-[#2979ff]/15 text-[#2979ff] border-[#2979ff]/30 hover:bg-[#2979ff]/25'
+              : 'text-gray-400 border-transparent hover:text-white hover:bg-white/10'}
+          `}
+          title="Filtrar por Tags"
+        >
+          <Filter size={14} />
+        </button>
+
+        {/* Quick Tags - First 5 */}
         <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1">
           {visibleTags.slice(0, 5).map((tag) => (
             <TagChip
               key={tag}
               tag={tag}
-              isActive={selectedTags.has(tag)}
+              isActive={selectedTags.has(tag) || activeFilters.includes(tag)}
               onClick={() => handleToggleTag(tag)}
             />
           ))}
           {allTags.length > 5 && (
-            <span className="text-[10px] text-gray-500 whitespace-nowrap">
+            <button
+              onClick={() => setFilterTagsModalOpen(true)}
+              className="text-[10px] text-gray-500 hover:text-[#2979ff] whitespace-nowrap transition-colors"
+            >
               +{allTags.length - 5}
-            </span>
+            </button>
           )}
         </div>
-        {selectedTags.size > 0 && (
+
+        {/* Clear All Button */}
+        {(selectedTags.size > 0 || hasActiveFilters) && (
           <button
             onClick={handleClearAll}
             className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded transition-colors"

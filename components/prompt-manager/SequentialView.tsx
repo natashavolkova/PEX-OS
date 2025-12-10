@@ -342,6 +342,10 @@ export const SequentialView: React.FC = () => {
   // Magnetic collision: track mouse movement direction
   const lastMouseXRef = React.useRef<number>(0);
 
+  // Sticky target: persist last valid target for overshoot tolerance
+  const lastValidTargetRef = React.useRef<{ id: string; rect: DOMRect } | null>(null);
+  const OVERSHOOT_TOLERANCE = 50; // pixels of forgiveness outside card bounds
+
   // Grid density: 'standard' = 4 cols, 'high' = 5 cols
   const gridDensity = preferences.gridDensity || 'standard';
 
@@ -408,6 +412,9 @@ export const SequentialView: React.FC = () => {
     const rect = target.getBoundingClientRect();
     const mouseX = e.clientX;
 
+    // === STICKY TARGET: Save this as the last valid target ===
+    lastValidTargetRef.current = { id: targetItem.id, rect };
+
     // === MAGNETIC COLLISION DETECTION ===
     // Edge tolerance: 30% padding for permissive hitbox
     const leftEdge = rect.left + rect.width * 0.30;
@@ -463,8 +470,29 @@ export const SequentialView: React.FC = () => {
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    // Reset all visuals
     const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const mouseX = e.clientX;
+    const mouseY = e.clientY;
+
+    // === OVERSHOOT TOLERANCE: Check if mouse is still within expanded hitbox ===
+    const expandedLeft = rect.left - OVERSHOOT_TOLERANCE;
+    const expandedRight = rect.right + OVERSHOOT_TOLERANCE;
+    const expandedTop = rect.top - OVERSHOOT_TOLERANCE;
+    const expandedBottom = rect.bottom + OVERSHOOT_TOLERANCE;
+
+    const stillInExpandedZone =
+      mouseX >= expandedLeft &&
+      mouseX <= expandedRight &&
+      mouseY >= expandedTop &&
+      mouseY <= expandedBottom;
+
+    // If still in expanded zone, keep visuals (fuzzy/forgiving detection)
+    if (stillInExpandedZone) {
+      return; // Don't reset! User is still close enough
+    }
+
+    // Reset all visuals (user has moved far away)
     target.style.borderLeftWidth = '';
     target.style.borderLeftColor = '';
     target.style.borderRightWidth = '';
@@ -478,6 +506,7 @@ export const SequentialView: React.FC = () => {
       holdTimerRef.current = null;
     }
     setNestModeTarget(null);
+    lastValidTargetRef.current = null;
   };
 
   const handleDrop = (e: React.DragEvent, targetItem: TreeNode) => {

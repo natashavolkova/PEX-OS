@@ -444,8 +444,10 @@ export const SequentialView: React.FC = () => {
       return;
     }
 
-    // Directional indicator - show line on the side mouse is approaching from
-    target.style.transform = isRight ? 'translateX(-4px)' : 'translateX(4px)';
+    // === VISUAL SWAP FEEDBACK: Make target card slide out of the way ===
+    // Use aggressive transforms so cards visually move apart during drag
+    target.style.transition = 'transform 0.15s ease-out';
+    target.style.transform = isRight ? 'translateX(-40px)' : 'translateX(40px)';
     target.style.boxShadow = '';
 
     if (isRight) {
@@ -507,6 +509,7 @@ export const SequentialView: React.FC = () => {
     }
 
     // Reset all visuals (user has moved far away)
+    target.style.transition = '';
     target.style.borderLeftWidth = '';
     target.style.borderLeftColor = '';
     target.style.borderRightWidth = '';
@@ -617,6 +620,7 @@ export const SequentialView: React.FC = () => {
     const allCards = document.querySelectorAll('[draggable="true"]');
     allCards.forEach((card) => {
       const el = card as HTMLElement;
+      el.style.transition = '';
       el.style.borderLeftWidth = '';
       el.style.borderLeftColor = '';
       el.style.borderRightWidth = '';

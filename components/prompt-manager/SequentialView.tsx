@@ -503,9 +503,27 @@ export const SequentialView: React.FC = () => {
       mouseY >= expandedTop &&
       mouseY <= expandedBottom;
 
-    // If still in expanded zone, keep visuals (fuzzy/forgiving detection)
+    // If still in expanded zone, REAPPLY visuals (not just keep them)
     if (stillInExpandedZone) {
-      return; // Don't reset! User is still close enough
+      // === UNIFIED VISUAL SYNC: Reapply both indicator AND transform ===
+      const centerX = rect.left + rect.width / 2;
+      const isRight = mouseX > centerX;
+
+      // Reapply transform (slide effect)
+      target.style.transition = 'transform 0.15s ease-out';
+      target.style.transform = isRight ? 'translateX(-40px)' : 'translateX(40px)';
+
+      // Reapply indicator (yellow line)
+      if (isRight) {
+        target.style.borderLeftWidth = '';
+        target.style.borderRightWidth = '4px';
+        target.style.borderRightColor = '#fbbf24';
+      } else {
+        target.style.borderRightWidth = '';
+        target.style.borderLeftWidth = '4px';
+        target.style.borderLeftColor = '#fbbf24';
+      }
+      return;
     }
 
     // Reset all visuals (user has moved far away)

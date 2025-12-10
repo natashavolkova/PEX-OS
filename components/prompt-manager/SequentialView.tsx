@@ -459,12 +459,26 @@ export const SequentialView: React.FC = () => {
     }
 
     // Start hold-to-nest timer (only for folders)
-    if (targetItem.type === 'folder' && dragState.draggedItemType === 'folder') {
+    // === STRICT BOUNDS FOR NESTING: Only trigger if mouse is INSIDE original card ===
+    const mouseY = e.clientY;
+    const isInsideOriginalBounds =
+      mouseX >= rect.left &&
+      mouseX <= rect.right &&
+      mouseY >= rect.top &&
+      mouseY <= rect.bottom;
+
+    if (targetItem.type === 'folder' && dragState.draggedItemType === 'folder' && isInsideOriginalBounds) {
       if (!holdTimerRef.current) {
         holdTimerRef.current = setTimeout(() => {
           setNestModeTarget(targetItem.id);
           showToast('Solte agora para mover para dentro', 'info');
         }, 600);
+      }
+    } else {
+      // Cancel timer if mouse moved outside strict bounds
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
       }
     }
   };
@@ -585,8 +599,32 @@ export const SequentialView: React.FC = () => {
   const isInSubfolder = sequentialPath.length >= 2;
 
   // Handle drag end (reset opacity even if cancelled)
+  // === HARD RESET: Force cleanup of ALL visual states ===
   const handleDragEnd = () => {
+    // Clear drag state
     setDragState({ draggedItemId: null, draggedItemType: null });
+    setNestModeTarget(null);
+    lastValidTargetRef.current = null;
+
+    // Clear any pending timers
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+
+    // HARD RESET: Clean up ALL cards' visual states
+    // This prevents phantom/stuck drag states
+    const allCards = document.querySelectorAll('[draggable="true"]');
+    allCards.forEach((card) => {
+      const el = card as HTMLElement;
+      el.style.borderLeftWidth = '';
+      el.style.borderLeftColor = '';
+      el.style.borderRightWidth = '';
+      el.style.borderRightColor = '';
+      el.style.transform = '';
+      el.style.boxShadow = '';
+      el.style.opacity = '';
+    });
   };
 
   return (

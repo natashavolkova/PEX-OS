@@ -488,9 +488,9 @@ export const usePromptManagerStore = create<PromptManagerState>()(
           swapItems: (id1, id2) => {
             if (id1 === id2) return;
 
-            set((state) => {
-              const sequentialPath = state.sequentialPath;
+            const sequentialPath = get().sequentialPath;
 
+            set((state) => {
               // Find the parent array (current level)
               const getParentArray = (data: TreeNode[], path: string[]): TreeNode[] | null => {
                 if (path.length === 0) return data;
@@ -518,6 +518,29 @@ export const usePromptManagerStore = create<PromptManagerState>()(
 
               // Swap positions
               [parentArray[idx1], parentArray[idx2]] = [parentArray[idx2], parentArray[idx1]];
+
+              // === OPTIMISTIC PERSISTENCE: Save order to Turso ===
+              const parentId = sequentialPath[sequentialPath.length - 1] || null;
+              const folderIds = parentArray.filter(n => n.type === 'folder').map(n => n.id);
+              const promptIds = parentArray.filter(n => n.type === 'prompt').map(n => n.id);
+
+              // Persist folder order (fire-and-forget, optimistic UI)
+              if (folderIds.length > 0) {
+                fetch('/api/folders/reorder', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ orderedIds: folderIds, parentId })
+                }).catch(err => console.error('[Store] Failed to persist folder order:', err));
+              }
+
+              // Persist prompt order (fire-and-forget, optimistic UI)
+              if (promptIds.length > 0) {
+                fetch('/api/prompts/reorder', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ orderedIds: promptIds, folderId: parentId })
+                }).catch(err => console.error('[Store] Failed to persist prompt order:', err));
+              }
 
               get().actions.showToast('Itens reordenados', 'success');
               return { data: newData, justDroppedId: id1 };

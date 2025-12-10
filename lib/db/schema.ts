@@ -56,6 +56,7 @@ export const folders = sqliteTable('folders', {
     type: text('type').default('folder'),
     emoji: text('emoji'),
     isSystem: integer('is_system', { mode: 'boolean' }).default(false),
+    position: integer('position').default(0), // Order index for drag-and-drop
     createdAt: text('created_at').default('CURRENT_TIMESTAMP'),
     updatedAt: text('updated_at').default('CURRENT_TIMESTAMP'),
     parentId: text('parent_id'),
@@ -73,6 +74,7 @@ export const prompts = sqliteTable('prompts', {
     tags: text('tags').default('[]'), // JSON array as TEXT
     version: integer('version').default(1),
     isFavorite: integer('is_favorite', { mode: 'boolean' }).default(false),
+    position: integer('position').default(0), // Order index for drag-and-drop
     createdAt: text('created_at').default('CURRENT_TIMESTAMP'),
     updatedAt: text('updated_at').default('CURRENT_TIMESTAMP'),
     folderId: text('folder_id').references(() => folders.id),

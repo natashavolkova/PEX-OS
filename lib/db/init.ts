@@ -10,8 +10,8 @@ config({ path: '.env.local' });
 import { createClient } from '@libsql/client';
 
 const client = createClient({
-    url: process.env.TURSO_DATABASE_URL!,
-    authToken: process.env.TURSO_AUTH_TOKEN!,
+  url: process.env.TURSO_DATABASE_URL!,
+  authToken: process.env.TURSO_AUTH_TOKEN!,
 });
 
 const schema = `
@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS folders (
   type TEXT DEFAULT 'folder',
   emoji TEXT,
   is_system INTEGER DEFAULT 0,
+  position INTEGER DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
   parent_id TEXT,
@@ -76,6 +77,7 @@ CREATE TABLE IF NOT EXISTS prompts (
   tags TEXT DEFAULT '[]',
   version INTEGER DEFAULT 1,
   is_favorite INTEGER DEFAULT 0,
+  position INTEGER DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
   folder_id TEXT REFERENCES folders(id),
@@ -163,26 +165,26 @@ VALUES ('athena-supreme-user-001', 'athena@pex-os.ai', 'Athena', 'standard', dat
 `;
 
 async function initDatabase() {
-    console.log('🚀 Initializing Turso database...');
+  console.log('🚀 Initializing Turso database...');
 
-    try {
-        // Split schema into individual statements
-        const statements = schema
-            .split(';')
-            .map(s => s.trim())
-            .filter(s => s.length > 0);
+  try {
+    // Split schema into individual statements
+    const statements = schema
+      .split(';')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
 
-        for (const statement of statements) {
-            await client.execute(statement);
-        }
-
-        console.log('✅ Database initialized successfully!');
-        console.log('📊 Tables created: users, projects, tasks, folders, prompts, analytics_events, youtube_videos, neovim_configs, notifications, templates');
-        console.log('👤 Athena admin user created');
-    } catch (error) {
-        console.error('❌ Database initialization failed:', error);
-        throw error;
+    for (const statement of statements) {
+      await client.execute(statement);
     }
+
+    console.log('✅ Database initialized successfully!');
+    console.log('📊 Tables created: users, projects, tasks, folders, prompts, analytics_events, youtube_videos, neovim_configs, notifications, templates');
+    console.log('👤 Athena admin user created');
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error);
+    throw error;
+  }
 }
 
 initDatabase();

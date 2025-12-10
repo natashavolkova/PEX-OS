@@ -51,7 +51,7 @@ interface FolderCardProps {
   onShare: (item: TreeNode) => void;
   onDragStart: (e: React.DragEvent, item: TreeNode) => void;
   onDragEnd: () => void;
-  onDragOver: (e: React.DragEvent) => void;
+  onDragOver: (e: React.DragEvent, item: TreeNode) => void;
   onDragLeave: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent, item: TreeNode) => void;
   isLocked: boolean;
@@ -79,7 +79,7 @@ const FolderCard: React.FC<FolderCardProps> = ({
       draggable={!isLocked}
       onDragStart={(e) => onDragStart(e, folder)}
       onDragEnd={onDragEnd}
-      onDragOver={onDragOver}
+      onDragOver={(e) => onDragOver(e, folder)}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, folder)}
       onClick={() => onNavigate(folder)}
@@ -164,7 +164,7 @@ interface PromptCardProps {
   onShare: (item: TreeNode) => void;
   onDragStart: (e: React.DragEvent, item: TreeNode) => void;
   onDragEnd: () => void;
-  onDragOver: (e: React.DragEvent) => void;
+  onDragOver: (e: React.DragEvent, item: TreeNode) => void;
   onDragLeave: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent, item: TreeNode) => void;
   isLocked: boolean;
@@ -194,7 +194,7 @@ const PromptCard: React.FC<PromptCardProps> = ({
       draggable={!isLocked}
       onDragStart={(e) => onDragStart(e, prompt)}
       onDragEnd={onDragEnd}
-      onDragOver={onDragOver}
+      onDragOver={(e) => onDragOver(e, prompt)}
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, prompt)}
       onClick={() => onSelectPrompt(prompt)}
@@ -330,9 +330,14 @@ export const SequentialView: React.FC = () => {
     setSelectedPrompt,
     showToast,
     swapItems,
+    moveItem,
     setCreateFolderModalOpen,
     setCreatePromptModalOpen,
   } = usePromptManagerStore((s) => s.actions);
+
+  // Hold-to-nest state (600ms hold = nest mode)
+  const holdTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const [nestModeTarget, setNestModeTarget] = React.useState<string | null>(null);
 
   // Grid density: 'standard' = 4 cols, 'high' = 5 cols
   const gridDensity = preferences.gridDensity || 'standard';
@@ -392,48 +397,109 @@ export const SequentialView: React.FC = () => {
     setDragState({ draggedItemId: item.id, draggedItemType: item.type });
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent, targetItem: TreeNode) => {
     if (isLocked) return;
     e.preventDefault();
-    // Visual feedback for SWAP - left border glow (indicates position swap)
+
     const target = e.currentTarget as HTMLElement;
-    target.style.borderLeftWidth = '4px';
-    target.style.borderLeftColor = '#fbbf24'; // amber-400
-    target.style.transform = 'translateX(4px)';
+    const rect = target.getBoundingClientRect();
+    const mouseX = e.clientX;
+    const centerX = rect.left + rect.width / 2;
+    const isRight = mouseX > centerX;
+
+    // If already in nest mode for this target, show nest visual
+    if (nestModeTarget === targetItem.id) {
+      target.style.borderLeftWidth = '';
+      target.style.borderRightWidth = '';
+      target.style.transform = 'scale(1.02)';
+      target.style.boxShadow = '0 0 20px rgba(16, 185, 129, 0.4)';
+      return;
+    }
+
+    // Directional indicator - show line on the side mouse is approaching from
+    target.style.transform = isRight ? 'translateX(-4px)' : 'translateX(4px)';
+    target.style.boxShadow = '';
+
+    if (isRight) {
+      target.style.borderLeftWidth = '';
+      target.style.borderRightWidth = '4px';
+      target.style.borderRightColor = '#fbbf24';
+    } else {
+      target.style.borderRightWidth = '';
+      target.style.borderLeftWidth = '4px';
+      target.style.borderLeftColor = '#fbbf24';
+    }
+
+    // Start hold-to-nest timer (only for folders)
+    if (targetItem.type === 'folder' && dragState.draggedItemType === 'folder') {
+      if (!holdTimerRef.current) {
+        holdTimerRef.current = setTimeout(() => {
+          setNestModeTarget(targetItem.id);
+          showToast('Solte agora para mover para dentro', 'info');
+        }, 600);
+      }
+    }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    // Reset swap visual
+    // Reset all visuals
     const target = e.currentTarget as HTMLElement;
     target.style.borderLeftWidth = '';
     target.style.borderLeftColor = '';
+    target.style.borderRightWidth = '';
+    target.style.borderRightColor = '';
     target.style.transform = '';
+    target.style.boxShadow = '';
+
+    // Clear hold timer
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+    setNestModeTarget(null);
   };
 
   const handleDrop = (e: React.DragEvent, targetItem: TreeNode) => {
     if (isLocked) return;
     e.preventDefault();
-    // Reset visual
+
+    // Reset all visuals
     const target = e.currentTarget as HTMLElement;
     target.style.borderLeftWidth = '';
     target.style.borderLeftColor = '';
+    target.style.borderRightWidth = '';
+    target.style.borderRightColor = '';
     target.style.transform = '';
+    target.style.boxShadow = '';
+
+    // Clear hold timer
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
 
     const draggedId = dragState.draggedItemId;
     if (!draggedId || draggedId === targetItem.id) {
       setDragState({ draggedItemId: null, draggedItemType: null });
+      setNestModeTarget(null);
       return;
     }
 
-    // SWAP behavior - reorder items, never nest
-    // Only swap items of the same type
-    if (dragState.draggedItemType === targetItem.type) {
+    // HOLD-TO-NEST: If in nest mode, move INTO the folder
+    if (nestModeTarget === targetItem.id && targetItem.type === 'folder') {
+      moveItem(draggedId, targetItem.id);
+      showToast(`Movido para dentro de "${targetItem.name}"`, 'success');
+    }
+    // QUICK DROP: Swap positions (only same type)
+    else if (dragState.draggedItemType === targetItem.type) {
       swapItems(draggedId, targetItem.id);
-    } else {
+    }
+    else {
       showToast('Só é possível reordenar itens do mesmo tipo', 'info');
     }
 
     setDragState({ draggedItemId: null, draggedItemType: null });
+    setNestModeTarget(null);
   };
 
   // --- Action Handlers ---

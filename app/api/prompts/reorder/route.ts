@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        console.log(`[API] POST /api/prompts/reorder: Updating ${orderedIds.length} prompts, folderId=${folderId}`);
+        console.log(`[API] POST /api/prompts/reorder: Saving order:`, orderedIds);
+        console.log(`[API] POST /api/prompts/reorder: folderId=${folderId}`);
 
         // Update position for each prompt in order
         for (let i = 0; i < orderedIds.length; i++) {

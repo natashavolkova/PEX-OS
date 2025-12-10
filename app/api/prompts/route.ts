@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { prompts, folders, users } from '@/lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, asc } from 'drizzle-orm';
 import { generateId, nowISO, parseJsonField, stringifyJsonField, ATHENA_USER_ID, ATHENA_EMAIL, ATHENA_NAME } from '@/lib/db/helpers';
 import { and } from 'drizzle-orm';
 
@@ -21,11 +21,13 @@ export async function GET() {
       emoji: folders.emoji,
       isSystem: folders.isSystem,
       parentId: folders.parentId,
+      position: folders.position,
       createdAt: folders.createdAt,
       updatedAt: folders.updatedAt,
     })
       .from(folders)
-      .where(eq(folders.userId, ATHENA_USER_ID));
+      .where(eq(folders.userId, ATHENA_USER_ID))
+      .orderBy(asc(folders.position), desc(folders.createdAt));
 
     // Fetch all prompts
     const promptResults = await db.select({
@@ -39,11 +41,12 @@ export async function GET() {
       version: prompts.version,
       isFavorite: prompts.isFavorite,
       folderId: prompts.folderId,
+      position: prompts.position,
       createdAt: prompts.createdAt,
     })
       .from(prompts)
       .where(eq(prompts.userId, ATHENA_USER_ID))
-      .orderBy(desc(prompts.createdAt));
+      .orderBy(asc(prompts.position), desc(prompts.createdAt));
 
     // Format folders for tree building
     const formattedFolders = folderResults.map(f => ({

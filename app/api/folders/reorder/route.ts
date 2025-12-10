@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        console.log(`[API] POST /api/folders/reorder: Updating ${orderedIds.length} folders, parentId=${parentId}`);
+        console.log(`[API] POST /api/folders/reorder: Saving order:`, orderedIds);
+        console.log(`[API] POST /api/folders/reorder: parentId=${parentId}`);
 
         // Update position for each folder in order
         for (let i = 0; i < orderedIds.length; i++) {

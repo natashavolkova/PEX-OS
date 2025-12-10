@@ -395,17 +395,29 @@ export const SequentialView: React.FC = () => {
   const handleDragOver = (e: React.DragEvent) => {
     if (isLocked) return;
     e.preventDefault();
-    e.currentTarget.classList.add('ring-2', 'ring-[#2979ff]', 'scale-[1.02]');
+    // Visual feedback for SWAP - left border glow (indicates position swap)
+    const target = e.currentTarget as HTMLElement;
+    target.style.borderLeftWidth = '4px';
+    target.style.borderLeftColor = '#fbbf24'; // amber-400
+    target.style.transform = 'translateX(4px)';
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    e.currentTarget.classList.remove('ring-2', 'ring-[#2979ff]', 'scale-[1.02]');
+    // Reset swap visual
+    const target = e.currentTarget as HTMLElement;
+    target.style.borderLeftWidth = '';
+    target.style.borderLeftColor = '';
+    target.style.transform = '';
   };
 
   const handleDrop = (e: React.DragEvent, targetItem: TreeNode) => {
     if (isLocked) return;
     e.preventDefault();
-    e.currentTarget.classList.remove('ring-2', 'ring-[#2979ff]', 'scale-[1.02]');
+    // Reset visual
+    const target = e.currentTarget as HTMLElement;
+    target.style.borderLeftWidth = '';
+    target.style.borderLeftColor = '';
+    target.style.transform = '';
 
     const draggedId = dragState.draggedItemId;
     if (!draggedId || draggedId === targetItem.id) {

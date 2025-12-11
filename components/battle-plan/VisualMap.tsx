@@ -7,6 +7,8 @@
 
 import React, { useCallback, useRef, useEffect, useState } from 'react';
 import { Excalidraw } from '@excalidraw/excalidraw';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ExcalidrawAPI = any;
 import { Check, RefreshCw, AlertCircle } from 'lucide-react';
 
 interface VisualMapProps {
@@ -29,6 +31,7 @@ export default function VisualMap({ projectId, data, onChange, onSaveToDb }: Vis
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [initialData, setInitialData] = useState<SavedData | null>(null);
+  const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawAPI>(null);
   const hasLoadedRef = useRef(false);
   const storageKey = `${STORAGE_KEY_PREFIX}${projectId}`;
 
@@ -141,10 +144,28 @@ export default function VisualMap({ projectId, data, onChange, onSaveToDb }: Vis
     };
   }, []);
 
+  // IMPERATIVE FIX: Force dark theme + edit mode after Excalidraw mounts
+  // This overrides any cached/localStorage state that may enable viewMode or light theme
+  useEffect(() => {
+    if (excalidrawAPI) {
+      console.log('[Excalidraw] Forcing dark theme + edit mode via API');
+      excalidrawAPI.updateScene({
+        appState: {
+          viewModeEnabled: false,
+          theme: 'dark',
+          viewBackgroundColor: '#0f111a',
+          collaborators: new Map(),
+        },
+      });
+    }
+  }, [excalidrawAPI]);
+
   return (
     <div className="excalidraw-wrapper h-full w-full relative bg-[#121212]" style={{ minHeight: '500px' }}>
       <Excalidraw
-        key="excalidraw-v3-dark-edit-mode"
+        key="excalidraw-v4-imperative-dark"
+        name="athena-battle-plan"
+        excalidrawAPI={(api: ExcalidrawAPI) => setExcalidrawAPI(api)}
         initialData={
           initialData
             ? {

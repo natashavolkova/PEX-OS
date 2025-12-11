@@ -240,14 +240,24 @@ export default function VisualMap({ projectId, data, onChange, onSaveToDb }: Vis
         Arraste para mover • Scroll para zoom • 2s para auto-save
       </div>
 
-      {/* Dark theme overrides */}
+      {/* Dark theme overrides + Toolbar scale fix */}
       <style jsx global>{`
         .excalidraw {
           --color-primary: #2979ff !important;
+          --ui-font: inherit !important;
         }
         .excalidraw .Island {
           background: #1e2330 !important;
           border-color: rgba(255, 255, 255, 0.1) !important;
+        }
+        /* FIX: Scale toolbar to fit properly */
+        .excalidraw .App-toolbar-container {
+          transform: scale(0.85);
+          transform-origin: top left;
+        }
+        .excalidraw .layer-ui__wrapper__top-right {
+          transform: scale(0.85);
+          transform-origin: top right;
         }
         .excalidraw .ToolIcon_type_button,
         .excalidraw .ToolIcon {

@@ -5,8 +5,9 @@
 // ATHENA Architecture | Premium Dark Theme | ENTJ Focus
 // ============================================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import {
     ArrowLeft,
     Clock,
@@ -24,6 +25,19 @@ import {
     RefreshCw,
 } from 'lucide-react';
 import Link from 'next/link';
+
+// Lazy load Battle Plan Editor (heavy component with tldraw)
+const BattlePlanEditor = dynamic(
+    () => import('@/components/battle-plan/BattlePlanEditor'),
+    {
+        loading: () => (
+            <div className="h-full flex items-center justify-center text-gray-500">
+                Loading Battle Plan Editor...
+            </div>
+        ),
+        ssr: false,
+    }
+);
 
 // Types
 interface Project {
@@ -52,6 +66,8 @@ interface BattlePlan {
     id: string;
     title: string;
     content: string | null;
+    contentMarkdown: string | null;
+    diagramData: string | null;
     status: string;
 }
 
@@ -280,8 +296,8 @@ export default function ProjectDetailsPage() {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id as any)}
                             className={`flex items-center gap-2 px-4 py-3 text-xs font-medium transition-all border-b-2 ${activeTab === tab.id
-                                    ? 'text-[#2979ff] border-[#2979ff]'
-                                    : 'text-gray-400 border-transparent hover:text-white'
+                                ? 'text-[#2979ff] border-[#2979ff]'
+                                : 'text-gray-400 border-transparent hover:text-white'
                                 }`}
                         >
                             <tab.icon size={14} />
@@ -342,23 +358,30 @@ export default function ProjectDetailsPage() {
                 )}
 
                 {activeTab === 'battle-plan' && (
-                    <div>
-                        {battlePlan ? (
-                            <div className="bg-[#1e2330] border border-white/5 rounded-xl p-6">
-                                <h3 className="text-lg font-bold text-white mb-4">{battlePlan.title}</h3>
-                                <div className="prose prose-invert prose-sm max-w-none">
-                                    {battlePlan.content || <p className="text-gray-500">No content yet...</p>}
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="text-center py-12">
-                                <FileText size={40} className="text-gray-600 mx-auto mb-3" />
-                                <p className="text-gray-500 text-sm mb-4">No battle plan created for this project</p>
-                                <button className="px-4 py-2 bg-[#2979ff] hover:bg-[#2264d1] text-white text-xs font-bold rounded-lg transition-all">
-                                    Create Battle Plan
-                                </button>
-                            </div>
-                        )}
+                    <div className="h-[600px] -m-6">
+                        <BattlePlanEditor
+                            battlePlan={battlePlan}
+                            projectId={projectId}
+                            onSave={async (data) => {
+                                try {
+                                    const method = battlePlan ? 'PATCH' : 'POST';
+                                    const res = await fetch(`/api/projects/${projectId}/battle-plan`, {
+                                        method,
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            title: battlePlan?.title || 'Battle Plan',
+                                            ...data,
+                                        }),
+                                    });
+                                    const result = await res.json();
+                                    if (result.success && result.data) {
+                                        setBattlePlan(result.data);
+                                    }
+                                } catch (error) {
+                                    console.error('Failed to save battle plan:', error);
+                                }
+                            }}
+                        />
                     </div>
                 )}
 

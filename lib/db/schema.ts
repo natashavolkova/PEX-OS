@@ -155,7 +155,9 @@ export const templates = sqliteTable('templates', {
 export const battlePlans = sqliteTable('battle_plans', {
     id: text('id').primaryKey(),
     title: text('title').notNull(),
-    content: text('content'), // Rich text/markdown content
+    content: text('content'), // Legacy: plain text content
+    contentMarkdown: text('content_markdown'), // Rich text/markdown content
+    diagramData: text('diagram_data'), // JSON: tldraw canvas state
     status: text('status').default('draft'), // draft, active, completed
     projectId: text('project_id').references(() => projects.id),
     createdAt: text('created_at').default('CURRENT_TIMESTAMP'),

@@ -64,6 +64,8 @@ export async function POST(
             id: generateId(),
             title: body.title || 'Battle Plan',
             content: body.content || '',
+            contentMarkdown: body.contentMarkdown || '',
+            diagramData: body.diagramData || '{}',
             status: body.status || 'draft',
             projectId,
             createdAt: nowISO(),
@@ -84,6 +86,59 @@ export async function POST(
         console.error('[API] POST /api/projects/:id/battle-plan error:', error);
         return NextResponse.json(
             { success: false, error: 'Failed to create battle plan' },
+            { status: 400 }
+        );
+    }
+}
+
+// PATCH /api/projects/[id]/battle-plan - Update battle plan
+export async function PATCH(
+    request: NextRequest,
+    { params }: { params: Params }
+) {
+    const { id: projectId } = await params;
+
+    try {
+        const body = await request.json();
+
+        // Find existing battle plan
+        const existing = await db.select({ id: battlePlans.id })
+            .from(battlePlans)
+            .where(and(
+                eq(battlePlans.projectId, projectId),
+                eq(battlePlans.userId, ATHENA_USER_ID)
+            ))
+            .limit(1);
+
+        if (existing.length === 0) {
+            return NextResponse.json(
+                { success: false, error: 'Battle plan not found' },
+                { status: 404 }
+            );
+        }
+
+        // Update
+        await db.update(battlePlans)
+            .set({
+                title: body.title,
+                content: body.content,
+                contentMarkdown: body.contentMarkdown,
+                diagramData: body.diagramData,
+                status: body.status,
+                updatedAt: nowISO(),
+            })
+            .where(eq(battlePlans.id, existing[0].id));
+
+        console.log(`[API] PATCH /api/projects/${projectId}/battle-plan: Updated ${existing[0].id}`);
+
+        return NextResponse.json({
+            success: true,
+            message: 'Battle plan updated',
+        });
+    } catch (error) {
+        console.error('[API] PATCH /api/projects/:id/battle-plan error:', error);
+        return NextResponse.json(
+            { success: false, error: 'Failed to update battle plan' },
             { status: 400 }
         );
     }

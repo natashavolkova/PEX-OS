@@ -163,35 +163,22 @@ export default function VisualMap({ projectId, data, onChange, onSaveToDb }: Vis
   return (
     <div className="excalidraw-wrapper h-full w-full relative bg-[#121212]" style={{ minHeight: '500px' }}>
       <Excalidraw
-        key="excalidraw-v4-imperative-dark"
+        key="excalidraw-v5-clean-canvas"
         name="athena-battle-plan"
         excalidrawAPI={(api: ExcalidrawAPI) => setExcalidrawAPI(api)}
-        initialData={
-          initialData
-            ? {
-              elements: initialData.elements as never[],
-              appState: {
-                viewModeEnabled: false,
-                zenModeEnabled: false,
-                gridModeEnabled: false,
-                theme: 'dark',
-                viewBackgroundColor: '#0f111a',
-                currentItemStrokeColor: '#ffffff',
-                currentItemBackgroundColor: 'transparent',
-              } as never,
-            }
-            : {
-              appState: {
-                viewModeEnabled: false,
-                zenModeEnabled: false,
-                gridModeEnabled: false,
-                theme: 'dark',
-                viewBackgroundColor: '#0f111a',
-                currentItemStrokeColor: '#ffffff',
-                currentItemBackgroundColor: 'transparent',
-              } as never,
-            }
-        }
+        initialData={{
+          // NUCLEAR FIX: Force empty canvas to test if padlock is in stored data
+          elements: [],
+          appState: {
+            viewModeEnabled: false,
+            zenModeEnabled: false,
+            gridModeEnabled: false,
+            theme: 'dark',
+            viewBackgroundColor: '#0f111a',
+            currentItemStrokeColor: '#ffffff',
+            currentItemBackgroundColor: 'transparent',
+          },
+        }}
         onChange={handleChange as never}
         theme="dark"
         viewModeEnabled={false}

@@ -1,14 +1,12 @@
 'use client';
 
 // ============================================================================
-// VISUAL MAP - Excalidraw Canvas with Persistence
-// ATHENA Architecture | 2s Debounce Auto-Save + DB + Toast
+// VISUAL MAP - Excalidraw Canvas (Clean Implementation)
+// ATHENA Architecture | Standard Excalidraw with minimal overrides
 // ============================================================================
 
 import React, { useCallback, useRef, useEffect, useState } from 'react';
 import { Excalidraw } from '@excalidraw/excalidraw';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ExcalidrawAPI = any;
 import { Check, RefreshCw, AlertCircle } from 'lucide-react';
 
 interface VisualMapProps {
@@ -25,13 +23,13 @@ interface SavedData {
 }
 
 const STORAGE_KEY_PREFIX = 'battleplan-excalidraw-';
-const DEBOUNCE_MS = 2000; // 2 seconds
+const DEBOUNCE_MS = 2000;
 
 export default function VisualMap({ projectId, data, onChange, onSaveToDb }: VisualMapProps) {
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [initialData, setInitialData] = useState<SavedData | null>(null);
-  const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawAPI>(null);
+  const [isReady, setIsReady] = useState(false);
   const hasLoadedRef = useRef(false);
   const storageKey = `${STORAGE_KEY_PREFIX}${projectId}`;
 
@@ -74,22 +72,20 @@ export default function VisualMap({ projectId, data, onChange, onSaveToDb }: Vis
     if (savedData) {
       setInitialData(savedData);
     }
+    setIsReady(true);
   }, [data, storageKey]);
 
   // Handle changes with 2s debounce
   const handleChange = useCallback(
     (elements: readonly unknown[], appState: Record<string, unknown>) => {
-      // Clear existing timer
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
 
-      // Skip if no elements
       if (!elements || elements.length === 0) return;
 
       setSaveStatus('idle');
 
-      // Set new debounce timer
       debounceTimerRef.current = setTimeout(async () => {
         try {
           setSaveStatus('saving');
@@ -107,24 +103,18 @@ export default function VisualMap({ projectId, data, onChange, onSaveToDb }: Vis
 
           const serialized = JSON.stringify(dataToSave);
 
-          // Save to localStorage (instant backup)
           if (typeof window !== 'undefined') {
             localStorage.setItem(storageKey, serialized);
           }
 
-          // Update parent state (triggers DB save)
           onChange(serialized);
 
-          // Call explicit DB save if provided
           if (onSaveToDb) {
             await onSaveToDb();
           }
 
           setSaveStatus('saved');
-
-          // Reset status after 3 seconds
           setTimeout(() => setSaveStatus('idle'), 3000);
-
           console.log('[Excalidraw] Saved:', elements.length, 'elements');
         } catch (error) {
           console.error('[Excalidraw] Save failed:', error);
@@ -144,46 +134,36 @@ export default function VisualMap({ projectId, data, onChange, onSaveToDb }: Vis
     };
   }, []);
 
-  // IMPERATIVE FIX: Force dark theme + edit mode after Excalidraw mounts
-  // This overrides any cached/localStorage state that may enable viewMode or light theme
-  useEffect(() => {
-    if (excalidrawAPI) {
-      console.log('[Excalidraw] Forcing dark theme + edit mode via API');
-      excalidrawAPI.updateScene({
-        appState: {
-          viewModeEnabled: false,
-          theme: 'dark',
-          viewBackgroundColor: '#0f111a',
-          collaborators: new Map(),
-        },
-      });
-    }
-  }, [excalidrawAPI]);
+  if (!isReady) {
+    return (
+      <div className="h-full w-full flex items-center justify-center bg-[#0f111a]" style={{ minHeight: '500px' }}>
+        <div className="text-gray-400">Carregando editor...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="excalidraw-wrapper h-full w-full relative bg-[#121212]" style={{ minHeight: '500px' }}>
+    <div className="excalidraw-wrapper h-full w-full relative" style={{ minHeight: '500px', height: '600px' }}>
       <Excalidraw
-        key="excalidraw-v5-clean-canvas"
-        name="athena-battle-plan"
-        excalidrawAPI={(api: ExcalidrawAPI) => setExcalidrawAPI(api)}
-        initialData={{
-          // NUCLEAR FIX: Force empty canvas to test if padlock is in stored data
-          elements: [],
-          appState: {
-            viewModeEnabled: false,
-            zenModeEnabled: false,
-            gridModeEnabled: false,
-            theme: 'dark',
-            viewBackgroundColor: '#0f111a',
-            currentItemStrokeColor: '#ffffff',
-            currentItemBackgroundColor: 'transparent',
-          },
-        }}
+        initialData={
+          initialData
+            ? {
+              elements: initialData.elements as never[],
+              appState: {
+                theme: 'dark',
+                viewBackgroundColor: '#0f111a',
+                ...initialData.appState,
+              },
+            }
+            : {
+              appState: {
+                theme: 'dark',
+                viewBackgroundColor: '#0f111a',
+              },
+            }
+        }
         onChange={handleChange as never}
         theme="dark"
-        viewModeEnabled={false}
-        zenModeEnabled={false}
-        gridModeEnabled={false}
         UIOptions={{
           canvasActions: {
             loadScene: false,
@@ -226,51 +206,6 @@ export default function VisualMap({ projectId, data, onChange, onSaveToDb }: Vis
       <div className="absolute bottom-4 left-4 text-[10px] text-gray-500 bg-black/50 px-2 py-1 rounded pointer-events-none z-50">
         Arraste para mover • Scroll para zoom • 2s para auto-save
       </div>
-
-      {/* Force desktop toolbar mode + dark theme */}
-      <style jsx global>{`
-        .excalidraw {
-          --color-primary: #2979ff !important;
-          --ui-font: inherit !important;
-        }
-        .excalidraw .Island {
-          background: #1e2330 !important;
-          border-color: rgba(255, 255, 255, 0.1) !important;
-        }
-        /* FIX: Force toolbar to ALWAYS show in desktop/expanded mode */
-        .excalidraw .App-toolbar-container {
-          /* Remove any responsive collapsing */
-          display: flex !important;
-          flex-direction: row !important;
-          flex-wrap: wrap !important;
-        }
-        /* Force all toolbar items visible */
-        .excalidraw .App-toolbar .ToolIcon,
-        .excalidraw .App-toolbar .ToolIcon_type_button {
-          display: flex !important;
-          visibility: visible !important;
-          opacity: 1 !important;
-        }
-        /* Prevent mobile-style collapsed toolbar */
-        .excalidraw .App-toolbar--collapsed {
-          display: flex !important;
-        }
-        /* Ensure proper toolbar sizing */
-        .excalidraw .App-toolbar {
-          max-width: none !important;
-          flex-wrap: wrap !important;
-        }
-        .excalidraw .ToolIcon_type_button,
-        .excalidraw .ToolIcon {
-          background: transparent !important;
-        }
-        .excalidraw .ToolIcon_type_button:hover {
-          background: rgba(255, 255, 255, 0.05) !important;
-        }
-        .excalidraw .ToolIcon_type_button.ToolIcon--selected {
-          background: #2979ff !important;
-        }
-      `}</style>
     </div>
   );
 }

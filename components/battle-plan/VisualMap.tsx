@@ -142,13 +142,17 @@ export default function VisualMap({ projectId, data, onChange, onSaveToDb }: Vis
   }, []);
 
   return (
-    <div className="h-full w-full relative" style={{ minHeight: '500px' }}>
+    <div className="excalidraw-wrapper h-full w-full relative bg-[#121212]" style={{ minHeight: '500px' }}>
       <Excalidraw
+        key="excalidraw-v3-dark-edit-mode"
         initialData={
           initialData
             ? {
               elements: initialData.elements as never[],
               appState: {
+                viewModeEnabled: false,
+                zenModeEnabled: false,
+                gridModeEnabled: false,
                 theme: 'dark',
                 viewBackgroundColor: '#0f111a',
                 currentItemStrokeColor: '#ffffff',
@@ -157,6 +161,9 @@ export default function VisualMap({ projectId, data, onChange, onSaveToDb }: Vis
             }
             : {
               appState: {
+                viewModeEnabled: false,
+                zenModeEnabled: false,
+                gridModeEnabled: false,
                 theme: 'dark',
                 viewBackgroundColor: '#0f111a',
                 currentItemStrokeColor: '#ffffff',

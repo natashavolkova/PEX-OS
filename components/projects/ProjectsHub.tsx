@@ -6,6 +6,7 @@
 // ============================================================================
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Plus,
   FolderKanban,
@@ -381,6 +382,7 @@ const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, onClose
 // --- MAIN PROJECTS HUB COMPONENT ---
 
 export const ProjectsHub: React.FC = () => {
+  const router = useRouter();
   const projects = useProductivityStore((s) => s.projects);
   const { setSelectedProject, archiveProject, deleteProject, updateProject } = useProductivityStore((s) => s.actions);
 
@@ -389,6 +391,11 @@ export const ProjectsHub: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'active' | 'archived' | 'completed'>('all');
   const [sortBy, setSortBy] = useState<'updated' | 'priority' | 'roi'>('updated');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Navigate to project details
+  const handleProjectSelect = (projectId: string) => {
+    router.push(`/pex-os/projects/${projectId}`);
+  };
 
   // Filter and sort projects
   const filteredProjects = projects
@@ -516,7 +523,7 @@ export const ProjectsHub: React.FC = () => {
               <ProjectCard
                 key={project.id}
                 project={project}
-                onSelect={() => setSelectedProject(project.id)}
+                onSelect={() => handleProjectSelect(project.id)}
                 onEdit={() => setEditingProject(project)}
                 onArchive={() => archiveProject(project.id)}
                 onDelete={() => deleteProject(project.id)}

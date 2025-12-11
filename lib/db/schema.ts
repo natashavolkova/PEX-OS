@@ -27,8 +27,9 @@ export const projects = sqliteTable('projects', {
     id: text('id').primaryKey(),
     name: text('name').notNull(),
     description: text('description'),
-    status: text('status').default('active'),
-    progress: integer('progress').default(0),
+    status: text('status').default('active'), // active, completed, hold
+    progress: integer('progress').default(0), // 0-100
+    roiScore: integer('roi_score').default(0), // ROI percentage
     members: integer('members').default(1),
     dueDate: text('due_date'),
     createdAt: text('created_at').default('CURRENT_TIMESTAMP'),
@@ -40,10 +41,11 @@ export const projects = sqliteTable('projects', {
 export const tasks = sqliteTable('tasks', {
     id: text('id').primaryKey(),
     title: text('title').notNull(),
-    status: text('status').default('todo'),
+    status: text('status').default('todo'), // todo, in_progress, completed
     priority: text('priority').default('medium'),
     dueDate: text('due_date'),
     tags: text('tags').default('[]'), // JSON array as TEXT
+    projectId: text('project_id').references(() => projects.id), // FK to project
     createdAt: text('created_at').default('CURRENT_TIMESTAMP'),
     updatedAt: text('updated_at').default('CURRENT_TIMESTAMP'),
     userId: text('user_id').notNull().references(() => users.id),
@@ -149,6 +151,18 @@ export const templates = sqliteTable('templates', {
     userId: text('user_id').notNull().references(() => users.id),
 });
 
+// --- BATTLE PLANS ---
+export const battlePlans = sqliteTable('battle_plans', {
+    id: text('id').primaryKey(),
+    title: text('title').notNull(),
+    content: text('content'), // Rich text/markdown content
+    status: text('status').default('draft'), // draft, active, completed
+    projectId: text('project_id').references(() => projects.id),
+    createdAt: text('created_at').default('CURRENT_TIMESTAMP'),
+    updatedAt: text('updated_at').default('CURRENT_TIMESTAMP'),
+    userId: text('user_id').notNull().references(() => users.id),
+});
+
 // --- RELATIONS ---
 export const usersRelations = relations(users, ({ many }) => ({
     projects: many(projects),
@@ -160,14 +174,18 @@ export const usersRelations = relations(users, ({ many }) => ({
     neovimConfigs: many(neovimConfigs),
     notifications: many(notifications),
     templates: many(templates),
+    battlePlans: many(battlePlans),
 }));
 
-export const projectsRelations = relations(projects, ({ one }) => ({
+export const projectsRelations = relations(projects, ({ one, many }) => ({
     user: one(users, { fields: [projects.userId], references: [users.id] }),
+    tasks: many(tasks),
+    battlePlans: many(battlePlans),
 }));
 
 export const tasksRelations = relations(tasks, ({ one }) => ({
     user: one(users, { fields: [tasks.userId], references: [users.id] }),
+    project: one(projects, { fields: [tasks.projectId], references: [projects.id] }),
 }));
 
 export const foldersRelations = relations(folders, ({ one, many }) => ({
@@ -192,4 +210,9 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
 
 export const templatesRelations = relations(templates, ({ one }) => ({
     user: one(users, { fields: [templates.userId], references: [users.id] }),
+}));
+
+export const battlePlansRelations = relations(battlePlans, ({ one }) => ({
+    user: one(users, { fields: [battlePlans.userId], references: [users.id] }),
+    project: one(projects, { fields: [battlePlans.projectId], references: [projects.id] }),
 }));

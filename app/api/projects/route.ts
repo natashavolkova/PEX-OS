@@ -18,6 +18,7 @@ export async function GET() {
       description: projects.description,
       status: projects.status,
       progress: projects.progress,
+      roiScore: projects.roiScore,
       members: projects.members,
       dueDate: projects.dueDate,
       createdAt: projects.createdAt,

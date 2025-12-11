@@ -1,59 +1,110 @@
 'use client';
 
 // ============================================================================
-// VISUAL MAP - tldraw Canvas
-// ATHENA Architecture | Infinite Canvas with Shapes, Arrows, Freehand
+// VISUAL MAP - tldraw Canvas with Persistence
+// ATHENA Architecture | localStorage + Auto-save to DB
 // ============================================================================
 
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useEffect, useState } from 'react';
 import { Tldraw, Editor } from 'tldraw';
 import 'tldraw/tldraw.css';
 
 interface VisualMapProps {
-    data: string;
-    onChange: (data: string) => void;
+  projectId: string;
+  data: string;
+  onChange: (data: string) => void;
 }
 
-export default function VisualMap({ data, onChange }: VisualMapProps) {
-    const editorRef = useRef<Editor | null>(null);
-    const initialDataRef = useRef<string>(data);
+const STORAGE_KEY_PREFIX = 'battleplan-diagram-';
 
-    // Handle editor mount
-    const handleMount = useCallback((editor: Editor) => {
-        editorRef.current = editor;
+export default function VisualMap({ projectId, data, onChange }: VisualMapProps) {
+  const editorRef = useRef<Editor | null>(null);
+  const [isReady, setIsReady] = useState(false);
+  const hasLoadedRef = useRef(false);
+  const storageKey = `${STORAGE_KEY_PREFIX}${projectId}`;
 
-        // Track changes and save to parent
-        let timeout: NodeJS.Timeout;
-        const unsub = editor.store.listen(() => {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => {
-                // Get all shapes as serializable data
-                const shapes = editor.getCurrentPageShapes();
-                const serialized = JSON.stringify(shapes);
-                onChange(serialized);
-            }, 500);
-        }, { source: 'user', scope: 'document' });
+  // Load from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !hasLoadedRef.current) {
+      const savedData = localStorage.getItem(storageKey);
+      if (savedData && savedData !== '{}' && savedData !== data) {
+        // localStorage has newer data than prop - use it
+        console.log('[VisualMap] Restoring from localStorage');
+        onChange(savedData);
+      }
+      hasLoadedRef.current = true;
+    }
+  }, [storageKey, data, onChange]);
 
-        return () => {
-            clearTimeout(timeout);
-            unsub();
-        };
-    }, [onChange]);
+  // Save to localStorage whenever data changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && data && data !== '{}') {
+      localStorage.setItem(storageKey, data);
+    }
+  }, [storageKey, data]);
 
-    return (
-        <div className="h-full w-full relative">
-            <Tldraw
-                onMount={handleMount}
-                inferDarkMode
-            />
+  // Handle editor mount
+  const handleMount = useCallback((editor: Editor) => {
+    editorRef.current = editor;
+    setIsReady(true);
 
-            {/* Overlay hint */}
-            <div className="absolute bottom-4 left-4 text-[10px] text-gray-500 bg-black/50 px-2 py-1 rounded pointer-events-none">
-                Drag to pan • Scroll to zoom • Press T for text
-            </div>
+    console.log('[VisualMap] Editor mounted');
 
-            {/* Custom dark theme overrides */}
-            <style jsx global>{`
+    // Track changes and save to parent (with debounce)
+    let timeout: NodeJS.Timeout;
+    const unsub = editor.store.listen(() => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        try {
+          // Get all shapes as serializable data
+          const shapes = editor.getCurrentPageShapes();
+          const serialized = JSON.stringify({
+            shapes: shapes,
+            camera: editor.getCamera(),
+            timestamp: Date.now(),
+          });
+
+          // Save to localStorage immediately
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(storageKey, serialized);
+          }
+
+          // Update parent state (triggers auto-save to DB after 5s inactivity)
+          onChange(serialized);
+        } catch (err) {
+          console.error('[VisualMap] Failed to serialize:', err);
+        }
+      }, 300); // 300ms debounce for responsiveness
+    }, { source: 'user', scope: 'document' });
+
+    return () => {
+      clearTimeout(timeout);
+      unsub();
+    };
+  }, [onChange, storageKey]);
+
+  return (
+    <div className="h-full w-full relative">
+      <Tldraw
+        onMount={handleMount}
+        inferDarkMode
+      />
+
+      {/* Status indicator */}
+      <div className="absolute bottom-4 left-4 flex items-center gap-2">
+        <div className="text-[10px] text-gray-500 bg-black/50 px-2 py-1 rounded pointer-events-none">
+          Drag to pan • Scroll to zoom • Press T for text
+        </div>
+        {isReady && (
+          <div className="text-[10px] text-green-400 bg-black/50 px-2 py-1 rounded pointer-events-none flex items-center gap-1">
+            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+            Auto-save ativo
+          </div>
+        )}
+      </div>
+
+      {/* Custom dark theme overrides */}
+      <style jsx global>{`
         .tl-container {
           background: #0f111a !important;
         }
@@ -87,6 +138,6 @@ export default function VisualMap({ data, onChange }: VisualMapProps) {
           background: rgba(255, 255, 255, 0.05) !important;
         }
       `}</style>
-        </div>
-    );
+    </div>
+  );
 }

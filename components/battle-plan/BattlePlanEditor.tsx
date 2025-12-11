@@ -109,8 +109,8 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
                     <button
                         onClick={() => setActiveView('document')}
                         className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeView === 'document'
-                                ? 'bg-[#2979ff] text-white shadow-md'
-                                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                            ? 'bg-[#2979ff] text-white shadow-md'
+                            : 'text-gray-400 hover:text-white hover:bg-white/5'
                             }`}
                     >
                         <FileText size={16} />
@@ -119,8 +119,8 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
                     <button
                         onClick={() => setActiveView('map')}
                         className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeView === 'map'
-                                ? 'bg-purple-600 text-white shadow-md'
-                                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                            ? 'bg-purple-600 text-white shadow-md'
+                            : 'text-gray-400 hover:text-white hover:bg-white/5'
                             }`}
                     >
                         <Map size={16} />
@@ -143,8 +143,8 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
                         <button
                             onClick={() => setShowCodePanel(!showCodePanel)}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${showCodePanel
-                                    ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                                    : 'text-gray-400 hover:text-white hover:bg-white/5 border border-white/5'
+                                ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                                : 'text-gray-400 hover:text-white hover:bg-white/5 border border-white/5'
                                 }`}
                         >
                             <Code2 size={12} />
@@ -181,7 +181,7 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
                     </div>
 
                     {/* Visual Map View - 100% width when active, hidden when not */}
-                    {/* IMPORTANT: Keep mounted to preserve tldraw state */}
+                    {/* IMPORTANT: Keep mounted to preserve Excalidraw state */}
                     <div
                         className={`absolute inset-0 transition-opacity duration-200 ${activeView === 'map' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
                             }`}
@@ -190,6 +190,7 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
                             projectId={projectId}
                             data={diagramData}
                             onChange={setDiagramData}
+                            onSaveToDb={handleSave}
                         />
                     </div>
                 </div>

@@ -142,32 +142,47 @@ export default function VisualMap({ projectId, data, onChange, onSaveToDb }: Vis
   }, []);
 
   return (
-    <div className="h-full w-full relative bg-[#0f111a]">
+    <div className="h-full w-full relative" style={{ minHeight: '500px' }}>
       <Excalidraw
         initialData={
           initialData
             ? {
               elements: initialData.elements as never[],
               appState: {
-                ...initialData.appState,
                 theme: 'dark',
+                viewBackgroundColor: '#0f111a',
+                currentItemStrokeColor: '#ffffff',
+                currentItemBackgroundColor: 'transparent',
               } as never,
             }
             : {
               appState: {
                 theme: 'dark',
                 viewBackgroundColor: '#0f111a',
+                currentItemStrokeColor: '#ffffff',
+                currentItemBackgroundColor: 'transparent',
               } as never,
             }
         }
         onChange={handleChange as never}
         theme="dark"
+        viewModeEnabled={false}
+        zenModeEnabled={false}
+        gridModeEnabled={false}
         UIOptions={{
           canvasActions: {
             loadScene: false,
             export: false,
+            saveToActiveFile: false,
+            saveAsImage: false,
+            clearCanvas: true,
+            changeViewBackgroundColor: false,
+          },
+          tools: {
+            image: false,
           },
         }}
+        langCode="pt-BR"
       />
 
       {/* Save Status Toast */}

@@ -227,7 +227,7 @@ export default function VisualMap({ projectId, data, onChange, onSaveToDb }: Vis
         Arraste para mover • Scroll para zoom • 2s para auto-save
       </div>
 
-      {/* Dark theme overrides + Toolbar scale fix */}
+      {/* Force desktop toolbar mode + dark theme */}
       <style jsx global>{`
         .excalidraw {
           --color-primary: #2979ff !important;
@@ -237,14 +237,28 @@ export default function VisualMap({ projectId, data, onChange, onSaveToDb }: Vis
           background: #1e2330 !important;
           border-color: rgba(255, 255, 255, 0.1) !important;
         }
-        /* FIX: Scale toolbar to fit properly */
+        /* FIX: Force toolbar to ALWAYS show in desktop/expanded mode */
         .excalidraw .App-toolbar-container {
-          transform: scale(0.85);
-          transform-origin: top left;
+          /* Remove any responsive collapsing */
+          display: flex !important;
+          flex-direction: row !important;
+          flex-wrap: wrap !important;
         }
-        .excalidraw .layer-ui__wrapper__top-right {
-          transform: scale(0.85);
-          transform-origin: top right;
+        /* Force all toolbar items visible */
+        .excalidraw .App-toolbar .ToolIcon,
+        .excalidraw .App-toolbar .ToolIcon_type_button {
+          display: flex !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+        }
+        /* Prevent mobile-style collapsed toolbar */
+        .excalidraw .App-toolbar--collapsed {
+          display: flex !important;
+        }
+        /* Ensure proper toolbar sizing */
+        .excalidraw .App-toolbar {
+          max-width: none !important;
+          flex-wrap: wrap !important;
         }
         .excalidraw .ToolIcon_type_button,
         .excalidraw .ToolIcon {

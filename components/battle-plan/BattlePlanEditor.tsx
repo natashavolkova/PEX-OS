@@ -7,6 +7,7 @@
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
+import { useParseDiagramFromText } from '@/hooks/useParseDiagramFromText';
 import {
     FileText,
     Map,
@@ -60,6 +61,9 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
     const [markdown, setMarkdown] = useState(battlePlan?.contentMarkdown || '');
     const [diagramData, setDiagramData] = useState<string>(battlePlan?.diagramData || '{}');
     const [mermaidCode, setMermaidCode] = useState('graph TD\n  A[Start] --> B{Decision}\n  B --> C[Option 1]\n  B --> D[Option 2]');
+
+    // ONE-WAY DATA BINDING: Text → Graph
+    const parsedDiagram = useParseDiagramFromText(markdown, 500);
 
     // Auto-save timer ref
     const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -180,13 +184,15 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
                         />
                     </div>
 
-                    {/* Strategic Map View - React Flow */}
+                    {/* Strategic Map View - React Flow (driven by text) */}
                     <div
                         className={`absolute inset-0 ${activeView === 'map' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}
                     >
                         <StrategicMap
-                            diagramData={diagramData}
-                            onChange={setDiagramData}
+                            externalNodes={parsedDiagram.nodes}
+                            externalEdges={parsedDiagram.edges}
+                            isSyncing={parsedDiagram.isSyncing}
+                            syncError={parsedDiagram.error}
                         />
                     </div>
                 </div>

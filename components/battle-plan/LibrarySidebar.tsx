@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Shapes, StickyNote, Type, X } from 'lucide-react';
+import { Shapes, StickyNote, Waypoints } from 'lucide-react';
 
 // Miro Palette - Exact colors from spec
 const stickyColors = [
@@ -21,13 +21,53 @@ const shapes = [
     { id: 'cloud', label: 'Nuvem', svg: <path d="M12 28c-3.3 0-6-2.7-6-6 0-2.5 1.5-4.6 3.7-5.5C10.3 13.4 13 11 16.5 11c2.8 0 5.2 1.6 6.4 4 .4-.1.7-.1 1.1-.1 3.3 0 6 2.7 6 6s-2.7 6-6 6H12z" fill="currentColor" /> },
 ];
 
-type PanelType = 'shapes' | 'sticky' | 'text' | null;
+// Edge/Connector types
+const connectorTypes = [
+    {
+        id: 'default',
+        label: 'Curva Bézier',
+        description: 'Linha curva suave',
+        icon: (
+            <svg viewBox="0 0 48 24" className="w-full h-6">
+                <path d="M4 20 C 16 20, 16 4, 28 4 S 40 20, 44 4" stroke="currentColor" strokeWidth="2" fill="none" />
+            </svg>
+        ),
+    },
+    {
+        id: 'smoothstep',
+        label: 'Ortogonal/Step',
+        description: 'Linha com ângulos retos',
+        icon: (
+            <svg viewBox="0 0 48 24" className="w-full h-6">
+                <path d="M4 20 L 4 12 L 24 12 L 24 4 L 44 4" stroke="currentColor" strokeWidth="2" fill="none" />
+            </svg>
+        ),
+    },
+    {
+        id: 'straight',
+        label: 'Reta',
+        description: 'Linha direta',
+        icon: (
+            <svg viewBox="0 0 48 24" className="w-full h-6">
+                <line x1="4" y1="20" x2="44" y2="4" stroke="currentColor" strokeWidth="2" />
+            </svg>
+        ),
+    },
+];
+
+type PanelType = 'shapes' | 'sticky' | 'connectors' | null;
 
 interface LibrarySidebarProps {
     className?: string;
+    onEdgeTypeChange?: (type: string) => void;
+    currentEdgeType?: string;
 }
 
-export default function LibrarySidebar({ className = '' }: LibrarySidebarProps) {
+export default function LibrarySidebar({
+    className = '',
+    onEdgeTypeChange,
+    currentEdgeType = 'default'
+}: LibrarySidebarProps) {
     const [activePanel, setActivePanel] = useState<PanelType>(null);
 
     const onDragStart = (
@@ -41,6 +81,12 @@ export default function LibrarySidebar({ className = '' }: LibrarySidebarProps) 
 
     const handleIconClick = (panel: PanelType) => {
         setActivePanel(activePanel === panel ? null : panel);
+    };
+
+    const handleConnectorSelect = (type: string) => {
+        if (onEdgeTypeChange) {
+            onEdgeTypeChange(type);
+        }
     };
 
     return (
@@ -71,16 +117,16 @@ export default function LibrarySidebar({ className = '' }: LibrarySidebarProps) 
                     <StickyNote size={22} />
                 </button>
 
-                {/* Text Icon */}
+                {/* Connectors Icon - REPLACES TEXT */}
                 <button
-                    onClick={() => handleIconClick('text')}
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${activePanel === 'text'
+                    onClick={() => handleIconClick('connectors')}
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${activePanel === 'connectors'
                             ? 'bg-blue-500 text-white'
                             : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                         }`}
-                    title="Texto"
+                    title="Conectores"
                 >
-                    <Type size={22} />
+                    <Waypoints size={22} />
                 </button>
             </div>
 
@@ -90,15 +136,15 @@ export default function LibrarySidebar({ className = '' }: LibrarySidebarProps) 
                     {/* Panel Header */}
                     <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
                         <span className="text-sm font-semibold text-slate-200">
-                            {activePanel === 'shapes' && 'Formas'}
-                            {activePanel === 'sticky' && 'Notas Adesivas'}
-                            {activePanel === 'text' && 'Texto'}
+                            {activePanel === 'shapes' && '🔶 Formas'}
+                            {activePanel === 'sticky' && '📝 Notas'}
+                            {activePanel === 'connectors' && '↗️ Conectores'}
                         </span>
                         <button
                             onClick={() => setActivePanel(null)}
-                            className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
+                            className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors text-lg"
                         >
-                            <X size={16} />
+                            ✕
                         </button>
                     </div>
 
@@ -136,48 +182,47 @@ export default function LibrarySidebar({ className = '' }: LibrarySidebarProps) 
                                         key={color.id}
                                         draggable
                                         onDragStart={(e) => onDragStart(e, 'stickyNote', { color: color.id })}
-                                        className="aspect-square rounded-lg cursor-grab active:cursor-grabbing transition-all hover:scale-105 shadow-md hover:shadow-xl"
+                                        className="aspect-square rounded-lg cursor-grab active:cursor-grabbing transition-all hover:scale-105 shadow-md hover:shadow-xl relative overflow-hidden"
                                         style={{ backgroundColor: color.hex }}
                                         title={color.label}
                                     >
                                         {/* Folded corner effect */}
                                         <div
-                                            className="w-full h-full relative"
+                                            className="absolute top-0 right-0 w-4 h-4"
                                             style={{
-                                                clipPath: 'polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%)',
+                                                background: `linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.15) 50%)`,
                                             }}
-                                        >
-                                            <div
-                                                className="absolute top-0 right-0 w-3 h-3"
-                                                style={{
-                                                    background: `linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.1) 50%)`,
-                                                }}
-                                            />
-                                        </div>
+                                        />
                                     </div>
                                 ))}
                             </div>
                         )}
 
-                        {/* TEXT PANEL */}
-                        {activePanel === 'text' && (
+                        {/* CONNECTORS PANEL - NEW! */}
+                        {activePanel === 'connectors' && (
                             <div className="space-y-3">
-                                <div
-                                    draggable
-                                    onDragStart={(e) => onDragStart(e, 'shape', { shape: 'rectangle', isTextBox: 'true' })}
-                                    className="p-4 bg-slate-800 hover:bg-slate-700 rounded-lg cursor-grab active:cursor-grabbing transition-all hover:shadow-lg"
-                                >
-                                    <div className="text-lg font-bold text-slate-200 mb-1">Título</div>
-                                    <div className="text-xs text-slate-500">Arraste para adicionar</div>
-                                </div>
-                                <div
-                                    draggable
-                                    onDragStart={(e) => onDragStart(e, 'shape', { shape: 'rectangle', isTextBox: 'true' })}
-                                    className="p-4 bg-slate-800 hover:bg-slate-700 rounded-lg cursor-grab active:cursor-grabbing transition-all hover:shadow-lg"
-                                >
-                                    <div className="text-sm text-slate-300 mb-1">Texto normal</div>
-                                    <div className="text-xs text-slate-500">Arraste para adicionar</div>
-                                </div>
+                                <p className="text-xs text-slate-500 mb-4">
+                                    Selecione o tipo de linha para novas conexões:
+                                </p>
+                                {connectorTypes.map((connector) => (
+                                    <button
+                                        key={connector.id}
+                                        onClick={() => handleConnectorSelect(connector.id)}
+                                        className={`w-full p-4 rounded-lg transition-all text-left ${currentEdgeType === connector.id
+                                                ? 'bg-blue-600 text-white ring-2 ring-blue-400'
+                                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                            }`}
+                                    >
+                                        <div className="mb-2 text-current">
+                                            {connector.icon}
+                                        </div>
+                                        <div className="font-medium text-sm">{connector.label}</div>
+                                        <div className={`text-xs mt-1 ${currentEdgeType === connector.id ? 'text-blue-200' : 'text-slate-500'
+                                            }`}>
+                                            {connector.description}
+                                        </div>
+                                    </button>
+                                ))}
                             </div>
                         )}
                     </div>

@@ -115,6 +115,9 @@ function StrategicMapInner({
     const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
     const [edgeToolbarPosition, setEdgeToolbarPosition] = useState({ x: 0, y: 0 });
 
+    // Edge type from sidebar connector selection
+    const [currentEdgeType, setCurrentEdgeType] = useState<string>('default');
+
     const isExternalUpdateRef = useRef(false);
     const prevExternalSigRef = useRef<string>('');
     const nodeIdCounter = useRef(100);
@@ -251,14 +254,20 @@ function StrategicMapInner({
         }
     }, [onEdgesChange, nodes, emitChange, setEdges]);
 
-    // Connection handler
+    // Connection handler - uses currentEdgeType from sidebar selection
     const onConnect = useCallback((params: Connection) => {
         setEdges((eds) => {
-            const newEdges = addEdge({ ...params, ...defaultEdgeOptions }, eds);
+            const newEdge = {
+                ...params,
+                type: currentEdgeType,
+                style: { stroke: '#64748b', strokeWidth: 2 },
+                markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' },
+            };
+            const newEdges = addEdge(newEdge, eds);
             emitChange(nodes, newEdges);
             return newEdges;
         });
-    }, [setEdges, nodes, emitChange]);
+    }, [setEdges, nodes, emitChange, currentEdgeType]);
 
     // Edge click handler - shows EdgeToolbar
     const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
@@ -338,7 +347,10 @@ function StrategicMapInner({
     return (
         <div className="w-full h-full flex bg-slate-950">
             {/* Library Sidebar - Two-stage navigation */}
-            <LibrarySidebar />
+            <LibrarySidebar
+                onEdgeTypeChange={setCurrentEdgeType}
+                currentEdgeType={currentEdgeType}
+            />
 
             {/* Canvas Area */}
             <div ref={reactFlowWrapper} className="flex-1 relative">

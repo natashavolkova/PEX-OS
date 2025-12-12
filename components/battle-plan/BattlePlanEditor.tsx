@@ -23,8 +23,8 @@ const TacticEditor = dynamic(() => import('./TacticEditor'), {
     ssr: false,
 });
 
-const VisualMap = dynamic(() => import('./VisualMap'), {
-    loading: () => <div className="h-full flex items-center justify-center text-gray-500">Loading canvas...</div>,
+const StrategicMap = dynamic(() => import('./StrategicMap'), {
+    loading: () => <div className="h-full flex items-center justify-center text-gray-500">Loading strategic map...</div>,
     ssr: false,
 });
 
@@ -180,17 +180,13 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
                         />
                     </div>
 
-                    {/* Visual Map View - 100% width when active, hidden when not */}
-                    {/* IMPORTANT: Keep mounted to preserve Excalidraw state */}
+                    {/* Strategic Map View - React Flow */}
                     <div
-                        className={`absolute inset-0 transition-opacity duration-200 ${activeView === 'map' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-                            }`}
+                        className={`absolute inset-0 ${activeView === 'map' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}
                     >
-                        <VisualMap
-                            projectId={projectId}
-                            data={diagramData}
+                        <StrategicMap
+                            diagramData={diagramData}
                             onChange={setDiagramData}
-                            onSaveToDb={handleSave}
                         />
                     </div>
                 </div>

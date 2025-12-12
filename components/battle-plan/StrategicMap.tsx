@@ -19,25 +19,47 @@ import {
     Handle,
     Position,
     useReactFlow,
+    ReactFlowProvider,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Sparkles, Palette } from 'lucide-react';
+import dagre from 'dagre';
 
-// Editable Node Component
+// Node style types
+type NodeStyle = 'default' | 'success' | 'warning' | 'danger';
+
+const styleColors: Record<NodeStyle, string> = {
+    default: 'border-indigo-600 bg-indigo-950',
+    success: 'border-emerald-500 bg-emerald-950',
+    warning: 'border-amber-500 bg-amber-950',
+    danger: 'border-red-500 bg-red-950',
+};
+
+const styleLabels: Record<NodeStyle, string> = {
+    default: '🔵 Padrão',
+    success: '✅ Sucesso',
+    warning: '⚠️ Atenção',
+    danger: '❌ Risco',
+};
+
+// Editable Node Component with Colors
 const EditableNode = memo(({ id, data, selected }: {
     id: string;
-    data: { label: string; type?: 'input' | 'process' | 'output'; onLabelChange?: (id: string, label: string) => void };
+    data: {
+        label: string;
+        style?: NodeStyle;
+        onLabelChange?: (id: string, label: string) => void;
+        onStyleChange?: (id: string, style: NodeStyle) => void;
+    };
     selected?: boolean;
 }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(data.label);
+    const [showStyleMenu, setShowStyleMenu] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const bgColor = {
-        input: 'bg-emerald-950 border-emerald-700',
-        process: 'bg-indigo-950 border-indigo-700',
-        output: 'bg-amber-950 border-amber-700',
-    }[data.type || 'process'];
+    const nodeStyle = data.style || 'default';
+    const colorClass = styleColors[nodeStyle];
 
     useEffect(() => {
         if (isEditing && inputRef.current) {
@@ -46,19 +68,26 @@ const EditableNode = memo(({ id, data, selected }: {
         }
     }, [isEditing]);
 
-    const handleDoubleClick = () => {
+    useEffect(() => {
+        setEditValue(data.label);
+    }, [data.label]);
+
+    const handleDoubleClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
         setEditValue(data.label);
         setIsEditing(true);
     };
 
     const handleSave = () => {
         setIsEditing(false);
-        if (editValue.trim() && editValue !== data.label && data.onLabelChange) {
-            data.onLabelChange(id, editValue.trim());
+        const trimmed = editValue.trim();
+        if (trimmed && trimmed !== data.label && data.onLabelChange) {
+            data.onLabelChange(id, trimmed);
         }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
+        e.stopPropagation();
         if (e.key === 'Enter') {
             handleSave();
         } else if (e.key === 'Escape') {
@@ -67,12 +96,20 @@ const EditableNode = memo(({ id, data, selected }: {
         }
     };
 
+    const handleStyleSelect = (style: NodeStyle) => {
+        setShowStyleMenu(false);
+        if (data.onStyleChange) {
+            data.onStyleChange(id, style);
+        }
+    };
+
     return (
         <div
-            className={`px-4 py-3 rounded-lg border ${bgColor} shadow-xl min-w-[160px] ${selected ? 'ring-2 ring-indigo-400' : ''}`}
+            className={`relative px-4 py-3 rounded-lg border-2 ${colorClass} shadow-xl min-w-[160px] ${selected ? 'ring-2 ring-white/50' : ''}`}
             onDoubleClick={handleDoubleClick}
         >
-            <Handle type="target" position={Position.Top} className="!bg-slate-500 !border-slate-400" />
+            <Handle type="target" position={Position.Top} className="!bg-slate-400 !border-slate-300 !w-3 !h-3" />
+
             {isEditing ? (
                 <input
                     ref={inputRef}
@@ -81,13 +118,40 @@ const EditableNode = memo(({ id, data, selected }: {
                     onBlur={handleSave}
                     onKeyDown={handleKeyDown}
                     className="w-full bg-slate-800 text-slate-200 text-sm font-medium text-center px-2 py-1 rounded border border-slate-600 outline-none focus:border-indigo-500"
+                    onClick={(e) => e.stopPropagation()}
                 />
             ) : (
-                <div className="text-sm font-medium text-slate-200 text-center cursor-text">
+                <div className="text-sm font-medium text-slate-200 text-center cursor-text select-none">
                     {data.label}
                 </div>
             )}
-            <Handle type="source" position={Position.Bottom} className="!bg-slate-500 !border-slate-400" />
+
+            {/* Style selector button */}
+            {selected && !isEditing && (
+                <button
+                    onClick={(e) => { e.stopPropagation(); setShowStyleMenu(!showStyleMenu); }}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-slate-700 hover:bg-slate-600 rounded-full flex items-center justify-center shadow-lg border border-slate-500"
+                >
+                    <Palette size={12} className="text-slate-300" />
+                </button>
+            )}
+
+            {/* Style menu */}
+            {showStyleMenu && (
+                <div className="absolute top-full left-0 mt-2 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-50 overflow-hidden">
+                    {(Object.keys(styleLabels) as NodeStyle[]).map((style) => (
+                        <button
+                            key={style}
+                            onClick={(e) => { e.stopPropagation(); handleStyleSelect(style); }}
+                            className={`w-full px-3 py-2 text-xs text-left hover:bg-slate-700 ${nodeStyle === style ? 'bg-slate-700' : ''}`}
+                        >
+                            {styleLabels[style]}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            <Handle type="source" position={Position.Bottom} className="!bg-slate-400 !border-slate-300 !w-3 !h-3" />
         </div>
     );
 });
@@ -97,10 +161,40 @@ const nodeTypes: NodeTypes = {
     tactical: EditableNode,
 };
 
+// Dagre layout function
+function getLayoutedElements(nodes: Node[], edges: Edge[], direction = 'TB') {
+    const dagreGraph = new dagre.graphlib.Graph();
+    dagreGraph.setDefaultEdgeLabel(() => ({}));
+    dagreGraph.setGraph({ rankdir: direction, ranksep: 80, nodesep: 50 });
+
+    nodes.forEach((node) => {
+        dagreGraph.setNode(node.id, { width: 180, height: 60 });
+    });
+
+    edges.forEach((edge) => {
+        dagreGraph.setEdge(edge.source, edge.target);
+    });
+
+    dagre.layout(dagreGraph);
+
+    const layoutedNodes = nodes.map((node) => {
+        const nodeWithPosition = dagreGraph.node(node.id);
+        return {
+            ...node,
+            position: {
+                x: nodeWithPosition.x - 90,
+                y: nodeWithPosition.y - 30,
+            },
+        };
+    });
+
+    return { nodes: layoutedNodes, edges };
+}
+
 const defaultNodes: Node[] = [
-    { id: 'demo-1', type: 'tactical', position: { x: 250, y: 50 }, data: { label: '📹 Entrada', type: 'input' } },
-    { id: 'demo-2', type: 'tactical', position: { x: 250, y: 180 }, data: { label: '🧠 Análise', type: 'process' } },
-    { id: 'demo-3', type: 'tactical', position: { x: 250, y: 310 }, data: { label: '⚡ Ação', type: 'output' } },
+    { id: 'demo-1', type: 'tactical', position: { x: 250, y: 50 }, data: { label: '📹 Entrada', style: 'default' } },
+    { id: 'demo-2', type: 'tactical', position: { x: 250, y: 180 }, data: { label: '🧠 Análise', style: 'default' } },
+    { id: 'demo-3', type: 'tactical', position: { x: 250, y: 310 }, data: { label: '⚡ Ação', style: 'success' } },
 ];
 
 const defaultEdges: Edge[] = [
@@ -137,36 +231,54 @@ function StrategicMapInner({
     const prevExternalSigRef = useRef<string>('');
     const nodeIdCounter = useRef(100);
 
-    // Emit changes to parent
+    // Emit changes to parent (triggers markdown update)
     const emitChange = useCallback((newNodes: Node[], newEdges: Edge[]) => {
         if (!isExternalUpdateRef.current && onGraphChange) {
-            requestAnimationFrame(() => {
-                onGraphChange(newNodes, newEdges);
-            });
+            onGraphChange(newNodes, newEdges);
         }
     }, [onGraphChange]);
 
-    // Handle label change from double-click edit
+    // Handle label change from double-click edit - FIXED to trigger sync
     const handleLabelChange = useCallback((nodeId: string, newLabel: string) => {
         setNodes((nds) => {
             const updated = nds.map((n) =>
                 n.id === nodeId ? { ...n, data: { ...n.data, label: newLabel } } : n
             );
-            emitChange(updated, edges);
+            // Emit immediately for label changes
+            if (onGraphChange) {
+                onGraphChange(updated, edges);
+            }
             return updated;
         });
-    }, [setNodes, edges, emitChange]);
+    }, [setNodes, edges, onGraphChange]);
 
-    // Inject onLabelChange into node data
+    // Handle style change
+    const handleStyleChange = useCallback((nodeId: string, style: NodeStyle) => {
+        setNodes((nds) => {
+            const updated = nds.map((n) =>
+                n.id === nodeId ? { ...n, data: { ...n.data, style } } : n
+            );
+            if (onGraphChange) {
+                onGraphChange(updated, edges);
+            }
+            return updated;
+        });
+    }, [setNodes, edges, onGraphChange]);
+
+    // Inject handlers into node data
     const nodesWithHandlers = nodes.map((node) => ({
         ...node,
-        data: { ...node.data, onLabelChange: handleLabelChange },
+        data: {
+            ...node.data,
+            onLabelChange: handleLabelChange,
+            onStyleChange: handleStyleChange,
+        },
     }));
 
     // Sync external data (Text → Graph)
     useEffect(() => {
         if (externalNodes && externalNodes.length > 0) {
-            const sig = JSON.stringify({ n: externalNodes.map(n => n.id + n.data?.label), e: externalEdges?.map(e => e.id) });
+            const sig = JSON.stringify(externalNodes.map(n => ({ id: n.id, label: n.data?.label, style: n.data?.style })));
             if (sig !== prevExternalSigRef.current) {
                 prevExternalSigRef.current = sig;
                 isExternalUpdateRef.current = true;
@@ -190,7 +302,7 @@ function StrategicMapInner({
             id: newId,
             type: 'tactical',
             position: { x: centerX, y: centerY },
-            data: { label: 'Novo Passo', type: 'process' },
+            data: { label: 'Novo Passo', style: 'default' },
         };
 
         setNodes((nds) => {
@@ -200,12 +312,24 @@ function StrategicMapInner({
         });
     }, [reactFlowInstance, setNodes, edges, emitChange]);
 
+    // Auto-layout with Dagre
+    const handleAutoLayout = useCallback(() => {
+        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodes, edges, 'TB');
+        setNodes(layoutedNodes);
+        setEdges(layoutedEdges);
+        emitChange(layoutedNodes, layoutedEdges);
+
+        // Fit view after layout
+        requestAnimationFrame(() => {
+            reactFlowInstance.fitView({ padding: 0.3 });
+        });
+    }, [nodes, edges, setNodes, setEdges, emitChange, reactFlowInstance]);
+
     // Handle node changes (drag, select, etc)
     const handleNodesChange = useCallback((changes: NodeChange<Node>[]) => {
         onNodesChange(changes);
 
         if (!isExternalUpdateRef.current) {
-            // Check if this is a position change (drag)
             const hasPositionChange = changes.some(c => c.type === 'position' && c.dragging === false);
             if (hasPositionChange) {
                 setNodes((currentNodes) => {
@@ -237,7 +361,7 @@ function StrategicMapInner({
         });
     }, [setEdges, nodes, emitChange]);
 
-    // Delete selected nodes/edges
+    // Delete selected
     const handleDelete = useCallback(() => {
         const selectedNodes = nodes.filter(n => n.selected);
         const selectedEdges = edges.filter(e => e.selected);
@@ -253,12 +377,11 @@ function StrategicMapInner({
         }
     }, [nodes, edges, setNodes, setEdges, emitChange]);
 
-    // Keyboard handler for delete
+    // Keyboard handler
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.target as HTMLElement).tagName === 'INPUT') return;
             if (e.key === 'Delete' || e.key === 'Backspace') {
-                // Don't delete if we're in an input
-                if ((e.target as HTMLElement).tagName === 'INPUT') return;
                 handleDelete();
             }
         };
@@ -299,16 +422,25 @@ function StrategicMapInner({
             >
                 <Background color="#334155" gap={20} size={1} />
                 <Controls className="!bg-slate-900 !border-slate-700 !rounded-lg !shadow-xl [&>button]:!bg-slate-800 [&>button]:!border-slate-600 [&>button]:!text-slate-300 [&>button:hover]:!bg-slate-700" />
-                <MiniMap nodeColor={() => '#6366f1'} maskColor="rgba(0, 0, 0, 0.8)" className="!bg-slate-900 !border-slate-700 !rounded-lg" />
+                <MiniMap nodeColor={(node) => {
+                    const style = node.data?.style as NodeStyle || 'default';
+                    return { default: '#6366f1', success: '#10b981', warning: '#f59e0b', danger: '#ef4444' }[style];
+                }} maskColor="rgba(0, 0, 0, 0.8)" className="!bg-slate-900 !border-slate-700 !rounded-lg" />
 
-                {/* Top Right Panel - Add Node */}
                 <Panel position="top-right" className="flex gap-2">
+                    <button
+                        onClick={handleAutoLayout}
+                        className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium rounded-lg shadow-lg transition-colors"
+                    >
+                        <Sparkles size={14} />
+                        Organizar
+                    </button>
                     <button
                         onClick={handleAddNode}
                         className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg shadow-lg transition-colors"
                     >
                         <Plus size={14} />
-                        Adicionar Passo
+                        Adicionar
                     </button>
                     <button
                         onClick={handleDelete}
@@ -322,9 +454,6 @@ function StrategicMapInner({
         </div>
     );
 }
-
-// Wrapper to ensure ReactFlowProvider context
-import { ReactFlowProvider } from '@xyflow/react';
 
 export default function StrategicMap(props: StrategicMapProps) {
     return (

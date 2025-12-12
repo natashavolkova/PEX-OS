@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, memo } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ReactFlow,
     Background,
@@ -16,159 +16,49 @@ import {
     type NodeTypes,
     type NodeChange,
     type EdgeChange,
-    Handle,
-    Position,
     useReactFlow,
     ReactFlowProvider,
+    MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Plus, Trash2, Sparkles, Palette } from 'lucide-react';
+import {
+    Square, Diamond, Circle, StickyNote, Trash2, Sparkles,
+    ChevronDown, ArrowDown, ArrowRight
+} from 'lucide-react';
 import dagre from 'dagre';
+import CustomNode, { type NodeShape, type NodeStyle } from './CustomNode';
 
-// Node style types
-type NodeStyle = 'default' | 'success' | 'warning' | 'danger';
-
-const styleColors: Record<NodeStyle, string> = {
-    default: 'border-indigo-600 bg-indigo-950',
-    success: 'border-emerald-500 bg-emerald-950',
-    warning: 'border-amber-500 bg-amber-950',
-    danger: 'border-red-500 bg-red-950',
-};
-
-const styleLabels: Record<NodeStyle, string> = {
-    default: '🔵 Padrão',
-    success: '✅ Sucesso',
-    warning: '⚠️ Atenção',
-    danger: '❌ Risco',
-};
-
-// Editable Node Component with Colors
-const EditableNode = memo(({ id, data, selected }: {
-    id: string;
-    data: {
-        label: string;
-        style?: NodeStyle;
-        onLabelChange?: (id: string, label: string) => void;
-        onStyleChange?: (id: string, style: NodeStyle) => void;
-    };
-    selected?: boolean;
-}) => {
-    const [isEditing, setIsEditing] = useState(false);
-    const [editValue, setEditValue] = useState(data.label);
-    const [showStyleMenu, setShowStyleMenu] = useState(false);
-    const inputRef = useRef<HTMLInputElement>(null);
-
-    const nodeStyle = data.style || 'default';
-    const colorClass = styleColors[nodeStyle];
-
-    useEffect(() => {
-        if (isEditing && inputRef.current) {
-            inputRef.current.focus();
-            inputRef.current.select();
-        }
-    }, [isEditing]);
-
-    useEffect(() => {
-        setEditValue(data.label);
-    }, [data.label]);
-
-    const handleDoubleClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setEditValue(data.label);
-        setIsEditing(true);
-    };
-
-    const handleSave = () => {
-        setIsEditing(false);
-        const trimmed = editValue.trim();
-        if (trimmed && trimmed !== data.label && data.onLabelChange) {
-            data.onLabelChange(id, trimmed);
-        }
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        e.stopPropagation();
-        if (e.key === 'Enter') {
-            handleSave();
-        } else if (e.key === 'Escape') {
-            setIsEditing(false);
-            setEditValue(data.label);
-        }
-    };
-
-    const handleStyleSelect = (style: NodeStyle) => {
-        setShowStyleMenu(false);
-        if (data.onStyleChange) {
-            data.onStyleChange(id, style);
-        }
-    };
-
-    return (
-        <div
-            className={`relative px-4 py-3 rounded-lg border-2 ${colorClass} shadow-xl min-w-[160px] ${selected ? 'ring-2 ring-white/50' : ''}`}
-            onDoubleClick={handleDoubleClick}
-        >
-            <Handle type="target" position={Position.Top} className="!bg-slate-400 !border-slate-300 !w-3 !h-3" />
-
-            {isEditing ? (
-                <input
-                    ref={inputRef}
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onBlur={handleSave}
-                    onKeyDown={handleKeyDown}
-                    className="w-full bg-slate-800 text-slate-200 text-sm font-medium text-center px-2 py-1 rounded border border-slate-600 outline-none focus:border-indigo-500"
-                    onClick={(e) => e.stopPropagation()}
-                />
-            ) : (
-                <div className="text-sm font-medium text-slate-200 text-center cursor-text select-none">
-                    {data.label}
-                </div>
-            )}
-
-            {/* Style selector button */}
-            {selected && !isEditing && (
-                <button
-                    onClick={(e) => { e.stopPropagation(); setShowStyleMenu(!showStyleMenu); }}
-                    className="absolute -top-2 -right-2 w-6 h-6 bg-slate-700 hover:bg-slate-600 rounded-full flex items-center justify-center shadow-lg border border-slate-500"
-                >
-                    <Palette size={12} className="text-slate-300" />
-                </button>
-            )}
-
-            {/* Style menu */}
-            {showStyleMenu && (
-                <div className="absolute top-full left-0 mt-2 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-50 overflow-hidden">
-                    {(Object.keys(styleLabels) as NodeStyle[]).map((style) => (
-                        <button
-                            key={style}
-                            onClick={(e) => { e.stopPropagation(); handleStyleSelect(style); }}
-                            className={`w-full px-3 py-2 text-xs text-left hover:bg-slate-700 ${nodeStyle === style ? 'bg-slate-700' : ''}`}
-                        >
-                            {styleLabels[style]}
-                        </button>
-                    ))}
-                </div>
-            )}
-
-            <Handle type="source" position={Position.Bottom} className="!bg-slate-400 !border-slate-300 !w-3 !h-3" />
-        </div>
-    );
-});
-EditableNode.displayName = 'EditableNode';
-
+// Node types registration
 const nodeTypes: NodeTypes = {
-    tactical: EditableNode,
+    custom: CustomNode,
 };
 
-// Dagre layout function
-function getLayoutedElements(nodes: Node[], edges: Edge[], direction = 'TB') {
+// Default edge options
+const defaultEdgeOptions = {
+    type: 'smoothstep',
+    animated: true,
+    style: { stroke: '#64748b', strokeWidth: 2 },
+    markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' },
+};
+
+// Shape definitions for toolbar
+const shapes: { id: NodeShape; icon: typeof Square; label: string; color: string }[] = [
+    { id: 'process', icon: Square, label: 'Processo', color: 'text-indigo-400' },
+    { id: 'decision', icon: Diamond, label: 'Decisão', color: 'text-amber-400' },
+    { id: 'terminal', icon: Circle, label: 'Terminal', color: 'text-emerald-400' },
+    { id: 'note', icon: StickyNote, label: 'Nota', color: 'text-yellow-400' },
+];
+
+// Dagre layout
+function getLayoutedElements(nodes: Node[], edges: Edge[], direction: 'TB' | 'LR') {
     const dagreGraph = new dagre.graphlib.Graph();
     dagreGraph.setDefaultEdgeLabel(() => ({}));
-    dagreGraph.setGraph({ rankdir: direction, ranksep: 80, nodesep: 50 });
+    dagreGraph.setGraph({ rankdir: direction, ranksep: 100, nodesep: 60 });
 
     nodes.forEach((node) => {
-        dagreGraph.setNode(node.id, { width: 180, height: 60 });
+        const width = node.data?.shape === 'decision' ? 100 : 160;
+        const height = node.data?.shape === 'decision' ? 100 : 60;
+        dagreGraph.setNode(node.id, { width, height });
     });
 
     edges.forEach((edge) => {
@@ -177,29 +67,31 @@ function getLayoutedElements(nodes: Node[], edges: Edge[], direction = 'TB') {
 
     dagre.layout(dagreGraph);
 
-    const layoutedNodes = nodes.map((node) => {
-        const nodeWithPosition = dagreGraph.node(node.id);
-        return {
-            ...node,
-            position: {
-                x: nodeWithPosition.x - 90,
-                y: nodeWithPosition.y - 30,
-            },
-        };
-    });
-
-    return { nodes: layoutedNodes, edges };
+    return {
+        nodes: nodes.map((node) => {
+            const pos = dagreGraph.node(node.id);
+            const width = node.data?.shape === 'decision' ? 100 : 160;
+            const height = node.data?.shape === 'decision' ? 100 : 60;
+            return { ...node, position: { x: pos.x - width / 2, y: pos.y - height / 2 } };
+        }),
+        edges,
+    };
 }
 
-const defaultNodes: Node[] = [
-    { id: 'demo-1', type: 'tactical', position: { x: 250, y: 50 }, data: { label: '📹 Entrada', style: 'default' } },
-    { id: 'demo-2', type: 'tactical', position: { x: 250, y: 180 }, data: { label: '🧠 Análise', style: 'default' } },
-    { id: 'demo-3', type: 'tactical', position: { x: 250, y: 310 }, data: { label: '⚡ Ação', style: 'success' } },
+// Initial demo data
+const initialNodes: Node[] = [
+    { id: '1', type: 'custom', position: { x: 250, y: 50 }, data: { label: 'Início', shape: 'terminal', style: 'success' } },
+    { id: '2', type: 'custom', position: { x: 250, y: 180 }, data: { label: 'Processar', shape: 'process', style: 'default' } },
+    { id: '3', type: 'custom', position: { x: 250, y: 310 }, data: { label: 'Válido?', shape: 'decision', style: 'warning' } },
+    { id: '4', type: 'custom', position: { x: 100, y: 450 }, data: { label: 'Fim', shape: 'terminal', style: 'danger' } },
+    { id: '5', type: 'custom', position: { x: 400, y: 450 }, data: { label: 'Sucesso', shape: 'terminal', style: 'success' } },
 ];
 
-const defaultEdges: Edge[] = [
-    { id: 'e1-2', source: 'demo-1', target: 'demo-2', animated: true, style: { stroke: '#6366f1' } },
-    { id: 'e2-3', source: 'demo-2', target: 'demo-3', animated: true, style: { stroke: '#6366f1' } },
+const initialEdges: Edge[] = [
+    { id: 'e1-2', source: '1', target: '2', ...defaultEdgeOptions },
+    { id: 'e2-3', source: '2', target: '3', ...defaultEdgeOptions },
+    { id: 'e3-4', source: '3', target: '4', label: 'Não', ...defaultEdgeOptions },
+    { id: 'e3-5', source: '3', target: '5', label: 'Sim', ...defaultEdgeOptions },
 ];
 
 interface StrategicMapProps {
@@ -221,88 +113,85 @@ function StrategicMapInner({
     const hasExternalData = externalNodes && externalNodes.length > 0;
 
     const [nodes, setNodes, onNodesChange] = useNodesState(
-        hasExternalData ? externalNodes : defaultNodes
+        hasExternalData ? externalNodes : initialNodes
     );
     const [edges, setEdges, onEdgesChange] = useEdgesState(
-        hasExternalData && externalEdges ? externalEdges : defaultEdges
+        hasExternalData && externalEdges ? externalEdges : initialEdges
     );
+    const [showLayoutMenu, setShowLayoutMenu] = useState(false);
 
     const isExternalUpdateRef = useRef(false);
     const prevExternalSigRef = useRef<string>('');
     const nodeIdCounter = useRef(100);
 
-    // Emit changes to parent (triggers markdown update)
-    const emitChange = useCallback((newNodes: Node[], newEdges: Edge[]) => {
+    // Emit changes
+    const emitChange = useCallback((n: Node[], e: Edge[]) => {
         if (!isExternalUpdateRef.current && onGraphChange) {
-            onGraphChange(newNodes, newEdges);
+            onGraphChange(n, e);
         }
     }, [onGraphChange]);
 
-    // Handle label change from double-click edit - FIXED to trigger sync
+    // Label change
     const handleLabelChange = useCallback((nodeId: string, newLabel: string) => {
         setNodes((nds) => {
             const updated = nds.map((n) =>
                 n.id === nodeId ? { ...n, data: { ...n.data, label: newLabel } } : n
             );
-            // Emit immediately for label changes
-            if (onGraphChange) {
-                onGraphChange(updated, edges);
-            }
+            if (onGraphChange) onGraphChange(updated, edges);
             return updated;
         });
     }, [setNodes, edges, onGraphChange]);
 
-    // Handle style change
+    // Style change
     const handleStyleChange = useCallback((nodeId: string, style: NodeStyle) => {
         setNodes((nds) => {
             const updated = nds.map((n) =>
                 n.id === nodeId ? { ...n, data: { ...n.data, style } } : n
             );
-            if (onGraphChange) {
-                onGraphChange(updated, edges);
-            }
+            if (onGraphChange) onGraphChange(updated, edges);
             return updated;
         });
     }, [setNodes, edges, onGraphChange]);
 
-    // Inject handlers into node data
+    // Inject handlers
     const nodesWithHandlers = nodes.map((node) => ({
         ...node,
-        data: {
-            ...node.data,
-            onLabelChange: handleLabelChange,
-            onStyleChange: handleStyleChange,
-        },
+        data: { ...node.data, onLabelChange: handleLabelChange, onStyleChange: handleStyleChange },
     }));
 
-    // Sync external data (Text → Graph)
+    // External sync
     useEffect(() => {
         if (externalNodes && externalNodes.length > 0) {
-            const sig = JSON.stringify(externalNodes.map(n => ({ id: n.id, label: n.data?.label, style: n.data?.style })));
+            const sig = JSON.stringify(externalNodes.map(n => ({ id: n.id, label: n.data?.label, shape: n.data?.shape, style: n.data?.style })));
             if (sig !== prevExternalSigRef.current) {
                 prevExternalSigRef.current = sig;
                 isExternalUpdateRef.current = true;
                 setNodes(externalNodes);
                 setEdges(externalEdges || []);
-                requestAnimationFrame(() => {
-                    isExternalUpdateRef.current = false;
-                });
+                requestAnimationFrame(() => { isExternalUpdateRef.current = false; });
             }
         }
     }, [externalNodes, externalEdges, setNodes, setEdges]);
 
-    // Add new node
-    const handleAddNode = useCallback(() => {
+    // Add node
+    const handleAddNode = useCallback((shape: NodeShape) => {
         const viewport = reactFlowInstance.getViewport();
-        const centerX = (-viewport.x + 400) / viewport.zoom;
-        const centerY = (-viewport.y + 200) / viewport.zoom;
+        const x = (-viewport.x + 400) / viewport.zoom;
+        const y = (-viewport.y + 200) / viewport.zoom;
 
         const newId = `node-${++nodeIdCounter.current}`;
+        const labels: Record<NodeShape, string> = {
+            process: 'Novo Processo',
+            decision: 'Condição?',
+            terminal: 'Terminal',
+            note: 'Nota aqui...',
+        };
+
         const newNode: Node = {
             id: newId,
-            type: 'tactical',
-            position: { x: centerX, y: centerY },
-            data: { label: 'Novo Passo', style: 'default' },
+            type: 'custom',
+            position: { x, y },
+            data: { label: labels[shape], shape, style: 'default' },
         };
 
         setNodes((nds) => {
@@ -312,87 +201,73 @@ function StrategicMapInner({
         });
     }, [reactFlowInstance, setNodes, edges, emitChange]);
 
-    // Auto-layout with Dagre
-    const handleAutoLayout = useCallback(() => {
-        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(nodes, edges, 'TB');
-        setNodes(layoutedNodes);
-        setEdges(layoutedEdges);
-        emitChange(layoutedNodes, layoutedEdges);
-
-        // Fit view after layout
-        requestAnimationFrame(() => {
-            reactFlowInstance.fitView({ padding: 0.3 });
-        });
+    // Layout
+    const handleLayout = useCallback((direction: 'TB' | 'LR') => {
+        const { nodes: ln, edges: le } = getLayoutedElements(nodes, edges, direction);
+        setNodes(ln);
+        setEdges(le);
+        emitChange(ln, le);
+        setShowLayoutMenu(false);
+        requestAnimationFrame(() => { reactFlowInstance.fitView({ padding: 0.3 }); });
     }, [nodes, edges, setNodes, setEdges, emitChange, reactFlowInstance]);
 
-    // Handle node changes (drag, select, etc)
+    // Node changes
     const handleNodesChange = useCallback((changes: NodeChange<Node>[]) => {
         onNodesChange(changes);
-
         if (!isExternalUpdateRef.current) {
             const hasPositionChange = changes.some(c => c.type === 'position' && c.dragging === false);
             if (hasPositionChange) {
-                setNodes((currentNodes) => {
-                    emitChange(currentNodes, edges);
-                    return currentNodes;
-                });
+                setNodes((curr) => { emitChange(curr, edges); return curr; });
             }
         }
     }, [onNodesChange, edges, emitChange, setNodes]);
 
-    // Handle edge changes
+    // Edge changes
     const handleEdgesChange = useCallback((changes: EdgeChange<Edge>[]) => {
         onEdgesChange(changes);
-
         if (!isExternalUpdateRef.current) {
-            setEdges((currentEdges) => {
-                emitChange(nodes, currentEdges);
-                return currentEdges;
-            });
+            setEdges((curr) => { emitChange(nodes, curr); return curr; });
         }
     }, [onEdgesChange, nodes, emitChange, setEdges]);
 
-    // Connect nodes
+    // Connect
     const onConnect = useCallback((params: Connection) => {
         setEdges((eds) => {
-            const newEdges = addEdge({ ...params, animated: true, style: { stroke: '#6366f1' } }, eds);
+            const newEdges = addEdge({ ...params, ...defaultEdgeOptions }, eds);
             emitChange(nodes, newEdges);
             return newEdges;
         });
     }, [setEdges, nodes, emitChange]);
 
-    // Delete selected
+    // Delete
     const handleDelete = useCallback(() => {
-        const selectedNodes = nodes.filter(n => n.selected);
-        const selectedEdges = edges.filter(e => e.selected);
-
-        if (selectedNodes.length > 0 || selectedEdges.length > 0) {
-            const selectedNodeIds = new Set(selectedNodes.map(n => n.id));
-            const newNodes = nodes.filter(n => !n.selected);
-            const newEdges = edges.filter(e => !e.selected && !selectedNodeIds.has(e.source) && !selectedNodeIds.has(e.target));
-
-            setNodes(newNodes);
-            setEdges(newEdges);
-            emitChange(newNodes, newEdges);
+        const selN = nodes.filter(n => n.selected);
+        const selE = edges.filter(e => e.selected);
+        if (selN.length || selE.length) {
+            const ids = new Set(selN.map(n => n.id));
+            const newN = nodes.filter(n => !n.selected);
+            const newE = edges.filter(e => !e.selected && !ids.has(e.source) && !ids.has(e.target));
+            setNodes(newN);
+            setEdges(newE);
+            emitChange(newN, newE);
         }
     }, [nodes, edges, setNodes, setEdges, emitChange]);
 
-    // Keyboard handler
+    // Keyboard
     useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.target as HTMLElement).tagName === 'INPUT') return;
-            if (e.key === 'Delete' || e.key === 'Backspace') {
-                handleDelete();
-            }
+        const handler = (e: KeyboardEvent) => {
+            if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
+            if (e.key === 'Delete' || e.key === 'Backspace') handleDelete();
         };
-        document.addEventListener('keydown', handleKeyDown);
-        return () => document.removeEventListener('keydown', handleKeyDown);
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
     }, [handleDelete]);
 
     return (
         <div className="w-full h-full bg-slate-950 relative">
+            {/* Status */}
             {(isSyncing || syncError) && (
-                <div className="absolute top-3 left-3 z-50">
+                <div className="absolute top-3 left-16 z-50">
                     {isSyncing && (
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-xs text-indigo-300">
                             <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse" />
@@ -414,41 +289,82 @@ function StrategicMapInner({
                 onEdgesChange={handleEdgesChange}
                 onConnect={onConnect}
                 nodeTypes={nodeTypes}
+                defaultEdgeOptions={defaultEdgeOptions}
                 fitView
                 fitViewOptions={{ padding: 0.3 }}
                 className="bg-slate-950"
                 proOptions={{ hideAttribution: true }}
                 deleteKeyCode={null}
+                selectionOnDrag
+                panOnDrag={[1, 2]}
             >
                 <Background color="#334155" gap={20} size={1} />
                 <Controls className="!bg-slate-900 !border-slate-700 !rounded-lg !shadow-xl [&>button]:!bg-slate-800 [&>button]:!border-slate-600 [&>button]:!text-slate-300 [&>button:hover]:!bg-slate-700" />
-                <MiniMap nodeColor={(node) => {
-                    const style = node.data?.style as NodeStyle || 'default';
-                    return { default: '#6366f1', success: '#10b981', warning: '#f59e0b', danger: '#ef4444' }[style];
-                }} maskColor="rgba(0, 0, 0, 0.8)" className="!bg-slate-900 !border-slate-700 !rounded-lg" />
+                <MiniMap
+                    nodeColor={(n) => {
+                        const style = n.data?.style as NodeStyle || 'default';
+                        return { default: '#6366f1', success: '#10b981', warning: '#f59e0b', danger: '#ef4444' }[style];
+                    }}
+                    maskColor="rgba(0, 0, 0, 0.8)"
+                    className="!bg-slate-900 !border-slate-700 !rounded-lg"
+                />
 
-                <Panel position="top-right" className="flex gap-2">
-                    <button
-                        onClick={handleAutoLayout}
-                        className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium rounded-lg shadow-lg transition-colors"
-                    >
-                        <Sparkles size={14} />
-                        Organizar
-                    </button>
-                    <button
-                        onClick={handleAddNode}
-                        className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg shadow-lg transition-colors"
-                    >
-                        <Plus size={14} />
-                        Adicionar
-                    </button>
-                    <button
-                        onClick={handleDelete}
-                        className="flex items-center gap-2 px-3 py-2 bg-red-600/80 hover:bg-red-500 text-white text-xs font-medium rounded-lg shadow-lg transition-colors"
-                    >
-                        <Trash2 size={14} />
-                        Excluir
-                    </button>
+                {/* Left Toolbar - Miro Style */}
+                <Panel position="top-left" className="!left-2 !top-2">
+                    <div className="bg-slate-900/95 border border-slate-700 rounded-xl shadow-2xl p-2 flex flex-col gap-1">
+                        {shapes.map((s) => (
+                            <button
+                                key={s.id}
+                                onClick={() => handleAddNode(s.id)}
+                                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors group"
+                                title={s.label}
+                            >
+                                <s.icon size={18} className={s.color} />
+                                <span className="text-xs text-slate-400 group-hover:text-slate-200">{s.label}</span>
+                            </button>
+                        ))}
+                        <hr className="border-slate-700 my-1" />
+                        <button
+                            onClick={handleDelete}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-red-900/50 transition-colors group"
+                            title="Excluir selecionados"
+                        >
+                            <Trash2 size={18} className="text-red-400" />
+                            <span className="text-xs text-slate-400 group-hover:text-red-300">Excluir</span>
+                        </button>
+                    </div>
+                </Panel>
+
+                {/* Top Right - Layout Dropdown */}
+                <Panel position="top-right" className="!right-2 !top-2">
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowLayoutMenu(!showLayoutMenu)}
+                            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium rounded-lg shadow-lg transition-colors"
+                        >
+                            <Sparkles size={14} />
+                            Organizar
+                            <ChevronDown size={12} />
+                        </button>
+                        {showLayoutMenu && (
+                            <div className="absolute top-full right-0 mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-hidden z-50">
+                                <button
+                                    onClick={() => handleLayout('TB')}
+                                    className="flex items-center gap-2 w-full px-4 py-2 hover:bg-slate-700 text-xs text-slate-200"
+                                >
+                                    <ArrowDown size={14} />
+                                    Vertical
+                                </button>
+                                <button
+                                    onClick={() => handleLayout('LR')}
+                                    className="flex items-center gap-2 w-full px-4 py-2 hover:bg-slate-700 text-xs text-slate-200"
+                                >
+                                    <ArrowRight size={14} />
+                                    Horizontal
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </Panel>
             </ReactFlow>
         </div>

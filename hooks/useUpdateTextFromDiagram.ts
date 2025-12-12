@@ -4,7 +4,7 @@ import { useCallback, useRef } from 'react';
 import type { Node, Edge } from '@xyflow/react';
 
 interface DiagramJSON {
-    nodes: Array<{ id: string; label: string; type?: string; style?: string; x?: number; y?: number }>;
+    nodes: Array<{ id: string; label: string; type?: string; shape?: string; style?: string; x?: number; y?: number }>;
     edges: Array<{ source: string; target: string; label?: string }>;
 }
 
@@ -14,6 +14,7 @@ function serializeToJSON(nodes: Node[], edges: Edge[]): string {
             id: node.id,
             label: (node.data as { label: string }).label,
             type: (node.data as { type?: string }).type,
+            shape: (node.data as { shape?: string }).shape,
             style: (node.data as { style?: string }).style,
             x: Math.round(node.position.x),
             y: Math.round(node.position.y),
@@ -41,8 +42,8 @@ function replaceJsonDiagramBlock(markdown: string, newJson: string): string {
 
 function computeSignature(nodes: Node[], edges: Edge[]): string {
     const nodesSig = nodes.map(n => {
-        const data = n.data as { label?: string; style?: string };
-        return `${n.id}:${Math.round(n.position.x)}:${Math.round(n.position.y)}:${data.label || ''}:${data.style || ''}`;
+        const data = n.data as { label?: string; shape?: string; style?: string };
+        return `${n.id}:${Math.round(n.position.x)}:${Math.round(n.position.y)}:${data.label || ''}:${data.shape || ''}:${data.style || ''}`;
     }).sort().join('|');
     const edgesSig = edges.map(e => `${e.source}->${e.target}`).sort().join('|');
     return `${nodesSig}::${edgesSig}`;

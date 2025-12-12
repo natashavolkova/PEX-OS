@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import type { Node, Edge } from '@xyflow/react';
 
 interface DiagramData {
-    nodes: Array<{ id: string; label: string; type?: string; style?: string; x?: number; y?: number }>;
+    nodes: Array<{ id: string; label: string; type?: string; shape?: string; style?: string; x?: number; y?: number }>;
     edges: Array<{ source: string; target: string; label?: string }>;
 }
 
@@ -38,14 +38,14 @@ function parseDiagramBlock(markdown: string): DiagramData | null {
 function convertToReactFlow(data: DiagramData): { nodes: Node[]; edges: Edge[] } {
     const nodes: Node[] = data.nodes.map((node, index) => ({
         id: node.id,
-        type: 'tactical',
+        type: 'custom',
         position: {
             x: node.x ?? 250,
             y: node.y ?? index * DEFAULT_NODE_SPACING + 50
         },
         data: {
             label: node.label,
-            type: node.type === 'input' ? 'input' : node.type === 'output' ? 'output' : 'process',
+            shape: node.shape || 'process',
             style: node.style || 'default',
         },
     }));

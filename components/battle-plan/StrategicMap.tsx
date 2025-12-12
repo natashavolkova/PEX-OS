@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState, memo } from 'react';
 import {
     ReactFlow,
     Background,
     Controls,
     MiniMap,
+    Panel,
     addEdge,
     useNodesState,
     useEdgesState,
@@ -17,33 +18,89 @@ import {
     type EdgeChange,
     Handle,
     Position,
+    useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { Plus, Trash2 } from 'lucide-react';
 
-function TacticalNode({ data }: { data: { label: string; type?: 'input' | 'process' | 'output' } }) {
+// Editable Node Component
+const EditableNode = memo(({ id, data, selected }: {
+    id: string;
+    data: { label: string; type?: 'input' | 'process' | 'output'; onLabelChange?: (id: string, label: string) => void };
+    selected?: boolean;
+}) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [editValue, setEditValue] = useState(data.label);
+    const inputRef = useRef<HTMLInputElement>(null);
+
     const bgColor = {
         input: 'bg-emerald-950 border-emerald-700',
         process: 'bg-indigo-950 border-indigo-700',
         output: 'bg-amber-950 border-amber-700',
     }[data.type || 'process'];
 
+    useEffect(() => {
+        if (isEditing && inputRef.current) {
+            inputRef.current.focus();
+            inputRef.current.select();
+        }
+    }, [isEditing]);
+
+    const handleDoubleClick = () => {
+        setEditValue(data.label);
+        setIsEditing(true);
+    };
+
+    const handleSave = () => {
+        setIsEditing(false);
+        if (editValue.trim() && editValue !== data.label && data.onLabelChange) {
+            data.onLabelChange(id, editValue.trim());
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleSave();
+        } else if (e.key === 'Escape') {
+            setIsEditing(false);
+            setEditValue(data.label);
+        }
+    };
+
     return (
-        <div className={`px-4 py-3 rounded-lg border ${bgColor} shadow-xl min-w-[160px]`}>
+        <div
+            className={`px-4 py-3 rounded-lg border ${bgColor} shadow-xl min-w-[160px] ${selected ? 'ring-2 ring-indigo-400' : ''}`}
+            onDoubleClick={handleDoubleClick}
+        >
             <Handle type="target" position={Position.Top} className="!bg-slate-500 !border-slate-400" />
-            <div className="text-sm font-medium text-slate-200 text-center">{data.label}</div>
+            {isEditing ? (
+                <input
+                    ref={inputRef}
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onBlur={handleSave}
+                    onKeyDown={handleKeyDown}
+                    className="w-full bg-slate-800 text-slate-200 text-sm font-medium text-center px-2 py-1 rounded border border-slate-600 outline-none focus:border-indigo-500"
+                />
+            ) : (
+                <div className="text-sm font-medium text-slate-200 text-center cursor-text">
+                    {data.label}
+                </div>
+            )}
             <Handle type="source" position={Position.Bottom} className="!bg-slate-500 !border-slate-400" />
         </div>
     );
-}
+});
+EditableNode.displayName = 'EditableNode';
 
 const nodeTypes: NodeTypes = {
-    tactical: TacticalNode,
+    tactical: EditableNode,
 };
 
 const defaultNodes: Node[] = [
-    { id: 'demo-1', type: 'tactical', position: { x: 250, y: 50 }, data: { label: '📹 Entrada (Vídeo)', type: 'input' } },
-    { id: 'demo-2', type: 'tactical', position: { x: 250, y: 180 }, data: { label: '🧠 Fara-7B Analysis', type: 'process' } },
-    { id: 'demo-3', type: 'tactical', position: { x: 250, y: 310 }, data: { label: '⚡ Ação Tática', type: 'output' } },
+    { id: 'demo-1', type: 'tactical', position: { x: 250, y: 50 }, data: { label: '📹 Entrada', type: 'input' } },
+    { id: 'demo-2', type: 'tactical', position: { x: 250, y: 180 }, data: { label: '🧠 Análise', type: 'process' } },
+    { id: 'demo-3', type: 'tactical', position: { x: 250, y: 310 }, data: { label: '⚡ Ação', type: 'output' } },
 ];
 
 const defaultEdges: Edge[] = [
@@ -59,13 +116,14 @@ interface StrategicMapProps {
     onGraphChange?: (nodes: Node[], edges: Edge[]) => void;
 }
 
-export default function StrategicMap({
+function StrategicMapInner({
     externalNodes,
     externalEdges,
     isSyncing = false,
     syncError = null,
     onGraphChange,
 }: StrategicMapProps) {
+    const reactFlowInstance = useReactFlow();
     const hasExternalData = externalNodes && externalNodes.length > 0;
 
     const [nodes, setNodes, onNodesChange] = useNodesState(
@@ -77,17 +135,43 @@ export default function StrategicMap({
 
     const isExternalUpdateRef = useRef(false);
     const prevExternalSigRef = useRef<string>('');
+    const nodeIdCounter = useRef(100);
 
-    // Sync external data when it changes (Text → Graph)
+    // Emit changes to parent
+    const emitChange = useCallback((newNodes: Node[], newEdges: Edge[]) => {
+        if (!isExternalUpdateRef.current && onGraphChange) {
+            requestAnimationFrame(() => {
+                onGraphChange(newNodes, newEdges);
+            });
+        }
+    }, [onGraphChange]);
+
+    // Handle label change from double-click edit
+    const handleLabelChange = useCallback((nodeId: string, newLabel: string) => {
+        setNodes((nds) => {
+            const updated = nds.map((n) =>
+                n.id === nodeId ? { ...n, data: { ...n.data, label: newLabel } } : n
+            );
+            emitChange(updated, edges);
+            return updated;
+        });
+    }, [setNodes, edges, emitChange]);
+
+    // Inject onLabelChange into node data
+    const nodesWithHandlers = nodes.map((node) => ({
+        ...node,
+        data: { ...node.data, onLabelChange: handleLabelChange },
+    }));
+
+    // Sync external data (Text → Graph)
     useEffect(() => {
         if (externalNodes && externalNodes.length > 0) {
-            const sig = JSON.stringify({ n: externalNodes.map(n => n.id), e: externalEdges?.map(e => e.id) });
+            const sig = JSON.stringify({ n: externalNodes.map(n => n.id + n.data?.label), e: externalEdges?.map(e => e.id) });
             if (sig !== prevExternalSigRef.current) {
                 prevExternalSigRef.current = sig;
                 isExternalUpdateRef.current = true;
                 setNodes(externalNodes);
                 setEdges(externalEdges || []);
-                // Reset flag after update
                 requestAnimationFrame(() => {
                     isExternalUpdateRef.current = false;
                 });
@@ -95,57 +179,92 @@ export default function StrategicMap({
         }
     }, [externalNodes, externalEdges, setNodes, setEdges]);
 
-    // Handle node changes (drag, etc) - emit for reverse sync
-    const handleNodesChange = useCallback(
-        (changes: NodeChange<Node>[]) => {
-            onNodesChange(changes);
+    // Add new node
+    const handleAddNode = useCallback(() => {
+        const viewport = reactFlowInstance.getViewport();
+        const centerX = (-viewport.x + 400) / viewport.zoom;
+        const centerY = (-viewport.y + 200) / viewport.zoom;
 
-            // Only emit if this is a user action (not external update)
-            if (!isExternalUpdateRef.current && onGraphChange) {
-                // Get updated nodes after changes applied
+        const newId = `node-${++nodeIdCounter.current}`;
+        const newNode: Node = {
+            id: newId,
+            type: 'tactical',
+            position: { x: centerX, y: centerY },
+            data: { label: 'Novo Passo', type: 'process' },
+        };
+
+        setNodes((nds) => {
+            const updated = [...nds, newNode];
+            emitChange(updated, edges);
+            return updated;
+        });
+    }, [reactFlowInstance, setNodes, edges, emitChange]);
+
+    // Handle node changes (drag, select, etc)
+    const handleNodesChange = useCallback((changes: NodeChange<Node>[]) => {
+        onNodesChange(changes);
+
+        if (!isExternalUpdateRef.current) {
+            // Check if this is a position change (drag)
+            const hasPositionChange = changes.some(c => c.type === 'position' && c.dragging === false);
+            if (hasPositionChange) {
                 setNodes((currentNodes) => {
-                    // Emit change after state update
-                    requestAnimationFrame(() => {
-                        onGraphChange(currentNodes, edges);
-                    });
+                    emitChange(currentNodes, edges);
                     return currentNodes;
                 });
             }
-        },
-        [onNodesChange, onGraphChange, edges, setNodes]
-    );
+        }
+    }, [onNodesChange, edges, emitChange, setNodes]);
 
     // Handle edge changes
-    const handleEdgesChange = useCallback(
-        (changes: EdgeChange<Edge>[]) => {
-            onEdgesChange(changes);
+    const handleEdgesChange = useCallback((changes: EdgeChange<Edge>[]) => {
+        onEdgesChange(changes);
 
-            if (!isExternalUpdateRef.current && onGraphChange) {
-                setEdges((currentEdges) => {
-                    requestAnimationFrame(() => {
-                        onGraphChange(nodes, currentEdges);
-                    });
-                    return currentEdges;
-                });
-            }
-        },
-        [onEdgesChange, onGraphChange, nodes, setEdges]
-    );
-
-    const onConnect = useCallback(
-        (params: Connection) => {
-            setEdges((eds) => {
-                const newEdges = addEdge({ ...params, animated: true, style: { stroke: '#6366f1' } }, eds);
-                if (onGraphChange) {
-                    requestAnimationFrame(() => {
-                        onGraphChange(nodes, newEdges);
-                    });
-                }
-                return newEdges;
+        if (!isExternalUpdateRef.current) {
+            setEdges((currentEdges) => {
+                emitChange(nodes, currentEdges);
+                return currentEdges;
             });
-        },
-        [setEdges, onGraphChange, nodes]
-    );
+        }
+    }, [onEdgesChange, nodes, emitChange, setEdges]);
+
+    // Connect nodes
+    const onConnect = useCallback((params: Connection) => {
+        setEdges((eds) => {
+            const newEdges = addEdge({ ...params, animated: true, style: { stroke: '#6366f1' } }, eds);
+            emitChange(nodes, newEdges);
+            return newEdges;
+        });
+    }, [setEdges, nodes, emitChange]);
+
+    // Delete selected nodes/edges
+    const handleDelete = useCallback(() => {
+        const selectedNodes = nodes.filter(n => n.selected);
+        const selectedEdges = edges.filter(e => e.selected);
+
+        if (selectedNodes.length > 0 || selectedEdges.length > 0) {
+            const selectedNodeIds = new Set(selectedNodes.map(n => n.id));
+            const newNodes = nodes.filter(n => !n.selected);
+            const newEdges = edges.filter(e => !e.selected && !selectedNodeIds.has(e.source) && !selectedNodeIds.has(e.target));
+
+            setNodes(newNodes);
+            setEdges(newEdges);
+            emitChange(newNodes, newEdges);
+        }
+    }, [nodes, edges, setNodes, setEdges, emitChange]);
+
+    // Keyboard handler for delete
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                // Don't delete if we're in an input
+                if ((e.target as HTMLElement).tagName === 'INPUT') return;
+                handleDelete();
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [handleDelete]);
 
     return (
         <div className="w-full h-full bg-slate-950 relative">
@@ -166,7 +285,7 @@ export default function StrategicMap({
             )}
 
             <ReactFlow
-                nodes={nodes}
+                nodes={nodesWithHandlers}
                 edges={edges}
                 onNodesChange={handleNodesChange}
                 onEdgesChange={handleEdgesChange}
@@ -176,11 +295,41 @@ export default function StrategicMap({
                 fitViewOptions={{ padding: 0.3 }}
                 className="bg-slate-950"
                 proOptions={{ hideAttribution: true }}
+                deleteKeyCode={null}
             >
                 <Background color="#334155" gap={20} size={1} />
                 <Controls className="!bg-slate-900 !border-slate-700 !rounded-lg !shadow-xl [&>button]:!bg-slate-800 [&>button]:!border-slate-600 [&>button]:!text-slate-300 [&>button:hover]:!bg-slate-700" />
                 <MiniMap nodeColor={() => '#6366f1'} maskColor="rgba(0, 0, 0, 0.8)" className="!bg-slate-900 !border-slate-700 !rounded-lg" />
+
+                {/* Top Right Panel - Add Node */}
+                <Panel position="top-right" className="flex gap-2">
+                    <button
+                        onClick={handleAddNode}
+                        className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg shadow-lg transition-colors"
+                    >
+                        <Plus size={14} />
+                        Adicionar Passo
+                    </button>
+                    <button
+                        onClick={handleDelete}
+                        className="flex items-center gap-2 px-3 py-2 bg-red-600/80 hover:bg-red-500 text-white text-xs font-medium rounded-lg shadow-lg transition-colors"
+                    >
+                        <Trash2 size={14} />
+                        Excluir
+                    </button>
+                </Panel>
             </ReactFlow>
         </div>
+    );
+}
+
+// Wrapper to ensure ReactFlowProvider context
+import { ReactFlowProvider } from '@xyflow/react';
+
+export default function StrategicMap(props: StrategicMapProps) {
+    return (
+        <ReactFlowProvider>
+            <StrategicMapInner {...props} />
+        </ReactFlowProvider>
     );
 }

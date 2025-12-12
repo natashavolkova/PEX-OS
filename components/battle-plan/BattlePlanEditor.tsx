@@ -8,6 +8,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useParseDiagramFromText } from '@/hooks/useParseDiagramFromText';
+import { useUpdateTextFromDiagram } from '@/hooks/useUpdateTextFromDiagram';
 import {
     FileText,
     Map,
@@ -62,8 +63,11 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
     const [diagramData, setDiagramData] = useState<string>(battlePlan?.diagramData || '{}');
     const [mermaidCode, setMermaidCode] = useState('graph TD\n  A[Start] --> B{Decision}\n  B --> C[Option 1]\n  B --> D[Option 2]');
 
-    // ONE-WAY DATA BINDING: Text → Graph
+    // TWO-WAY DATA BINDING:
+    // Text → Graph
     const parsedDiagram = useParseDiagramFromText(markdown, 500);
+    // Graph → Text (reverse sync)
+    const { updateTextFromGraph } = useUpdateTextFromDiagram(markdown, setMarkdown, { debounceMs: 400 });
 
     // Auto-save timer ref
     const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -193,6 +197,7 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
                             externalEdges={parsedDiagram.edges}
                             isSyncing={parsedDiagram.isSyncing}
                             syncError={parsedDiagram.error}
+                            onGraphChange={updateTextFromGraph}
                         />
                     </div>
                 </div>

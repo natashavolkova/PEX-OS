@@ -13,6 +13,8 @@ import {
     type Edge,
     type Connection,
     type NodeTypes,
+    type NodeChange,
+    type EdgeChange,
     Handle,
     Position,
 } from '@xyflow/react';
@@ -54,13 +56,15 @@ interface StrategicMapProps {
     externalEdges?: Edge[];
     isSyncing?: boolean;
     syncError?: string | null;
+    onGraphChange?: (nodes: Node[], edges: Edge[]) => void;
 }
 
 export default function StrategicMap({
     externalNodes,
     externalEdges,
     isSyncing = false,
-    syncError = null
+    syncError = null,
+    onGraphChange,
 }: StrategicMapProps) {
     const hasExternalData = externalNodes && externalNodes.length > 0;
 
@@ -71,30 +75,80 @@ export default function StrategicMap({
         hasExternalData && externalEdges ? externalEdges : defaultEdges
     );
 
-    const prevExternalRef = useRef<string>('');
+    const isExternalUpdateRef = useRef(false);
+    const prevExternalSigRef = useRef<string>('');
 
-    // Sync external data when it changes
+    // Sync external data when it changes (Text → Graph)
     useEffect(() => {
         if (externalNodes && externalNodes.length > 0) {
-            const signature = JSON.stringify({ n: externalNodes.map(n => n.id), e: externalEdges?.map(e => e.id) });
-            if (signature !== prevExternalRef.current) {
-                prevExternalRef.current = signature;
+            const sig = JSON.stringify({ n: externalNodes.map(n => n.id), e: externalEdges?.map(e => e.id) });
+            if (sig !== prevExternalSigRef.current) {
+                prevExternalSigRef.current = sig;
+                isExternalUpdateRef.current = true;
                 setNodes(externalNodes);
                 setEdges(externalEdges || []);
+                // Reset flag after update
+                requestAnimationFrame(() => {
+                    isExternalUpdateRef.current = false;
+                });
             }
         }
     }, [externalNodes, externalEdges, setNodes, setEdges]);
 
+    // Handle node changes (drag, etc) - emit for reverse sync
+    const handleNodesChange = useCallback(
+        (changes: NodeChange<Node>[]) => {
+            onNodesChange(changes);
+
+            // Only emit if this is a user action (not external update)
+            if (!isExternalUpdateRef.current && onGraphChange) {
+                // Get updated nodes after changes applied
+                setNodes((currentNodes) => {
+                    // Emit change after state update
+                    requestAnimationFrame(() => {
+                        onGraphChange(currentNodes, edges);
+                    });
+                    return currentNodes;
+                });
+            }
+        },
+        [onNodesChange, onGraphChange, edges, setNodes]
+    );
+
+    // Handle edge changes
+    const handleEdgesChange = useCallback(
+        (changes: EdgeChange<Edge>[]) => {
+            onEdgesChange(changes);
+
+            if (!isExternalUpdateRef.current && onGraphChange) {
+                setEdges((currentEdges) => {
+                    requestAnimationFrame(() => {
+                        onGraphChange(nodes, currentEdges);
+                    });
+                    return currentEdges;
+                });
+            }
+        },
+        [onEdgesChange, onGraphChange, nodes, setEdges]
+    );
+
     const onConnect = useCallback(
         (params: Connection) => {
-            setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: '#6366f1' } }, eds));
+            setEdges((eds) => {
+                const newEdges = addEdge({ ...params, animated: true, style: { stroke: '#6366f1' } }, eds);
+                if (onGraphChange) {
+                    requestAnimationFrame(() => {
+                        onGraphChange(nodes, newEdges);
+                    });
+                }
+                return newEdges;
+            });
         },
-        [setEdges]
+        [setEdges, onGraphChange, nodes]
     );
 
     return (
         <div className="w-full h-full bg-slate-950 relative">
-            {/* Sync Status Indicator */}
             {(isSyncing || syncError) && (
                 <div className="absolute top-3 left-3 z-50">
                     {isSyncing && (
@@ -114,8 +168,8 @@ export default function StrategicMap({
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
+                onNodesChange={handleNodesChange}
+                onEdgesChange={handleEdgesChange}
                 onConnect={onConnect}
                 nodeTypes={nodeTypes}
                 fitView

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shapes, StickyNote, Waypoints } from 'lucide-react';
+import { MarkerType, type Edge } from '@xyflow/react';
 
 // Miro Palette - Exact colors from spec
 const stickyColors = [
@@ -21,54 +22,37 @@ const shapes = [
     { id: 'cloud', label: 'Nuvem', svg: <path d="M12 28c-3.3 0-6-2.7-6-6 0-2.5 1.5-4.6 3.7-5.5C10.3 13.4 13 11 16.5 11c2.8 0 5.2 1.6 6.4 4 .4-.1.7-.1 1.1-.1 3.3 0 6 2.7 6 6s-2.7 6-6 6H12z" fill="currentColor" /> },
 ];
 
-// Edge/Connector types
-const connectorTypes = [
-    {
-        id: 'default',
-        label: 'Curva Bézier',
-        description: 'Linha curva suave',
-        icon: (
-            <svg viewBox="0 0 48 24" className="w-full h-6">
-                <path d="M4 20 C 16 20, 16 4, 28 4 S 40 20, 44 4" stroke="currentColor" strokeWidth="2" fill="none" />
-            </svg>
-        ),
-    },
-    {
-        id: 'smoothstep',
-        label: 'Ortogonal/Step',
-        description: 'Linha com ângulos retos',
-        icon: (
-            <svg viewBox="0 0 48 24" className="w-full h-6">
-                <path d="M4 20 L 4 12 L 24 12 L 24 4 L 44 4" stroke="currentColor" strokeWidth="2" fill="none" />
-            </svg>
-        ),
-    },
-    {
-        id: 'straight',
-        label: 'Reta',
-        description: 'Linha direta',
-        icon: (
-            <svg viewBox="0 0 48 24" className="w-full h-6">
-                <line x1="4" y1="20" x2="44" y2="4" stroke="currentColor" strokeWidth="2" />
-            </svg>
-        ),
-    },
-];
-
 type PanelType = 'shapes' | 'sticky' | 'connectors' | null;
+
+// Edge configuration types
+export interface EdgeConfig {
+    type: 'default' | 'smoothstep' | 'straight';
+    strokeStyle: 'solid' | 'dashed' | 'dotted';
+    markerStart: 'none' | 'arrow' | 'circle';
+    markerEnd: 'none' | 'arrowClosed' | 'arrowOpen';
+    animated: boolean;
+}
 
 interface LibrarySidebarProps {
     className?: string;
-    onEdgeTypeChange?: (type: string) => void;
-    currentEdgeType?: string;
+    // Edge configuration
+    edgeConfig: EdgeConfig;
+    onEdgeConfigChange: (config: Partial<EdgeConfig>) => void;
+    // Selected edges from canvas
+    selectedEdges: Edge[];
+    onApplyToSelected: (config: Partial<EdgeConfig>) => void;
 }
 
 export default function LibrarySidebar({
     className = '',
-    onEdgeTypeChange,
-    currentEdgeType = 'default'
+    edgeConfig,
+    onEdgeConfigChange,
+    selectedEdges,
+    onApplyToSelected,
 }: LibrarySidebarProps) {
     const [activePanel, setActivePanel] = useState<PanelType>(null);
+
+    const hasSelectedEdges = selectedEdges.length > 0;
 
     const onDragStart = (
         event: React.DragEvent,
@@ -83,9 +67,12 @@ export default function LibrarySidebar({
         setActivePanel(activePanel === panel ? null : panel);
     };
 
-    const handleConnectorSelect = (type: string) => {
-        if (onEdgeTypeChange) {
-            onEdgeTypeChange(type);
+    // Smart apply: if edges selected, apply to them; otherwise update defaults
+    const applyConfig = (updates: Partial<EdgeConfig>) => {
+        if (hasSelectedEdges) {
+            onApplyToSelected(updates);
+        } else {
+            onEdgeConfigChange(updates);
         }
     };
 
@@ -117,7 +104,7 @@ export default function LibrarySidebar({
                     <StickyNote size={22} />
                 </button>
 
-                {/* Connectors Icon - REPLACES TEXT */}
+                {/* Connectors Icon */}
                 <button
                     onClick={() => handleIconClick('connectors')}
                     className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${activePanel === 'connectors'
@@ -130,11 +117,11 @@ export default function LibrarySidebar({
                 </button>
             </div>
 
-            {/* THE FLYOUT PANEL - Slides out on icon click */}
+            {/* THE FLYOUT PANEL */}
             {activePanel && (
-                <div className="w-64 h-full bg-slate-900/95 backdrop-blur-md border-r border-slate-700 shadow-2xl flex flex-col z-40">
+                <div className="w-72 h-full bg-slate-900/95 backdrop-blur-md border-r border-slate-700 shadow-2xl flex flex-col z-40 overflow-hidden">
                     {/* Panel Header */}
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 shrink-0">
                         <span className="text-sm font-semibold text-slate-200">
                             {activePanel === 'shapes' && '🔶 Formas'}
                             {activePanel === 'sticky' && '📝 Notas'}
@@ -186,7 +173,6 @@ export default function LibrarySidebar({
                                         style={{ backgroundColor: color.hex }}
                                         title={color.label}
                                     >
-                                        {/* Folded corner effect */}
                                         <div
                                             className="absolute top-0 right-0 w-4 h-4"
                                             style={{
@@ -198,31 +184,224 @@ export default function LibrarySidebar({
                             </div>
                         )}
 
-                        {/* CONNECTORS PANEL - NEW! */}
+                        {/* CONNECTORS PANEL - MASTER CONTROL */}
                         {activePanel === 'connectors' && (
-                            <div className="space-y-3">
-                                <p className="text-xs text-slate-500 mb-4">
-                                    Selecione o tipo de linha para novas conexões:
-                                </p>
-                                {connectorTypes.map((connector) => (
+                            <div className="space-y-6">
+                                {/* Selection indicator */}
+                                {hasSelectedEdges && (
+                                    <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-3 text-center">
+                                        <span className="text-xs text-blue-300 font-medium">
+                                            🎯 {selectedEdges.length} linha(s) selecionada(s)
+                                        </span>
+                                        <p className="text-[10px] text-blue-400 mt-1">
+                                            Alterações serão aplicadas às linhas selecionadas
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* SECTION A: Geometry (Path Type) */}
+                                <div>
+                                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                                        🔷 Geometria
+                                    </h4>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <button
+                                            onClick={() => applyConfig({ type: 'default' })}
+                                            className={`p-3 rounded-lg transition-all flex flex-col items-center gap-2 ${edgeConfig.type === 'default'
+                                                    ? 'bg-blue-600 text-white ring-2 ring-blue-400'
+                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                }`}
+                                        >
+                                            <svg viewBox="0 0 40 20" className="w-full h-5">
+                                                <path d="M4 16 C 12 16, 12 4, 20 4 S 28 16, 36 4" stroke="currentColor" strokeWidth="2" fill="none" />
+                                            </svg>
+                                            <span className="text-[10px]">Bézier</span>
+                                        </button>
+                                        <button
+                                            onClick={() => applyConfig({ type: 'smoothstep' })}
+                                            className={`p-3 rounded-lg transition-all flex flex-col items-center gap-2 ${edgeConfig.type === 'smoothstep'
+                                                    ? 'bg-blue-600 text-white ring-2 ring-blue-400'
+                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                }`}
+                                        >
+                                            <svg viewBox="0 0 40 20" className="w-full h-5">
+                                                <path d="M4 16 L 4 10 L 20 10 L 20 4 L 36 4" stroke="currentColor" strokeWidth="2" fill="none" />
+                                            </svg>
+                                            <span className="text-[10px]">Ortogonal</span>
+                                        </button>
+                                        <button
+                                            onClick={() => applyConfig({ type: 'straight' })}
+                                            className={`p-3 rounded-lg transition-all flex flex-col items-center gap-2 ${edgeConfig.type === 'straight'
+                                                    ? 'bg-blue-600 text-white ring-2 ring-blue-400'
+                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                }`}
+                                        >
+                                            <svg viewBox="0 0 40 20" className="w-full h-5">
+                                                <line x1="4" y1="16" x2="36" y2="4" stroke="currentColor" strokeWidth="2" />
+                                            </svg>
+                                            <span className="text-[10px]">Reta</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* SECTION B: Stroke Style */}
+                                <div>
+                                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                                        ✏️ Estilo de Traço
+                                    </h4>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <button
+                                            onClick={() => applyConfig({ strokeStyle: 'solid' })}
+                                            className={`p-3 rounded-lg transition-all flex flex-col items-center gap-2 ${edgeConfig.strokeStyle === 'solid'
+                                                    ? 'bg-purple-600 text-white ring-2 ring-purple-400'
+                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                }`}
+                                        >
+                                            <div className="w-full h-0.5 bg-current" />
+                                            <span className="text-[10px]">Sólido</span>
+                                        </button>
+                                        <button
+                                            onClick={() => applyConfig({ strokeStyle: 'dashed' })}
+                                            className={`p-3 rounded-lg transition-all flex flex-col items-center gap-2 ${edgeConfig.strokeStyle === 'dashed'
+                                                    ? 'bg-purple-600 text-white ring-2 ring-purple-400'
+                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                }`}
+                                        >
+                                            <div className="flex gap-1 justify-center">
+                                                <div className="w-3 h-0.5 bg-current" />
+                                                <div className="w-3 h-0.5 bg-current" />
+                                                <div className="w-3 h-0.5 bg-current" />
+                                            </div>
+                                            <span className="text-[10px]">Tracejado</span>
+                                        </button>
+                                        <button
+                                            onClick={() => applyConfig({ strokeStyle: 'dotted' })}
+                                            className={`p-3 rounded-lg transition-all flex flex-col items-center gap-2 ${edgeConfig.strokeStyle === 'dotted'
+                                                    ? 'bg-purple-600 text-white ring-2 ring-purple-400'
+                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                }`}
+                                        >
+                                            <div className="flex gap-1 justify-center">
+                                                <div className="w-1 h-1 bg-current rounded-full" />
+                                                <div className="w-1 h-1 bg-current rounded-full" />
+                                                <div className="w-1 h-1 bg-current rounded-full" />
+                                                <div className="w-1 h-1 bg-current rounded-full" />
+                                            </div>
+                                            <span className="text-[10px]">Pontilhado</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* SECTION C: Markers */}
+                                <div>
+                                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                                        ➡️ Ponteiras
+                                    </h4>
+
+                                    {/* Marker Start */}
+                                    <div className="mb-3">
+                                        <label className="text-[10px] text-slate-500 block mb-2">Início:</label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <button
+                                                onClick={() => applyConfig({ markerStart: 'none' })}
+                                                className={`p-2 rounded-lg text-[10px] transition-all ${edgeConfig.markerStart === 'none'
+                                                        ? 'bg-emerald-600 text-white'
+                                                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                    }`}
+                                            >
+                                                Nenhum
+                                            </button>
+                                            <button
+                                                onClick={() => applyConfig({ markerStart: 'arrow' })}
+                                                className={`p-2 rounded-lg text-[10px] transition-all ${edgeConfig.markerStart === 'arrow'
+                                                        ? 'bg-emerald-600 text-white'
+                                                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                    }`}
+                                            >
+                                                ← Seta
+                                            </button>
+                                            <button
+                                                onClick={() => applyConfig({ markerStart: 'circle' })}
+                                                className={`p-2 rounded-lg text-[10px] transition-all ${edgeConfig.markerStart === 'circle'
+                                                        ? 'bg-emerald-600 text-white'
+                                                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                    }`}
+                                            >
+                                                ○ Círculo
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Marker End */}
+                                    <div>
+                                        <label className="text-[10px] text-slate-500 block mb-2">Fim:</label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <button
+                                                onClick={() => applyConfig({ markerEnd: 'none' })}
+                                                className={`p-2 rounded-lg text-[10px] transition-all ${edgeConfig.markerEnd === 'none'
+                                                        ? 'bg-emerald-600 text-white'
+                                                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                    }`}
+                                            >
+                                                Nenhum
+                                            </button>
+                                            <button
+                                                onClick={() => applyConfig({ markerEnd: 'arrowClosed' })}
+                                                className={`p-2 rounded-lg text-[10px] transition-all ${edgeConfig.markerEnd === 'arrowClosed'
+                                                        ? 'bg-emerald-600 text-white'
+                                                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                    }`}
+                                            >
+                                                →| Fechada
+                                            </button>
+                                            <button
+                                                onClick={() => applyConfig({ markerEnd: 'arrowOpen' })}
+                                                className={`p-2 rounded-lg text-[10px] transition-all ${edgeConfig.markerEnd === 'arrowOpen'
+                                                        ? 'bg-emerald-600 text-white'
+                                                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                    }`}
+                                            >
+                                                → Aberta
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* SECTION D: Physics (Animated Flow) */}
+                                <div>
+                                    <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                                        ⚡ Dinâmica
+                                    </h4>
                                     <button
-                                        key={connector.id}
-                                        onClick={() => handleConnectorSelect(connector.id)}
-                                        className={`w-full p-4 rounded-lg transition-all text-left ${currentEdgeType === connector.id
-                                                ? 'bg-blue-600 text-white ring-2 ring-blue-400'
+                                        onClick={() => applyConfig({ animated: !edgeConfig.animated })}
+                                        className={`w-full p-4 rounded-lg transition-all flex items-center justify-between ${edgeConfig.animated
+                                                ? 'bg-amber-600 text-white ring-2 ring-amber-400'
                                                 : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                                             }`}
                                     >
-                                        <div className="mb-2 text-current">
-                                            {connector.icon}
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-xl">{edgeConfig.animated ? '⚡' : '💤'}</span>
+                                            <div className="text-left">
+                                                <div className="text-sm font-medium">Fluxo Animado</div>
+                                                <div className={`text-[10px] ${edgeConfig.animated ? 'text-amber-200' : 'text-slate-500'}`}>
+                                                    {edgeConfig.animated ? 'Ligado - Linhas em movimento' : 'Desligado'}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="font-medium text-sm">{connector.label}</div>
-                                        <div className={`text-xs mt-1 ${currentEdgeType === connector.id ? 'text-blue-200' : 'text-slate-500'
+                                        <div className={`w-12 h-6 rounded-full relative transition-colors ${edgeConfig.animated ? 'bg-amber-400' : 'bg-slate-600'
                                             }`}>
-                                            {connector.description}
+                                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${edgeConfig.animated ? 'left-7' : 'left-1'
+                                                }`} />
                                         </div>
                                     </button>
-                                ))}
+                                </div>
+
+                                {/* Help text */}
+                                {!hasSelectedEdges && (
+                                    <p className="text-[10px] text-slate-500 text-center mt-4 p-3 bg-slate-800/50 rounded-lg">
+                                        💡 Dica: Clique em uma linha no canvas para editar suas propriedades diretamente
+                                    </p>
+                                )}
                             </div>
                         )}
                     </div>

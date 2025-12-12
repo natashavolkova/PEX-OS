@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, DragEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, DragEvent, useMemo } from 'react';
 import {
     ReactFlow,
     Background,
@@ -22,10 +22,10 @@ import {
     BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import './strategic-map.css'; // CSS for animated edges
 import { Sparkles, ChevronDown, ArrowDown, ArrowRight } from 'lucide-react';
 import dagre from 'dagre';
-import LibrarySidebar from './LibrarySidebar';
-import EdgeToolbar from './EdgeToolbar';
+import LibrarySidebar, { type EdgeConfig } from './LibrarySidebar';
 import StickyNoteNode from './nodes/StickyNoteNode';
 import ShapeNode from './nodes/ShapeNode';
 
@@ -33,13 +33,6 @@ import ShapeNode from './nodes/ShapeNode';
 const nodeTypes: NodeTypes = {
     stickyNote: StickyNoteNode,
     shape: ShapeNode,
-};
-
-// Default edge options - Bezier curves with arrow
-const defaultEdgeOptions = {
-    type: 'default',
-    style: { stroke: '#64748b', strokeWidth: 2 },
-    markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' },
 };
 
 // Dagre layout algorithm
@@ -71,6 +64,43 @@ function getLayoutedElements(nodes: Node[], edges: Edge[], direction: 'TB' | 'LR
     };
 }
 
+// Helper: Convert EdgeConfig to React Flow edge properties
+function configToEdgeProps(config: EdgeConfig) {
+    // Stroke style
+    let strokeDasharray = '0';
+    if (config.strokeStyle === 'dashed') strokeDasharray = '8, 4';
+    if (config.strokeStyle === 'dotted') strokeDasharray = '2, 2';
+
+    // Marker start
+    let markerStart: { type: MarkerType; color: string } | undefined = undefined;
+    if (config.markerStart === 'arrow') {
+        markerStart = { type: MarkerType.Arrow, color: '#64748b' };
+    } else if (config.markerStart === 'circle') {
+        markerStart = { type: MarkerType.ArrowClosed, color: '#64748b' }; // Using ArrowClosed as circle proxy
+    }
+
+    // Marker end
+    let markerEnd: { type: MarkerType; color: string } | undefined = undefined;
+    if (config.markerEnd === 'arrowClosed') {
+        markerEnd = { type: MarkerType.ArrowClosed, color: '#64748b' };
+    } else if (config.markerEnd === 'arrowOpen') {
+        markerEnd = { type: MarkerType.Arrow, color: '#64748b' };
+    }
+
+    return {
+        type: config.type,
+        style: {
+            stroke: '#64748b',
+            strokeWidth: 2,
+            strokeDasharray,
+        },
+        markerStart,
+        markerEnd,
+        animated: config.animated,
+        className: config.animated ? 'animated-edge' : '',
+    };
+}
+
 // Demo data
 const initialNodes: Node[] = [
     { id: '1', type: 'stickyNote', position: { x: 100, y: 100 }, data: { label: 'Ideia inicial', color: 'yellow' } },
@@ -80,8 +110,8 @@ const initialNodes: Node[] = [
 ];
 
 const initialEdges: Edge[] = [
-    { id: 'e1-2', source: '1', target: '2', ...defaultEdgeOptions },
-    { id: 'e2-3', source: '2', target: '3', ...defaultEdgeOptions },
+    { id: 'e1-2', source: '1', target: '2', type: 'default', style: { stroke: '#64748b', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' } },
+    { id: 'e2-3', source: '2', target: '3', type: 'default', style: { stroke: '#64748b', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' } },
 ];
 
 interface StrategicMapProps {
@@ -91,6 +121,15 @@ interface StrategicMapProps {
     syncError?: string | null;
     onGraphChange?: (nodes: Node[], edges: Edge[]) => void;
 }
+
+// Default edge configuration
+const defaultEdgeConfig: EdgeConfig = {
+    type: 'default',
+    strokeStyle: 'solid',
+    markerStart: 'none',
+    markerEnd: 'arrowClosed',
+    animated: false,
+};
 
 function StrategicMapInner({
     externalNodes,
@@ -111,16 +150,38 @@ function StrategicMapInner({
     );
     const [showLayoutMenu, setShowLayoutMenu] = useState(false);
 
-    // Edge toolbar state
-    const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
-    const [edgeToolbarPosition, setEdgeToolbarPosition] = useState({ x: 0, y: 0 });
-
-    // Edge type from sidebar connector selection
-    const [currentEdgeType, setCurrentEdgeType] = useState<string>('default');
+    // Edge configuration state (for new edges and sidebar display)
+    const [edgeConfig, setEdgeConfig] = useState<EdgeConfig>(defaultEdgeConfig);
 
     const isExternalUpdateRef = useRef(false);
     const prevExternalSigRef = useRef<string>('');
     const nodeIdCounter = useRef(100);
+
+    // Get selected edges from current edges state
+    const selectedEdges = useMemo(() => {
+        return edges.filter(e => e.selected);
+    }, [edges]);
+
+    // Update edgeConfig to reflect selected edge when selection changes
+    useEffect(() => {
+        if (selectedEdges.length === 1) {
+            const edge = selectedEdges[0];
+            const style = edge.style as Record<string, unknown> || {};
+            const strokeDasharray = String(style.strokeDasharray || '0');
+
+            let strokeStyle: EdgeConfig['strokeStyle'] = 'solid';
+            if (strokeDasharray.includes('8') || strokeDasharray.includes('5')) strokeStyle = 'dashed';
+            if (strokeDasharray === '2, 2' || strokeDasharray === '2,2') strokeStyle = 'dotted';
+
+            setEdgeConfig({
+                type: (edge.type as EdgeConfig['type']) || 'default',
+                strokeStyle,
+                markerStart: edge.markerStart ? 'arrow' : 'none',
+                markerEnd: edge.markerEnd ? 'arrowClosed' : 'none',
+                animated: edge.animated || false,
+            });
+        }
+    }, [selectedEdges]);
 
     // Emit changes to parent
     const emitChange = useCallback((n: Node[], e: Edge[]) => {
@@ -128,6 +189,43 @@ function StrategicMapInner({
             onGraphChange(n, e);
         }
     }, [onGraphChange]);
+
+    // Handle edge config change (for defaults)
+    const handleEdgeConfigChange = useCallback((updates: Partial<EdgeConfig>) => {
+        setEdgeConfig(prev => ({ ...prev, ...updates }));
+    }, []);
+
+    // Apply config to selected edges
+    const handleApplyToSelected = useCallback((updates: Partial<EdgeConfig>) => {
+        const selectedIds = new Set(selectedEdges.map(e => e.id));
+        if (selectedIds.size === 0) return;
+
+        // Update local config display
+        setEdgeConfig(prev => ({ ...prev, ...updates }));
+
+        // Apply to selected edges
+        setEdges((eds) => {
+            const updatedEdges = eds.map((edge) => {
+                if (!selectedIds.has(edge.id)) return edge;
+
+                const newConfig = { ...edgeConfig, ...updates };
+                const props = configToEdgeProps(newConfig);
+
+                return {
+                    ...edge,
+                    type: props.type,
+                    style: props.style,
+                    markerStart: props.markerStart,
+                    markerEnd: props.markerEnd,
+                    animated: props.animated,
+                    className: props.className,
+                };
+            });
+
+            emitChange(nodes, updatedEdges);
+            return updatedEdges;
+        });
+    }, [selectedEdges, edgeConfig, setEdges, nodes, emitChange]);
 
     // Label change handler
     const handleLabelChange = useCallback((nodeId: string, newLabel: string) => {
@@ -254,74 +352,19 @@ function StrategicMapInner({
         }
     }, [onEdgesChange, nodes, emitChange, setEdges]);
 
-    // Connection handler - uses currentEdgeType from sidebar selection
+    // Connection handler - uses current edgeConfig
     const onConnect = useCallback((params: Connection) => {
         setEdges((eds) => {
+            const props = configToEdgeProps(edgeConfig);
             const newEdge = {
                 ...params,
-                type: currentEdgeType,
-                style: { stroke: '#64748b', strokeWidth: 2 },
-                markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' },
+                ...props,
             };
             const newEdges = addEdge(newEdge, eds);
             emitChange(nodes, newEdges);
             return newEdges;
         });
-    }, [setEdges, nodes, emitChange, currentEdgeType]);
-
-    // Edge click handler - shows EdgeToolbar
-    const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
-        event.stopPropagation();
-        const bounds = reactFlowWrapper.current?.getBoundingClientRect();
-        if (bounds) {
-            setEdgeToolbarPosition({
-                x: event.clientX - bounds.left,
-                y: event.clientY - bounds.top,
-            });
-            setSelectedEdge(edge);
-        }
-    }, []);
-
-    // Update edge properties (from EdgeToolbar)
-    const handleUpdateEdge = useCallback((updates: {
-        type?: string;
-        style?: Record<string, string>;
-        markerEnd?: { type: MarkerType; color: string } | undefined;
-    }) => {
-        if (!selectedEdge) return;
-
-        setEdges((eds) => {
-            const updated = eds.map((e) => {
-                if (e.id !== selectedEdge.id) return e;
-
-                return {
-                    ...e,
-                    type: updates.type ?? e.type,
-                    style: updates.style ? { ...e.style, ...updates.style } : e.style,
-                    markerEnd: updates.markerEnd !== undefined ? updates.markerEnd : e.markerEnd,
-                };
-            });
-
-            emitChange(nodes, updated);
-            return updated;
-        });
-
-        // Update selectedEdge state to reflect changes
-        setSelectedEdge((prev) => {
-            if (!prev) return null;
-            return {
-                ...prev,
-                type: updates.type ?? prev.type,
-                style: updates.style ? { ...prev.style, ...updates.style } : prev.style,
-                markerEnd: updates.markerEnd !== undefined ? updates.markerEnd : prev.markerEnd,
-            };
-        });
-    }, [selectedEdge, setEdges, nodes, emitChange]);
-
-    // Pane click - deselect edge
-    const onPaneClick = useCallback(() => {
-        setSelectedEdge(null);
-    }, []);
+    }, [setEdges, nodes, emitChange, edgeConfig]);
 
     // Keyboard delete handler
     useEffect(() => {
@@ -346,10 +389,12 @@ function StrategicMapInner({
 
     return (
         <div className="w-full h-full flex bg-slate-950">
-            {/* Library Sidebar - Two-stage navigation */}
+            {/* Library Sidebar - Master Control Panel */}
             <LibrarySidebar
-                onEdgeTypeChange={setCurrentEdgeType}
-                currentEdgeType={currentEdgeType}
+                edgeConfig={edgeConfig}
+                onEdgeConfigChange={handleEdgeConfigChange}
+                selectedEdges={selectedEdges}
+                onApplyToSelected={handleApplyToSelected}
             />
 
             {/* Canvas Area */}
@@ -371,16 +416,6 @@ function StrategicMapInner({
                     </div>
                 )}
 
-                {/* Edge Toolbar (floating) */}
-                {selectedEdge && (
-                    <EdgeToolbar
-                        selectedEdge={selectedEdge}
-                        position={edgeToolbarPosition}
-                        onUpdateEdge={handleUpdateEdge}
-                        onClose={() => setSelectedEdge(null)}
-                    />
-                )}
-
                 <ReactFlow
                     nodes={nodesWithHandlers}
                     edges={edges}
@@ -389,10 +424,7 @@ function StrategicMapInner({
                     onConnect={onConnect}
                     onDragOver={onDragOver}
                     onDrop={onDrop}
-                    onEdgeClick={onEdgeClick}
-                    onPaneClick={onPaneClick}
                     nodeTypes={nodeTypes}
-                    defaultEdgeOptions={defaultEdgeOptions}
                     fitView
                     fitViewOptions={{ padding: 0.3 }}
                     className="bg-slate-950"

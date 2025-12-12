@@ -24,7 +24,8 @@ import {
 import '@xyflow/react/dist/style.css';
 import { Sparkles, ChevronDown, ArrowDown, ArrowRight } from 'lucide-react';
 import dagre from 'dagre';
-import Sidebar from './Sidebar';
+import LibrarySidebar from './LibrarySidebar';
+import EdgeToolbar from './EdgeToolbar';
 import StickyNoteNode from './nodes/StickyNoteNode';
 import ShapeNode from './nodes/ShapeNode';
 
@@ -34,14 +35,14 @@ const nodeTypes: NodeTypes = {
     shape: ShapeNode,
 };
 
-// Default edge options - Bezier curves
+// Default edge options - Bezier curves with arrow
 const defaultEdgeOptions = {
     type: 'default',
     style: { stroke: '#64748b', strokeWidth: 2 },
     markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' },
 };
 
-// Dagre layout
+// Dagre layout algorithm
 function getLayoutedElements(nodes: Node[], edges: Edge[], direction: 'TB' | 'LR') {
     const dagreGraph = new dagre.graphlib.Graph();
     dagreGraph.setDefaultEdgeLabel(() => ({}));
@@ -110,18 +111,22 @@ function StrategicMapInner({
     );
     const [showLayoutMenu, setShowLayoutMenu] = useState(false);
 
+    // Edge toolbar state
+    const [selectedEdge, setSelectedEdge] = useState<Edge | null>(null);
+    const [edgeToolbarPosition, setEdgeToolbarPosition] = useState({ x: 0, y: 0 });
+
     const isExternalUpdateRef = useRef(false);
     const prevExternalSigRef = useRef<string>('');
     const nodeIdCounter = useRef(100);
 
-    // Emit changes
+    // Emit changes to parent
     const emitChange = useCallback((n: Node[], e: Edge[]) => {
         if (!isExternalUpdateRef.current && onGraphChange) {
             onGraphChange(n, e);
         }
     }, [onGraphChange]);
 
-    // Label change
+    // Label change handler
     const handleLabelChange = useCallback((nodeId: string, newLabel: string) => {
         setNodes((nds) => {
             const updated = nds.map((n) =>
@@ -132,7 +137,7 @@ function StrategicMapInner({
         });
     }, [setNodes, edges, onGraphChange]);
 
-    // Color change
+    // Color change handler
     const handleColorChange = useCallback((nodeId: string, color: string) => {
         setNodes((nds) => {
             const updated = nds.map((n) =>
@@ -143,7 +148,7 @@ function StrategicMapInner({
         });
     }, [setNodes, edges, onGraphChange]);
 
-    // Delete node
+    // Delete node handler
     const handleDeleteNode = useCallback((nodeId: string) => {
         setNodes((nds) => {
             const updated = nds.filter((n) => n.id !== nodeId);
@@ -154,7 +159,7 @@ function StrategicMapInner({
         });
     }, [setNodes, setEdges, edges, onGraphChange]);
 
-    // Inject handlers
+    // Inject handlers into nodes
     const nodesWithHandlers = nodes.map((node) => ({
         ...node,
         data: {
@@ -165,7 +170,7 @@ function StrategicMapInner({
         },
     }));
 
-    // External sync
+    // External data sync
     useEffect(() => {
         if (externalNodes && externalNodes.length > 0) {
             const sig = JSON.stringify(externalNodes.map(n => ({ id: n.id, label: n.data?.label, color: n.data?.color, shape: n.data?.shape })));
@@ -179,7 +184,7 @@ function StrategicMapInner({
         }
     }, [externalNodes, externalEdges, setNodes, setEdges]);
 
-    // Drag and Drop
+    // Drag and Drop handlers
     const onDragOver = useCallback((event: DragEvent) => {
         event.preventDefault();
         event.dataTransfer.dropEffect = 'move';
@@ -217,7 +222,7 @@ function StrategicMapInner({
         });
     }, [reactFlowInstance, setNodes, edges, emitChange]);
 
-    // Layout
+    // Auto-layout
     const handleLayout = useCallback((direction: 'TB' | 'LR') => {
         const { nodes: ln, edges: le } = getLayoutedElements(nodes, edges, direction);
         setNodes(ln);
@@ -227,7 +232,7 @@ function StrategicMapInner({
         requestAnimationFrame(() => { reactFlowInstance.fitView({ padding: 0.3 }); });
     }, [nodes, edges, setNodes, setEdges, emitChange, reactFlowInstance]);
 
-    // Node changes
+    // Node changes handler
     const handleNodesChange = useCallback((changes: NodeChange<Node>[]) => {
         onNodesChange(changes);
         if (!isExternalUpdateRef.current) {
@@ -238,7 +243,7 @@ function StrategicMapInner({
         }
     }, [onNodesChange, edges, emitChange, setNodes]);
 
-    // Edge changes
+    // Edge changes handler
     const handleEdgesChange = useCallback((changes: EdgeChange<Edge>[]) => {
         onEdgesChange(changes);
         if (!isExternalUpdateRef.current) {
@@ -246,7 +251,7 @@ function StrategicMapInner({
         }
     }, [onEdgesChange, nodes, emitChange, setEdges]);
 
-    // Connect
+    // Connection handler
     const onConnect = useCallback((params: Connection) => {
         setEdges((eds) => {
             const newEdges = addEdge({ ...params, ...defaultEdgeOptions }, eds);
@@ -255,7 +260,61 @@ function StrategicMapInner({
         });
     }, [setEdges, nodes, emitChange]);
 
-    // Keyboard delete
+    // Edge click handler - shows EdgeToolbar
+    const onEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
+        event.stopPropagation();
+        const bounds = reactFlowWrapper.current?.getBoundingClientRect();
+        if (bounds) {
+            setEdgeToolbarPosition({
+                x: event.clientX - bounds.left,
+                y: event.clientY - bounds.top,
+            });
+            setSelectedEdge(edge);
+        }
+    }, []);
+
+    // Update edge properties (from EdgeToolbar)
+    const handleUpdateEdge = useCallback((updates: {
+        type?: string;
+        style?: Record<string, string>;
+        markerEnd?: { type: MarkerType; color: string } | undefined;
+    }) => {
+        if (!selectedEdge) return;
+
+        setEdges((eds) => {
+            const updated = eds.map((e) => {
+                if (e.id !== selectedEdge.id) return e;
+
+                return {
+                    ...e,
+                    type: updates.type ?? e.type,
+                    style: updates.style ? { ...e.style, ...updates.style } : e.style,
+                    markerEnd: updates.markerEnd !== undefined ? updates.markerEnd : e.markerEnd,
+                };
+            });
+
+            emitChange(nodes, updated);
+            return updated;
+        });
+
+        // Update selectedEdge state to reflect changes
+        setSelectedEdge((prev) => {
+            if (!prev) return null;
+            return {
+                ...prev,
+                type: updates.type ?? prev.type,
+                style: updates.style ? { ...prev.style, ...updates.style } : prev.style,
+                markerEnd: updates.markerEnd !== undefined ? updates.markerEnd : prev.markerEnd,
+            };
+        });
+    }, [selectedEdge, setEdges, nodes, emitChange]);
+
+    // Pane click - deselect edge
+    const onPaneClick = useCallback(() => {
+        setSelectedEdge(null);
+    }, []);
+
+    // Keyboard delete handler
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
@@ -278,12 +337,12 @@ function StrategicMapInner({
 
     return (
         <div className="w-full h-full flex bg-slate-950">
-            {/* Sidebar */}
-            <Sidebar />
+            {/* Library Sidebar - Two-stage navigation */}
+            <LibrarySidebar />
 
-            {/* Canvas */}
+            {/* Canvas Area */}
             <div ref={reactFlowWrapper} className="flex-1 relative">
-                {/* Status */}
+                {/* Sync Status */}
                 {(isSyncing || syncError) && (
                     <div className="absolute top-3 left-3 z-50">
                         {isSyncing && (
@@ -300,6 +359,16 @@ function StrategicMapInner({
                     </div>
                 )}
 
+                {/* Edge Toolbar (floating) */}
+                {selectedEdge && (
+                    <EdgeToolbar
+                        selectedEdge={selectedEdge}
+                        position={edgeToolbarPosition}
+                        onUpdateEdge={handleUpdateEdge}
+                        onClose={() => setSelectedEdge(null)}
+                    />
+                )}
+
                 <ReactFlow
                     nodes={nodesWithHandlers}
                     edges={edges}
@@ -308,6 +377,8 @@ function StrategicMapInner({
                     onConnect={onConnect}
                     onDragOver={onDragOver}
                     onDrop={onDrop}
+                    onEdgeClick={onEdgeClick}
+                    onPaneClick={onPaneClick}
                     nodeTypes={nodeTypes}
                     defaultEdgeOptions={defaultEdgeOptions}
                     fitView

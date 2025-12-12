@@ -1,10 +1,10 @@
 'use client';
 
-import { memo, useState, useEffect, useRef } from 'react';
+import { memo, useState, useEffect, useRef, ReactNode } from 'react';
 import { Handle, Position, NodeToolbar } from '@xyflow/react';
 import { Trash2, Palette } from 'lucide-react';
 
-interface ShapeNodeData {
+export interface BaseShapeNodeData {
     label: string;
     shape?: 'rectangle' | 'circle' | 'diamond' | 'triangle' | 'hexagon' | 'cloud';
     color?: string;
@@ -13,9 +13,9 @@ interface ShapeNodeData {
     onDelete?: (id: string) => void;
 }
 
-interface ShapeNodeProps {
+interface BaseShapeNodeProps {
     id: string;
-    data: ShapeNodeData;
+    data: BaseShapeNodeData;
     selected?: boolean;
 }
 
@@ -30,7 +30,12 @@ const colorMap: Record<string, { fill: string; stroke: string; text: string }> =
 
 const colorOptions = Object.keys(colorMap);
 
-const ShapeNode = memo(({ id, data, selected }: ShapeNodeProps) => {
+/**
+ * BaseShapeNode - Universal node with 4-way connectors
+ * All handles use standardized IDs: t, r, b, l
+ * isConnectable={true} ensures connections work properly
+ */
+const BaseShapeNode = memo(({ id, data, selected }: BaseShapeNodeProps) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(data.label || '');
     const [showColorPicker, setShowColorPicker] = useState(false);
@@ -81,54 +86,68 @@ const ShapeNode = memo(({ id, data, selected }: ShapeNodeProps) => {
         }
     };
 
-    // SVG Shapes
-    const renderShape = () => {
-        const size = 100;
+    // Shape SVG rendering
+    const renderShape = (): ReactNode => {
         const strokeWidth = 2;
 
         switch (shape) {
             case 'circle':
                 return (
-                    <svg width={size} height={size} viewBox="0 0 100 100" className="absolute inset-0">
+                    <svg width={100} height={100} viewBox="0 0 100 100" className="absolute inset-0">
                         <circle cx="50" cy="50" r="45" fill={colors.fill} stroke={colors.stroke} strokeWidth={strokeWidth} />
                     </svg>
                 );
             case 'diamond':
                 return (
-                    <svg width={size} height={size} viewBox="0 0 100 100" className="absolute inset-0">
+                    <svg width={100} height={100} viewBox="0 0 100 100" className="absolute inset-0">
                         <polygon points="50,5 95,50 50,95 5,50" fill={colors.fill} stroke={colors.stroke} strokeWidth={strokeWidth} />
                     </svg>
                 );
             case 'triangle':
                 return (
-                    <svg width={size} height={size} viewBox="0 0 100 100" className="absolute inset-0">
+                    <svg width={100} height={100} viewBox="0 0 100 100" className="absolute inset-0">
                         <polygon points="50,5 95,90 5,90" fill={colors.fill} stroke={colors.stroke} strokeWidth={strokeWidth} />
                     </svg>
                 );
             case 'hexagon':
                 return (
-                    <svg width={size} height={size} viewBox="0 0 100 100" className="absolute inset-0">
+                    <svg width={100} height={100} viewBox="0 0 100 100" className="absolute inset-0">
                         <polygon points="30,10 70,10 95,50 70,90 30,90 5,50" fill={colors.fill} stroke={colors.stroke} strokeWidth={strokeWidth} />
                     </svg>
                 );
             case 'cloud':
                 return (
-                    <svg width="120" height="80" viewBox="0 0 120 80" className="absolute inset-0">
-                        <path d="M30 60c-11 0-20-9-20-20 0-8.3 5-15.3 12.3-18.3C26 12.7 35.3 6 47 6c9.3 0 17.3 5.3 21.3 13.3 1.3-.3 2.3-.3 3.7-.3 11 0 20 9 20 20s-9 20-20 20H30z" fill={colors.fill} stroke={colors.stroke} strokeWidth={strokeWidth} />
+                    <svg width={120} height={80} viewBox="0 0 120 80" className="absolute inset-0">
+                        <path
+                            d="M30 60c-11 0-20-9-20-20 0-8.3 5-15.3 12.3-18.3C26 12.7 35.3 6 47 6c9.3 0 17.3 5.3 21.3 13.3 1.3-.3 2.3-.3 3.7-.3 11 0 20 9 20 20s-9 20-20 20H30z"
+                            fill={colors.fill}
+                            stroke={colors.stroke}
+                            strokeWidth={strokeWidth}
+                        />
                     </svg>
                 );
             default: // rectangle
                 return (
-                    <svg width="120" height="60" viewBox="0 0 120 60" className="absolute inset-0">
+                    <svg width={120} height={60} viewBox="0 0 120 60" className="absolute inset-0">
                         <rect x="2" y="2" width="116" height="56" rx="8" fill={colors.fill} stroke={colors.stroke} strokeWidth={strokeWidth} />
                     </svg>
                 );
         }
     };
 
-    const isSquare = shape !== 'rectangle';
-    const width = isSquare ? 100 : 120;
-    const height = isSquare ? 100 : 60;
+    // Determine dimensions based on shape
+    const getDimensions = () => {
+        switch (shape) {
+            case 'cloud':
+                return { width: 120, height: 80 };
+            case 'rectangle':
+                return { width: 120, height: 60 };
+            default:
+                return { width: 100, height: 100 };
+        }
+    };
+
+    const { width, height } = getDimensions();
 
     return (
         <>
@@ -166,15 +185,15 @@ const ShapeNode = memo(({ id, data, selected }: ShapeNodeProps) => {
                 </div>
             )}
 
-            {/* Shape */}
+            {/* Shape Container */}
             <div
-                className={`relative group cursor-pointer ${selected ? 'drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]' : ''}`}
+                className={`relative group cursor-pointer ${selected ? 'ring-2 ring-blue-500 rounded-lg' : ''}`}
                 style={{ width, height }}
                 onDoubleClick={handleDoubleClick}
             >
                 {renderShape()}
 
-                {/* UNIVERSAL 4-WAY HANDLES - Standardized IDs: t, r, b, l */}
+                {/* UNIVERSAL 4-WAY HANDLES - IDs: t, r, b, l */}
                 <Handle
                     type="source"
                     position={Position.Top}
@@ -227,7 +246,6 @@ const ShapeNode = memo(({ id, data, selected }: ShapeNodeProps) => {
     );
 });
 
-ShapeNode.displayName = 'ShapeNode';
+BaseShapeNode.displayName = 'BaseShapeNode';
 
-export default ShapeNode;
-export type { ShapeNodeData };
+export default BaseShapeNode;

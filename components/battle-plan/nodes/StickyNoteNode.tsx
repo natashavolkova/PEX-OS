@@ -128,28 +128,34 @@ const StickyNoteNode = memo(({ id, data, selected }: StickyNoteNodeProps) => {
                     style={{ clipPath: 'polygon(100% 0, 0 0, 100% 100%)' }}
                 />
 
-                {/* Handles - only visible on hover */}
+                {/* UNIVERSAL 4-WAY HANDLES - Standardized IDs: t, r, b, l */}
                 <Handle
-                    type="target"
+                    type="source"
                     position={Position.Top}
-                    className="!bg-slate-500 !w-2 !h-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
-                />
-                <Handle
-                    type="source"
-                    position={Position.Bottom}
-                    className="!bg-slate-500 !w-2 !h-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
-                />
-                <Handle
-                    type="source"
-                    position={Position.Left}
-                    id="left"
-                    className="!bg-slate-500 !w-2 !h-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                    id="t"
+                    isConnectable={true}
+                    className="!bg-blue-500 !w-3 !h-3 !border-2 !border-slate-900 !opacity-0 group-hover:!opacity-100 transition-opacity"
                 />
                 <Handle
                     type="source"
                     position={Position.Right}
-                    id="right"
-                    className="!bg-slate-500 !w-2 !h-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                    id="r"
+                    isConnectable={true}
+                    className="!bg-blue-500 !w-3 !h-3 !border-2 !border-slate-900 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                />
+                <Handle
+                    type="source"
+                    position={Position.Bottom}
+                    id="b"
+                    isConnectable={true}
+                    className="!bg-blue-500 !w-3 !h-3 !border-2 !border-slate-900 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                />
+                <Handle
+                    type="source"
+                    position={Position.Left}
+                    id="l"
+                    isConnectable={true}
+                    className="!bg-blue-500 !w-3 !h-3 !border-2 !border-slate-900 !opacity-0 group-hover:!opacity-100 transition-opacity"
                 />
 
                 {/* Content */}

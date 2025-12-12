@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { MarkerType } from '@xyflow/react';
+import { MarkerType, type Edge } from '@xyflow/react';
 import {
     Minus,
     TrendingUp,
@@ -11,12 +11,7 @@ import {
 } from 'lucide-react';
 
 interface EdgeToolbarProps {
-    selectedEdge: {
-        id: string;
-        type?: string;
-        style?: { strokeDasharray?: string };
-        markerEnd?: { type: MarkerType } | undefined;
-    } | null;
+    selectedEdge: Edge | null;
     position: { x: number; y: number };
     onUpdateEdge: (updates: {
         type?: string;
@@ -35,7 +30,9 @@ export default function EdgeToolbar({
     if (!selectedEdge) return null;
 
     const currentType = selectedEdge.type || 'default';
-    const currentDash = selectedEdge.style?.strokeDasharray || '0';
+    // strokeDasharray can be string or number, coerce to string
+    const rawDash = (selectedEdge.style as Record<string, unknown>)?.strokeDasharray;
+    const currentDash = typeof rawDash === 'string' ? rawDash : (rawDash !== undefined ? String(rawDash) : '0');
     const hasMarker = !!selectedEdge.markerEnd;
 
     return (
@@ -60,8 +57,8 @@ export default function EdgeToolbar({
                     <button
                         onClick={() => onUpdateEdge({ type: 'straight' })}
                         className={`p-2 rounded-lg transition-all ${currentType === 'straight'
-                                ? 'bg-blue-600 text-white'
-                                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                            ? 'bg-blue-600 text-white'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                             }`}
                         title="Linha Reta"
                     >
@@ -70,8 +67,8 @@ export default function EdgeToolbar({
                     <button
                         onClick={() => onUpdateEdge({ type: 'default' })}
                         className={`p-2 rounded-lg transition-all ${currentType === 'default'
-                                ? 'bg-blue-600 text-white'
-                                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                            ? 'bg-blue-600 text-white'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                             }`}
                         title="Curva Bezier"
                     >
@@ -80,8 +77,8 @@ export default function EdgeToolbar({
                     <button
                         onClick={() => onUpdateEdge({ type: 'smoothstep' })}
                         className={`p-2 rounded-lg transition-all ${currentType === 'smoothstep' || currentType === 'step'
-                                ? 'bg-blue-600 text-white'
-                                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                            ? 'bg-blue-600 text-white'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                             }`}
                         title="Cotovelo"
                     >
@@ -94,8 +91,8 @@ export default function EdgeToolbar({
                     <button
                         onClick={() => onUpdateEdge({ style: { strokeDasharray: '0' } })}
                         className={`p-2 rounded-lg transition-all ${currentDash === '0' || currentDash === ''
-                                ? 'bg-purple-600 text-white'
-                                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                            ? 'bg-purple-600 text-white'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                             }`}
                         title="Linha Sólida"
                     >
@@ -104,8 +101,8 @@ export default function EdgeToolbar({
                     <button
                         onClick={() => onUpdateEdge({ style: { strokeDasharray: '5, 5' } })}
                         className={`p-2 rounded-lg transition-all ${currentDash === '5, 5'
-                                ? 'bg-purple-600 text-white'
-                                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                            ? 'bg-purple-600 text-white'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                             }`}
                         title="Linha Tracejada"
                     >
@@ -117,8 +114,8 @@ export default function EdgeToolbar({
                     <button
                         onClick={() => onUpdateEdge({ style: { strokeDasharray: '2, 2' } })}
                         className={`p-2 rounded-lg transition-all ${currentDash === '2, 2'
-                                ? 'bg-purple-600 text-white'
-                                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                            ? 'bg-purple-600 text-white'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                             }`}
                         title="Linha Pontilhada"
                     >
@@ -135,8 +132,8 @@ export default function EdgeToolbar({
                     <button
                         onClick={() => onUpdateEdge({ markerEnd: undefined })}
                         className={`p-2 rounded-lg transition-all ${!hasMarker
-                                ? 'bg-emerald-600 text-white'
-                                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                            ? 'bg-emerald-600 text-white'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                             }`}
                         title="Sem Seta"
                     >
@@ -145,8 +142,8 @@ export default function EdgeToolbar({
                     <button
                         onClick={() => onUpdateEdge({ markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' } })}
                         className={`p-2 rounded-lg transition-all ${hasMarker
-                                ? 'bg-emerald-600 text-white'
-                                : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                            ? 'bg-emerald-600 text-white'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                             }`}
                         title="Com Seta"
                     >

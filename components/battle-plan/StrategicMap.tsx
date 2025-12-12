@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, DragEvent } from 'react';
 import {
     ReactFlow,
     Background,
@@ -19,46 +19,38 @@ import {
     useReactFlow,
     ReactFlowProvider,
     MarkerType,
+    BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import {
-    Square, Diamond, Circle, StickyNote, Trash2, Sparkles,
-    ChevronDown, ArrowDown, ArrowRight
-} from 'lucide-react';
+import { Sparkles, ChevronDown, ArrowDown, ArrowRight } from 'lucide-react';
 import dagre from 'dagre';
-import CustomNode, { type NodeShape, type NodeStyle } from './CustomNode';
+import Sidebar from './Sidebar';
+import StickyNoteNode from './nodes/StickyNoteNode';
+import ShapeNode from './nodes/ShapeNode';
 
-// Node types registration
+// Node types
 const nodeTypes: NodeTypes = {
-    custom: CustomNode,
+    stickyNote: StickyNoteNode,
+    shape: ShapeNode,
 };
 
-// Default edge options
+// Default edge options - Bezier curves
 const defaultEdgeOptions = {
-    type: 'smoothstep',
-    animated: true,
+    type: 'default',
     style: { stroke: '#64748b', strokeWidth: 2 },
     markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' },
 };
-
-// Shape definitions for toolbar
-const shapes: { id: NodeShape; icon: typeof Square; label: string; color: string }[] = [
-    { id: 'process', icon: Square, label: 'Processo', color: 'text-indigo-400' },
-    { id: 'decision', icon: Diamond, label: 'Decisão', color: 'text-amber-400' },
-    { id: 'terminal', icon: Circle, label: 'Terminal', color: 'text-emerald-400' },
-    { id: 'note', icon: StickyNote, label: 'Nota', color: 'text-yellow-400' },
-];
 
 // Dagre layout
 function getLayoutedElements(nodes: Node[], edges: Edge[], direction: 'TB' | 'LR') {
     const dagreGraph = new dagre.graphlib.Graph();
     dagreGraph.setDefaultEdgeLabel(() => ({}));
-    dagreGraph.setGraph({ rankdir: direction, ranksep: 100, nodesep: 60 });
+    dagreGraph.setGraph({ rankdir: direction, ranksep: 80, nodesep: 60 });
 
     nodes.forEach((node) => {
-        const width = node.data?.shape === 'decision' ? 100 : 160;
-        const height = node.data?.shape === 'decision' ? 100 : 60;
-        dagreGraph.setNode(node.id, { width, height });
+        const w = node.type === 'stickyNote' ? 128 : 120;
+        const h = node.type === 'stickyNote' ? 128 : 100;
+        dagreGraph.setNode(node.id, { width: w, height: h });
     });
 
     edges.forEach((edge) => {
@@ -70,28 +62,25 @@ function getLayoutedElements(nodes: Node[], edges: Edge[], direction: 'TB' | 'LR
     return {
         nodes: nodes.map((node) => {
             const pos = dagreGraph.node(node.id);
-            const width = node.data?.shape === 'decision' ? 100 : 160;
-            const height = node.data?.shape === 'decision' ? 100 : 60;
-            return { ...node, position: { x: pos.x - width / 2, y: pos.y - height / 2 } };
+            const w = node.type === 'stickyNote' ? 128 : 120;
+            const h = node.type === 'stickyNote' ? 128 : 100;
+            return { ...node, position: { x: pos.x - w / 2, y: pos.y - h / 2 } };
         }),
         edges,
     };
 }
 
-// Initial demo data
+// Demo data
 const initialNodes: Node[] = [
-    { id: '1', type: 'custom', position: { x: 250, y: 50 }, data: { label: 'Início', shape: 'terminal', style: 'success' } },
-    { id: '2', type: 'custom', position: { x: 250, y: 180 }, data: { label: 'Processar', shape: 'process', style: 'default' } },
-    { id: '3', type: 'custom', position: { x: 250, y: 310 }, data: { label: 'Válido?', shape: 'decision', style: 'warning' } },
-    { id: '4', type: 'custom', position: { x: 100, y: 450 }, data: { label: 'Fim', shape: 'terminal', style: 'danger' } },
-    { id: '5', type: 'custom', position: { x: 400, y: 450 }, data: { label: 'Sucesso', shape: 'terminal', style: 'success' } },
+    { id: '1', type: 'stickyNote', position: { x: 100, y: 100 }, data: { label: 'Ideia inicial', color: 'yellow' } },
+    { id: '2', type: 'shape', position: { x: 300, y: 100 }, data: { label: 'Processar', shape: 'rectangle', color: 'indigo' } },
+    { id: '3', type: 'shape', position: { x: 300, y: 250 }, data: { label: 'Válido?', shape: 'diamond', color: 'amber' } },
+    { id: '4', type: 'stickyNote', position: { x: 500, y: 100 }, data: { label: 'Nota importante!', color: 'pink' } },
 ];
 
 const initialEdges: Edge[] = [
     { id: 'e1-2', source: '1', target: '2', ...defaultEdgeOptions },
     { id: 'e2-3', source: '2', target: '3', ...defaultEdgeOptions },
-    { id: 'e3-4', source: '3', target: '4', label: 'Não', ...defaultEdgeOptions },
-    { id: 'e3-5', source: '3', target: '5', label: 'Sim', ...defaultEdgeOptions },
 ];
 
 interface StrategicMapProps {
@@ -110,6 +99,7 @@ function StrategicMapInner({
     onGraphChange,
 }: StrategicMapProps) {
     const reactFlowInstance = useReactFlow();
+    const reactFlowWrapper = useRef<HTMLDivElement>(null);
     const hasExternalData = externalNodes && externalNodes.length > 0;
 
     const [nodes, setNodes, onNodesChange] = useNodesState(
@@ -142,27 +132,43 @@ function StrategicMapInner({
         });
     }, [setNodes, edges, onGraphChange]);
 
-    // Style change
-    const handleStyleChange = useCallback((nodeId: string, style: NodeStyle) => {
+    // Color change
+    const handleColorChange = useCallback((nodeId: string, color: string) => {
         setNodes((nds) => {
             const updated = nds.map((n) =>
-                n.id === nodeId ? { ...n, data: { ...n.data, style } } : n
+                n.id === nodeId ? { ...n, data: { ...n.data, color } } : n
             );
             if (onGraphChange) onGraphChange(updated, edges);
             return updated;
         });
     }, [setNodes, edges, onGraphChange]);
 
+    // Delete node
+    const handleDeleteNode = useCallback((nodeId: string) => {
+        setNodes((nds) => {
+            const updated = nds.filter((n) => n.id !== nodeId);
+            const updatedEdges = edges.filter((e) => e.source !== nodeId && e.target !== nodeId);
+            setEdges(updatedEdges);
+            if (onGraphChange) onGraphChange(updated, updatedEdges);
+            return updated;
+        });
+    }, [setNodes, setEdges, edges, onGraphChange]);
+
     // Inject handlers
     const nodesWithHandlers = nodes.map((node) => ({
         ...node,
-        data: { ...node.data, onLabelChange: handleLabelChange, onStyleChange: handleStyleChange },
+        data: {
+            ...node.data,
+            onLabelChange: handleLabelChange,
+            onColorChange: handleColorChange,
+            onDelete: handleDeleteNode,
+        },
     }));
 
     // External sync
     useEffect(() => {
         if (externalNodes && externalNodes.length > 0) {
-            const sig = JSON.stringify(externalNodes.map(n => ({ id: n.id, label: n.data?.label, shape: n.data?.shape, style: n.data?.style })));
+            const sig = JSON.stringify(externalNodes.map(n => ({ id: n.id, label: n.data?.label, color: n.data?.color, shape: n.data?.shape })));
             if (sig !== prevExternalSigRef.current) {
                 prevExternalSigRef.current = sig;
                 isExternalUpdateRef.current = true;
@@ -173,25 +179,35 @@ function StrategicMapInner({
         }
     }, [externalNodes, externalEdges, setNodes, setEdges]);
 
-    // Add node
-    const handleAddNode = useCallback((shape: NodeShape) => {
-        const viewport = reactFlowInstance.getViewport();
-        const x = (-viewport.x + 400) / viewport.zoom;
-        const y = (-viewport.y + 200) / viewport.zoom;
+    // Drag and Drop
+    const onDragOver = useCallback((event: DragEvent) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+    }, []);
+
+    const onDrop = useCallback((event: DragEvent) => {
+        event.preventDefault();
+
+        const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
+        const dataStr = event.dataTransfer.getData('application/reactflow');
+
+        if (!dataStr || !reactFlowBounds) return;
+
+        const { nodeType, data } = JSON.parse(dataStr);
+        const position = reactFlowInstance.screenToFlowPosition({
+            x: event.clientX - reactFlowBounds.left,
+            y: event.clientY - reactFlowBounds.top,
+        });
 
         const newId = `node-${++nodeIdCounter.current}`;
-        const labels: Record<NodeShape, string> = {
-            process: 'Novo Processo',
-            decision: 'Condição?',
-            terminal: 'Terminal',
-            note: 'Nota aqui...',
-        };
-
         const newNode: Node = {
             id: newId,
-            type: 'custom',
-            position: { x, y },
-            data: { label: labels[shape], shape, style: 'default' },
+            type: nodeType,
+            position,
+            data: {
+                label: nodeType === 'stickyNote' ? 'Nova nota' : 'Label',
+                ...data,
+            },
         };
 
         setNodes((nds) => {
@@ -239,134 +255,117 @@ function StrategicMapInner({
         });
     }, [setEdges, nodes, emitChange]);
 
-    // Delete
-    const handleDelete = useCallback(() => {
-        const selN = nodes.filter(n => n.selected);
-        const selE = edges.filter(e => e.selected);
-        if (selN.length || selE.length) {
-            const ids = new Set(selN.map(n => n.id));
-            const newN = nodes.filter(n => !n.selected);
-            const newE = edges.filter(e => !e.selected && !ids.has(e.source) && !ids.has(e.target));
-            setNodes(newN);
-            setEdges(newE);
-            emitChange(newN, newE);
-        }
-    }, [nodes, edges, setNodes, setEdges, emitChange]);
-
-    // Keyboard
+    // Keyboard delete
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
-            if (e.key === 'Delete' || e.key === 'Backspace') handleDelete();
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                const selN = nodes.filter(n => n.selected);
+                const selE = edges.filter(e => e.selected);
+                if (selN.length || selE.length) {
+                    const ids = new Set(selN.map(n => n.id));
+                    const newN = nodes.filter(n => !n.selected);
+                    const newE = edges.filter(e => !e.selected && !ids.has(e.source) && !ids.has(e.target));
+                    setNodes(newN);
+                    setEdges(newE);
+                    emitChange(newN, newE);
+                }
+            }
         };
         document.addEventListener('keydown', handler);
         return () => document.removeEventListener('keydown', handler);
-    }, [handleDelete]);
+    }, [nodes, edges, setNodes, setEdges, emitChange]);
 
     return (
-        <div className="w-full h-full bg-slate-950 relative">
-            {/* Status */}
-            {(isSyncing || syncError) && (
-                <div className="absolute top-3 left-16 z-50">
-                    {isSyncing && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-xs text-indigo-300">
-                            <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse" />
-                            Sincronizando...
-                        </div>
-                    )}
-                    {syncError && !isSyncing && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-950/80 border border-amber-700/50 rounded-lg text-xs text-amber-300">
-                            ⚠️ {syncError}
-                        </div>
-                    )}
-                </div>
-            )}
+        <div className="w-full h-full flex bg-slate-950">
+            {/* Sidebar */}
+            <Sidebar />
 
-            <ReactFlow
-                nodes={nodesWithHandlers}
-                edges={edges}
-                onNodesChange={handleNodesChange}
-                onEdgesChange={handleEdgesChange}
-                onConnect={onConnect}
-                nodeTypes={nodeTypes}
-                defaultEdgeOptions={defaultEdgeOptions}
-                fitView
-                fitViewOptions={{ padding: 0.3 }}
-                className="bg-slate-950"
-                proOptions={{ hideAttribution: true }}
-                deleteKeyCode={null}
-                selectionOnDrag
-                panOnDrag={[1, 2]}
-            >
-                <Background color="#334155" gap={20} size={1} />
-                <Controls className="!bg-slate-900 !border-slate-700 !rounded-lg !shadow-xl [&>button]:!bg-slate-800 [&>button]:!border-slate-600 [&>button]:!text-slate-300 [&>button:hover]:!bg-slate-700" />
-                <MiniMap
-                    nodeColor={(n) => {
-                        const style = n.data?.style as NodeStyle || 'default';
-                        return { default: '#6366f1', success: '#10b981', warning: '#f59e0b', danger: '#ef4444' }[style];
-                    }}
-                    maskColor="rgba(0, 0, 0, 0.8)"
-                    className="!bg-slate-900 !border-slate-700 !rounded-lg"
-                />
-
-                {/* Left Toolbar - Miro Style */}
-                <Panel position="top-left" className="!left-2 !top-2">
-                    <div className="bg-slate-900/95 border border-slate-700 rounded-xl shadow-2xl p-2 flex flex-col gap-1">
-                        {shapes.map((s) => (
-                            <button
-                                key={s.id}
-                                onClick={() => handleAddNode(s.id)}
-                                className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors group"
-                                title={s.label}
-                            >
-                                <s.icon size={18} className={s.color} />
-                                <span className="text-xs text-slate-400 group-hover:text-slate-200">{s.label}</span>
-                            </button>
-                        ))}
-                        <hr className="border-slate-700 my-1" />
-                        <button
-                            onClick={handleDelete}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-red-900/50 transition-colors group"
-                            title="Excluir selecionados"
-                        >
-                            <Trash2 size={18} className="text-red-400" />
-                            <span className="text-xs text-slate-400 group-hover:text-red-300">Excluir</span>
-                        </button>
-                    </div>
-                </Panel>
-
-                {/* Top Right - Layout Dropdown */}
-                <Panel position="top-right" className="!right-2 !top-2">
-                    <div className="relative">
-                        <button
-                            onClick={() => setShowLayoutMenu(!showLayoutMenu)}
-                            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium rounded-lg shadow-lg transition-colors"
-                        >
-                            <Sparkles size={14} />
-                            Organizar
-                            <ChevronDown size={12} />
-                        </button>
-                        {showLayoutMenu && (
-                            <div className="absolute top-full right-0 mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-hidden z-50">
-                                <button
-                                    onClick={() => handleLayout('TB')}
-                                    className="flex items-center gap-2 w-full px-4 py-2 hover:bg-slate-700 text-xs text-slate-200"
-                                >
-                                    <ArrowDown size={14} />
-                                    Vertical
-                                </button>
-                                <button
-                                    onClick={() => handleLayout('LR')}
-                                    className="flex items-center gap-2 w-full px-4 py-2 hover:bg-slate-700 text-xs text-slate-200"
-                                >
-                                    <ArrowRight size={14} />
-                                    Horizontal
-                                </button>
+            {/* Canvas */}
+            <div ref={reactFlowWrapper} className="flex-1 relative">
+                {/* Status */}
+                {(isSyncing || syncError) && (
+                    <div className="absolute top-3 left-3 z-50">
+                        {isSyncing && (
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-950/80 border border-indigo-700/50 rounded-lg text-xs text-indigo-300">
+                                <div className="w-2 h-2 bg-indigo-400 rounded-full animate-pulse" />
+                                Sincronizando...
+                            </div>
+                        )}
+                        {syncError && !isSyncing && (
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-950/80 border border-amber-700/50 rounded-lg text-xs text-amber-300">
+                                ⚠️ {syncError}
                             </div>
                         )}
                     </div>
-                </Panel>
-            </ReactFlow>
+                )}
+
+                <ReactFlow
+                    nodes={nodesWithHandlers}
+                    edges={edges}
+                    onNodesChange={handleNodesChange}
+                    onEdgesChange={handleEdgesChange}
+                    onConnect={onConnect}
+                    onDragOver={onDragOver}
+                    onDrop={onDrop}
+                    nodeTypes={nodeTypes}
+                    defaultEdgeOptions={defaultEdgeOptions}
+                    fitView
+                    fitViewOptions={{ padding: 0.3 }}
+                    className="bg-slate-950"
+                    proOptions={{ hideAttribution: true }}
+                    deleteKeyCode={null}
+                    selectionOnDrag
+                    panOnDrag={[1, 2]}
+                >
+                    <Background variant={BackgroundVariant.Dots} color="#334155" gap={20} size={1} />
+                    <Controls className="!bg-slate-900 !border-slate-700 !rounded-lg !shadow-xl [&>button]:!bg-slate-800 [&>button]:!border-slate-600 [&>button]:!text-slate-300 [&>button:hover]:!bg-slate-700" />
+                    <MiniMap
+                        nodeColor={(n) => {
+                            if (n.type === 'stickyNote') {
+                                const c = n.data?.color as string || 'yellow';
+                                return { yellow: '#fde047', pink: '#f9a8d4', blue: '#93c5fd', green: '#86efac', orange: '#fdba74', purple: '#d8b4fe' }[c] || '#fde047';
+                            }
+                            const c = n.data?.color as string || 'indigo';
+                            return { slate: '#475569', indigo: '#6366f1', emerald: '#10b981', amber: '#f59e0b', rose: '#f43f5e', cyan: '#06b6d4' }[c] || '#6366f1';
+                        }}
+                        maskColor="rgba(0, 0, 0, 0.8)"
+                        className="!bg-slate-900 !border-slate-700 !rounded-lg"
+                    />
+
+                    {/* Layout Dropdown */}
+                    <Panel position="top-right" className="!right-2 !top-2">
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowLayoutMenu(!showLayoutMenu)}
+                                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium rounded-lg shadow-lg transition-colors"
+                            >
+                                <Sparkles size={14} />
+                                Organizar
+                                <ChevronDown size={12} />
+                            </button>
+                            {showLayoutMenu && (
+                                <div className="absolute top-full right-0 mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl overflow-hidden z-50">
+                                    <button
+                                        onClick={() => handleLayout('TB')}
+                                        className="flex items-center gap-2 w-full px-4 py-2 hover:bg-slate-700 text-xs text-slate-200"
+                                    >
+                                        <ArrowDown size={14} />
+                                        Vertical
+                                    </button>
+                                    <button
+                                        onClick={() => handleLayout('LR')}
+                                        className="flex items-center gap-2 w-full px-4 py-2 hover:bg-slate-700 text-xs text-slate-200"
+                                    >
+                                        <ArrowRight size={14} />
+                                        Horizontal
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </Panel>
+                </ReactFlow>
+            </div>
         </div>
     );
 }

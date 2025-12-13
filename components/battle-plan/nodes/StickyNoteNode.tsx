@@ -119,7 +119,7 @@ const StickyNoteNode = memo(({ id, data, selected }: StickyNoteNodeProps) => {
 
             {/* Sticky Note */}
             <div
-                className={`relative w-32 h-32 ${colors.bg} ${colors.shadow} shadow-lg rounded-sm cursor-pointer group ${selected ? 'ring-2 ring-indigo-500' : ''}`}
+                className={`relative z-50 w-32 h-32 ${colors.bg} ${colors.shadow} shadow-lg rounded-sm cursor-pointer group ${selected ? 'ring-2 ring-blue-500' : ''}`}
                 onDoubleClick={handleDoubleClick}
                 style={{ fontFamily: "'Comic Sans MS', cursive, sans-serif" }}
             >
@@ -128,58 +128,66 @@ const StickyNoteNode = memo(({ id, data, selected }: StickyNoteNodeProps) => {
                     style={{ clipPath: 'polygon(100% 0, 0 0, 100% 100%)' }}
                 />
 
-                {/* 4-WAY CONNECTION HANDLES - Both source AND target for bidirectional connections */}
+                {/* 4-WAY CONNECTION HANDLES - Positioned on edges with high z-index */}
                 {/* TOP */}
                 <Handle
                     type="target"
                     position={Position.Top}
                     id="top-target"
-                    className="!w-3 !h-3 !bg-blue-500/50 !border-0 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                    isConnectable={true}
+                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-top-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
                 />
                 <Handle
                     type="source"
                     position={Position.Top}
                     id="top"
-                    className="!w-3 !h-3 !bg-blue-500/50 !border-0 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                    isConnectable={true}
+                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-top-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
                 />
                 {/* RIGHT */}
                 <Handle
                     type="target"
                     position={Position.Right}
                     id="right-target"
-                    className="!w-3 !h-3 !bg-blue-500/50 !border-0 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                    isConnectable={true}
+                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-right-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
                 />
                 <Handle
                     type="source"
                     position={Position.Right}
                     id="right"
-                    className="!w-3 !h-3 !bg-blue-500/50 !border-0 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                    isConnectable={true}
+                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-right-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
                 />
                 {/* BOTTOM */}
                 <Handle
                     type="target"
                     position={Position.Bottom}
                     id="bottom-target"
-                    className="!w-3 !h-3 !bg-blue-500/50 !border-0 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                    isConnectable={true}
+                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-bottom-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
                 />
                 <Handle
                     type="source"
                     position={Position.Bottom}
                     id="bottom"
-                    className="!w-3 !h-3 !bg-blue-500/50 !border-0 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                    isConnectable={true}
+                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-bottom-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
                 />
                 {/* LEFT */}
                 <Handle
                     type="target"
                     position={Position.Left}
                     id="left-target"
-                    className="!w-3 !h-3 !bg-blue-500/50 !border-0 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                    isConnectable={true}
+                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-left-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
                 />
                 <Handle
                     type="source"
                     position={Position.Left}
                     id="left"
-                    className="!w-3 !h-3 !bg-blue-500/50 !border-0 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                    isConnectable={true}
+                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-left-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
                 />
 
                 {/* Content */}

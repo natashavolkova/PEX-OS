@@ -20,6 +20,7 @@ import {
     ReactFlowProvider,
     MarkerType,
     BackgroundVariant,
+    ConnectionMode,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import './strategic-map.css'; // CSS for animated edges
@@ -71,21 +72,23 @@ function configToEdgeProps(config: EdgeConfig) {
     if (config.strokeStyle === 'dashed') strokeDasharray = '8, 4';
     if (config.strokeStyle === 'dotted') strokeDasharray = '2, 2';
 
-    // Marker start
+    // Marker start - ONLY set if explicitly configured, otherwise UNDEFINED
     let markerStart: { type: MarkerType; color: string } | undefined = undefined;
     if (config.markerStart === 'arrow') {
         markerStart = { type: MarkerType.Arrow, color: '#64748b' };
     } else if (config.markerStart === 'circle') {
-        markerStart = { type: MarkerType.ArrowClosed, color: '#64748b' }; // Using ArrowClosed as circle proxy
+        markerStart = { type: MarkerType.ArrowClosed, color: '#64748b' };
     }
+    // 'none' = undefined (no marker at start)
 
-    // Marker end
+    // Marker end - Arrow at DESTINATION (end of line)
     let markerEnd: { type: MarkerType; color: string } | undefined = undefined;
     if (config.markerEnd === 'arrowClosed') {
         markerEnd = { type: MarkerType.ArrowClosed, color: '#64748b' };
     } else if (config.markerEnd === 'arrowOpen') {
         markerEnd = { type: MarkerType.Arrow, color: '#64748b' };
     }
+    // 'none' = undefined (no marker at end)
 
     return {
         type: config.type,
@@ -425,6 +428,7 @@ function StrategicMapInner({
                     onDragOver={onDragOver}
                     onDrop={onDrop}
                     nodeTypes={nodeTypes}
+                    connectionMode={ConnectionMode.Loose}
                     fitView
                     fitViewOptions={{ padding: 0.3 }}
                     className="bg-slate-950"

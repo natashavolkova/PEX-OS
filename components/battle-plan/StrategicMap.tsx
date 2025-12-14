@@ -36,6 +36,32 @@ const nodeTypes: NodeTypes = {
     shape: ShapeNode,
 };
 
+// SMART HANDLE CALCULATOR - Shared logic for optimal handle selection based on node positions
+export function getSmartHandleIds(sourceNode: Node, targetNode: Node): { source: string; target: string } {
+    // Calculate dimensions with failsafe
+    const sourceW = sourceNode.measured?.width ?? (sourceNode as unknown as { width?: number }).width ?? 150;
+    const sourceH = sourceNode.measured?.height ?? (sourceNode as unknown as { height?: number }).height ?? 128;
+    const targetW = targetNode.measured?.width ?? (targetNode as unknown as { width?: number }).width ?? 150;
+    const targetH = targetNode.measured?.height ?? (targetNode as unknown as { height?: number }).height ?? 128;
+
+    // Calculate centers
+    const sourceCenter = { x: sourceNode.position.x + sourceW / 2, y: sourceNode.position.y + sourceH / 2 };
+    const targetCenter = { x: targetNode.position.x + targetW / 2, y: targetNode.position.y + targetH / 2 };
+
+    // Direction vector
+    const dx = targetCenter.x - sourceCenter.x;
+    const dy = targetCenter.y - sourceCenter.y;
+
+    // Routing decision based on dominant direction
+    if (Math.abs(dy) > Math.abs(dx)) {
+        // Vertical: target below = b->t, target above = t->b
+        return dy > 0 ? { source: 'b', target: 't' } : { source: 't', target: 'b' };
+    } else {
+        // Horizontal: target right = r->l, target left = l->r
+        return dx > 0 ? { source: 'r', target: 'l' } : { source: 'l', target: 'r' };
+    }
+}
+
 // Dagre layout algorithm
 function getLayoutedElements(nodes: Node[], edges: Edge[], direction: 'TB' | 'LR') {
     const dagreGraph = new dagre.graphlib.Graph();
@@ -202,7 +228,7 @@ function StrategicMapInner({
         setEdgeConfig(prev => ({ ...prev, ...updates }));
     }, []);
 
-    // Apply config to selected edges - ONLY updates the specific properties passed
+    // Apply config to selected edges - Recalculates smart handles when type changes
     const handleApplyToSelected = useCallback((updates: Partial<EdgeConfig>) => {
         const selectedIds = new Set(selectedEdges.map(e => e.id));
         if (selectedIds.size === 0) return;
@@ -210,7 +236,10 @@ function StrategicMapInner({
         // Update local config display - merge with existing, not replace
         setEdgeConfig(prev => ({ ...prev, ...updates }));
 
-        // Apply ONLY the changed properties to selected edges
+        // Check if type is being changed - triggers smart re-routing
+        const isTypeChange = updates.type !== undefined;
+
+        // Apply properties to selected edges
         setEdges((eds) => {
             const updatedEdges = eds.map((edge) => {
                 if (!selectedIds.has(edge.id)) return edge;
@@ -219,8 +248,27 @@ function StrategicMapInner({
                 const currentConfig = { ...edgeConfig, ...updates };
                 const props = configToEdgeProps(currentConfig);
 
+                // If type is changing, recalculate optimal handles
+                let newSourceHandle = edge.sourceHandle;
+                let newTargetHandle = edge.targetHandle;
+
+                if (isTypeChange) {
+                    // Find the connected nodes
+                    const srcNode = nodes.find(n => n.id === edge.source);
+                    const tgtNode = nodes.find(n => n.id === edge.target);
+
+                    if (srcNode && tgtNode) {
+                        const smartHandles = getSmartHandleIds(srcNode, tgtNode);
+                        newSourceHandle = smartHandles.source;
+                        newTargetHandle = smartHandles.target;
+                        console.log(`[SmartReroute] Edge ${edge.id}: ${smartHandles.source} -> ${smartHandles.target}`);
+                    }
+                }
+
                 return {
                     ...edge,
+                    sourceHandle: newSourceHandle,
+                    targetHandle: newTargetHandle,
                     type: props.type,
                     style: props.style,
                     pathOptions: props.pathOptions,

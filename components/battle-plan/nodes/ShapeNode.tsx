@@ -163,30 +163,30 @@ function ShapeNode({ id, data, selected }: NodeProps) {
             >
                 {renderShape()}
 
-                {/* CLEAN HANDLES - Only 1 per side, type="source" with ConnectionMode.Loose */}
+                {/* CLEAN HANDLES - Positioned at edge (3px outside for tight fit) */}
                 <Handle
                     type="source"
                     position={Position.Top}
                     id="t"
-                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-top-1.5 !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-top-[3px] !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
                 />
                 <Handle
                     type="source"
                     position={Position.Right}
                     id="r"
-                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-right-1.5 !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-right-[3px] !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
                 />
                 <Handle
                     type="source"
                     position={Position.Bottom}
                     id="b"
-                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-bottom-1.5 !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-bottom-[3px] !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
                 />
                 <Handle
                     type="source"
                     position={Position.Left}
                     id="l"
-                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-left-1.5 !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-left-[3px] !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
                 />
 
                 {/* Label */}

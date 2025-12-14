@@ -371,19 +371,85 @@ function StrategicMapInner({
         }
     }, [onEdgesChange, nodes, emitChange, setEdges]);
 
-    // Connection handler - uses current edgeConfig
+    // SMART AUTO-CONNECT - Calculates optimal handles based on node positions
     const onConnect = useCallback((params: Connection) => {
+        // Get the nodes involved
+        const sourceNode = reactFlowInstance.getNode(params.source || '');
+        const targetNode = reactFlowInstance.getNode(params.target || '');
+
+        if (!sourceNode || !targetNode) {
+            // Fallback to simple connect if nodes not found
+            setEdges((eds) => {
+                const props = configToEdgeProps(edgeConfig);
+                const newEdges = addEdge({ ...params, ...props }, eds);
+                emitChange(nodes, newEdges);
+                return newEdges;
+            });
+            return;
+        }
+
+        // Calculate node centers
+        const sourceWidth = sourceNode.measured?.width || 128;
+        const sourceHeight = sourceNode.measured?.height || 128;
+        const targetWidth = targetNode.measured?.width || 128;
+        const targetHeight = targetNode.measured?.height || 128;
+
+        const sourceCenter = {
+            x: sourceNode.position.x + sourceWidth / 2,
+            y: sourceNode.position.y + sourceHeight / 2,
+        };
+        const targetCenter = {
+            x: targetNode.position.x + targetWidth / 2,
+            y: targetNode.position.y + targetHeight / 2,
+        };
+
+        // Determine dominant direction (Horizontal vs Vertical)
+        const dx = targetCenter.x - sourceCenter.x;
+        const dy = targetCenter.y - sourceCenter.y;
+
+        // Handle IDs: 't' (top), 'r' (right), 'b' (bottom), 'l' (left)
+        let newSourceHandle = params.sourceHandle;
+        let newTargetHandle = params.targetHandle;
+
+        // If vertical distance is greater than horizontal (Vertical Layout)
+        if (Math.abs(dy) > Math.abs(dx)) {
+            if (dy > 0) {
+                // Target is BELOW source -> Exit from Bottom, Enter from Top
+                newSourceHandle = 'b';
+                newTargetHandle = 't';
+            } else {
+                // Target is ABOVE source -> Exit from Top, Enter from Bottom
+                newSourceHandle = 't';
+                newTargetHandle = 'b';
+            }
+        } else {
+            // Horizontal Layout
+            if (dx > 0) {
+                // Target is to the RIGHT -> Exit from Right, Enter from Left
+                newSourceHandle = 'r';
+                newTargetHandle = 'l';
+            } else {
+                // Target is to the LEFT -> Exit from Left, Enter from Right
+                newSourceHandle = 'l';
+                newTargetHandle = 'r';
+            }
+        }
+
+        // Create connection with corrected handles and current edge config
+        const props = configToEdgeProps(edgeConfig);
+        const smartParams = {
+            ...params,
+            sourceHandle: newSourceHandle,
+            targetHandle: newTargetHandle,
+            ...props,
+        };
+
         setEdges((eds) => {
-            const props = configToEdgeProps(edgeConfig);
-            const newEdge = {
-                ...params,
-                ...props,
-            };
-            const newEdges = addEdge(newEdge, eds);
+            const newEdges = addEdge(smartParams, eds);
             emitChange(nodes, newEdges);
             return newEdges;
         });
-    }, [setEdges, nodes, emitChange, edgeConfig]);
+    }, [reactFlowInstance, setEdges, nodes, emitChange, edgeConfig]);
 
     // Keyboard delete handler
     useEffect(() => {

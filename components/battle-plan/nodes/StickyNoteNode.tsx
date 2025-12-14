@@ -1,23 +1,19 @@
 'use client';
 
-import { memo, useState, useEffect, useRef } from 'react';
-import { Handle, Position, NodeToolbar } from '@xyflow/react';
-import { Trash2, Palette } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { Handle, Position, NodeToolbar, type NodeProps } from '@xyflow/react';
+import { Trash2 } from 'lucide-react';
 
-interface StickyNoteNodeData {
-    label: string;
-    color?: string;
-    onLabelChange?: (id: string, label: string) => void;
-    onColorChange?: (id: string, color: string) => void;
-    onDelete?: (id: string) => void;
+// Types
+interface StickyNoteData {
+    label?: string;
+    color?: 'yellow' | 'pink' | 'blue' | 'green' | 'orange' | 'purple';
+    onLabelChange?: (nodeId: string, label: string) => void;
+    onColorChange?: (nodeId: string, color: string) => void;
+    onDelete?: (nodeId: string) => void;
 }
 
-interface StickyNoteNodeProps {
-    id: string;
-    data: StickyNoteNodeData;
-    selected?: boolean;
-}
-
+// Color palette - pastel Miro style
 const colorMap: Record<string, { bg: string; text: string; shadow: string }> = {
     yellow: { bg: 'bg-yellow-200', text: 'text-yellow-900', shadow: 'shadow-yellow-300/50' },
     pink: { bg: 'bg-pink-200', text: 'text-pink-900', shadow: 'shadow-pink-300/50' },
@@ -29,14 +25,17 @@ const colorMap: Record<string, { bg: string; text: string; shadow: string }> = {
 
 const colorOptions = ['yellow', 'pink', 'blue', 'green', 'orange', 'purple'];
 
-const StickyNoteNode = memo(({ id, data, selected }: StickyNoteNodeProps) => {
+function StickyNoteNode({ id, data, selected }: NodeProps) {
+    const noteData = data as StickyNoteData;
     const [isEditing, setIsEditing] = useState(false);
-    const [editValue, setEditValue] = useState(data.label || '');
-    const [showColorPicker, setShowColorPicker] = useState(false);
+    const [editValue, setEditValue] = useState(noteData.label || '');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-    const color = data.color || 'yellow';
+    const color = noteData.color || 'yellow';
     const colors = colorMap[color] || colorMap.yellow;
+
+    useEffect(() => {
+        setEditValue(noteData.label || '');
+    }, [noteData.label]);
 
     useEffect(() => {
         if (isEditing && textareaRef.current) {
@@ -45,79 +44,68 @@ const StickyNoteNode = memo(({ id, data, selected }: StickyNoteNodeProps) => {
         }
     }, [isEditing]);
 
-    useEffect(() => {
-        setEditValue(data.label || '');
-    }, [data.label]);
-
-    const handleDoubleClick = (e: React.MouseEvent) => {
+    const handleDoubleClick = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
-        setEditValue(data.label || '');
         setIsEditing(true);
-    };
+    }, []);
 
-    const handleSave = () => {
+    const handleSave = useCallback(() => {
         setIsEditing(false);
-        const trimmed = editValue.trim();
-        if (trimmed && trimmed !== data.label && data.onLabelChange) {
-            data.onLabelChange(id, trimmed);
+        if (noteData.onLabelChange && editValue !== noteData.label) {
+            noteData.onLabelChange(id, editValue);
         }
-    };
+    }, [id, editValue, noteData]);
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Escape') {
-            setIsEditing(false);
-            setEditValue(data.label || '');
-        }
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSave();
         }
-        e.stopPropagation();
-    };
-
-    const handleColorSelect = (newColor: string) => {
-        setShowColorPicker(false);
-        if (data.onColorChange) {
-            data.onColorChange(id, newColor);
+        if (e.key === 'Escape') {
+            setIsEditing(false);
+            setEditValue(noteData.label || '');
         }
-    };
+    }, [handleSave, noteData.label]);
+
+    const handleColorSelect = useCallback((c: string) => {
+        if (noteData.onColorChange) {
+            noteData.onColorChange(id, c);
+        }
+    }, [id, noteData]);
+
+    const handleDelete = useCallback(() => {
+        if (noteData.onDelete) {
+            noteData.onDelete(id);
+        }
+    }, [id, noteData]);
 
     return (
         <>
-            {/* Floating Toolbar */}
-            <NodeToolbar isVisible={selected} position={Position.Top} className="flex gap-1">
-                <button
-                    onClick={() => setShowColorPicker(!showColorPicker)}
-                    className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-300"
-                    title="Mudar cor"
-                >
-                    <Palette size={14} />
-                </button>
-                <button
-                    onClick={() => data.onDelete?.(id)}
-                    className="p-1.5 bg-red-900/80 hover:bg-red-800 rounded text-red-300"
-                    title="Excluir"
-                >
-                    <Trash2 size={14} />
-                </button>
-            </NodeToolbar>
-
-            {/* Color Picker */}
-            {showColorPicker && selected && (
-                <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-600 rounded-lg p-2 shadow-xl z-50">
-                    <div className="grid grid-cols-3 gap-1">
+            {/* Toolbar */}
+            {selected && (
+                <NodeToolbar isVisible position={Position.Top} offset={8}>
+                    <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-1 shadow-xl border border-slate-600">
+                        <button
+                            onClick={handleDelete}
+                            className="p-1.5 rounded hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors"
+                            title="Excluir"
+                        >
+                            <Trash2 size={14} />
+                        </button>
+                        <div className="w-px h-4 bg-slate-600 mx-1" />
                         {colorOptions.map((c) => (
                             <button
                                 key={c}
                                 onClick={() => handleColorSelect(c)}
-                                className={`w-6 h-6 rounded ${colorMap[c].bg} hover:scale-110 transition-transform ${color === c ? 'ring-2 ring-slate-500' : ''}`}
+                                className={`w-5 h-5 rounded-full hover:scale-110 transition-transform ${color === c ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-800' : ''}`}
+                                style={{ backgroundColor: { yellow: '#fde047', pink: '#f9a8d4', blue: '#93c5fd', green: '#86efac', orange: '#fdba74', purple: '#d8b4fe' }[c] }}
                             />
                         ))}
                     </div>
-                </div>
+                </NodeToolbar>
             )}
 
-            {/* Sticky Note */}
+            {/* Sticky Note - z-50 relative for layering above edges */}
             <div
                 className={`relative z-50 w-32 h-32 ${colors.bg} ${colors.shadow} shadow-lg rounded-sm cursor-pointer group ${selected ? 'ring-2 ring-blue-500' : ''}`}
                 onDoubleClick={handleDoubleClick}
@@ -128,66 +116,30 @@ const StickyNoteNode = memo(({ id, data, selected }: StickyNoteNodeProps) => {
                     style={{ clipPath: 'polygon(100% 0, 0 0, 100% 100%)' }}
                 />
 
-                {/* 4-WAY CONNECTION HANDLES - Positioned on edges with high z-index */}
-                {/* TOP */}
-                <Handle
-                    type="target"
-                    position={Position.Top}
-                    id="top-target"
-                    isConnectable={true}
-                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-top-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
-                />
+                {/* CLEAN HANDLES - Only 1 per side, type="source" with ConnectionMode.Loose */}
                 <Handle
                     type="source"
                     position={Position.Top}
-                    id="top"
-                    isConnectable={true}
-                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-top-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
-                />
-                {/* RIGHT */}
-                <Handle
-                    type="target"
-                    position={Position.Right}
-                    id="right-target"
-                    isConnectable={true}
-                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-right-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                    id="t"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-top-1.5 !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
                 />
                 <Handle
                     type="source"
                     position={Position.Right}
-                    id="right"
-                    isConnectable={true}
-                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-right-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
-                />
-                {/* BOTTOM */}
-                <Handle
-                    type="target"
-                    position={Position.Bottom}
-                    id="bottom-target"
-                    isConnectable={true}
-                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-bottom-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                    id="r"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-right-1.5 !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
                 />
                 <Handle
                     type="source"
                     position={Position.Bottom}
-                    id="bottom"
-                    isConnectable={true}
-                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-bottom-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
-                />
-                {/* LEFT */}
-                <Handle
-                    type="target"
-                    position={Position.Left}
-                    id="left-target"
-                    isConnectable={true}
-                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-left-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                    id="b"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-bottom-1.5 !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
                 />
                 <Handle
                     type="source"
                     position={Position.Left}
-                    id="left"
-                    isConnectable={true}
-                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-left-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                    id="l"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-left-1.5 !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
                 />
 
                 {/* Content */}
@@ -205,16 +157,13 @@ const StickyNoteNode = memo(({ id, data, selected }: StickyNoteNodeProps) => {
                         />
                     ) : (
                         <span className={`text-sm ${colors.text} text-center break-words line-clamp-5`}>
-                            {data.label || 'Clique duas vezes'}
+                            {noteData.label || 'Clique duas vezes'}
                         </span>
                     )}
                 </div>
             </div>
         </>
     );
-});
+}
 
-StickyNoteNode.displayName = 'StickyNoteNode';
-
-export default StickyNoteNode;
-export type { StickyNoteNodeData };
+export default memo(StickyNoteNode);

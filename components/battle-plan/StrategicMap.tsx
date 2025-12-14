@@ -79,7 +79,6 @@ function configToEdgeProps(config: EdgeConfig) {
     } else if (config.markerStart === 'circle') {
         markerStart = { type: MarkerType.ArrowClosed, color: '#64748b' };
     }
-    // 'none' = undefined (no marker at start)
 
     // Marker end - Arrow at DESTINATION (end of line)
     let markerEnd: { type: MarkerType; color: string } | undefined = undefined;
@@ -88,15 +87,20 @@ function configToEdgeProps(config: EdgeConfig) {
     } else if (config.markerEnd === 'arrowOpen') {
         markerEnd = { type: MarkerType.Arrow, color: '#64748b' };
     }
-    // 'none' = undefined (no marker at end)
+
+    // Use smoothstep for all types to get smart routing
+    // 'default' becomes smoothstep with more borderRadius for Bezier-like feel
+    const edgeType = config.type === 'straight' ? 'straight' : 'smoothstep';
+    const borderRadius = config.type === 'default' ? 30 : (config.type === 'smoothstep' ? 10 : 0);
 
     return {
-        type: config.type,
+        type: edgeType,
         style: {
             stroke: '#64748b',
             strokeWidth: 2,
             strokeDasharray,
         },
+        pathOptions: { borderRadius },
         markerStart,
         markerEnd,
         animated: config.animated,
@@ -113,8 +117,8 @@ const initialNodes: Node[] = [
 ];
 
 const initialEdges: Edge[] = [
-    { id: 'e1-2', source: '1', target: '2', type: 'default', style: { stroke: '#64748b', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' } },
-    { id: 'e2-3', source: '2', target: '3', type: 'default', style: { stroke: '#64748b', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' } },
+    { id: 'e1-2', source: '1', target: '2', type: 'smoothstep', style: { stroke: '#64748b', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' } },
+    { id: 'e2-3', source: '2', target: '3', type: 'smoothstep', style: { stroke: '#64748b', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' } },
 ];
 
 interface StrategicMapProps {
@@ -125,9 +129,9 @@ interface StrategicMapProps {
     onGraphChange?: (nodes: Node[], edges: Edge[]) => void;
 }
 
-// Default edge configuration
+// Default edge configuration - smoothstep with borderRadius for smart routing
 const defaultEdgeConfig: EdgeConfig = {
-    type: 'default',
+    type: 'smoothstep',
     strokeStyle: 'solid',
     markerStart: 'none',
     markerEnd: 'arrowClosed',

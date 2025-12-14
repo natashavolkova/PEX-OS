@@ -1,44 +1,50 @@
 'use client';
 
-import { memo, useState, useEffect, useRef } from 'react';
-import { Handle, Position, NodeToolbar } from '@xyflow/react';
-import { Trash2, Palette } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
+import { Handle, Position, NodeToolbar, type NodeProps } from '@xyflow/react';
+import { Trash2 } from 'lucide-react';
 
-interface ShapeNodeData {
-    label: string;
+// Types
+interface ShapeData {
+    label?: string;
     shape?: 'rectangle' | 'circle' | 'diamond' | 'triangle' | 'hexagon' | 'cloud';
-    color?: string;
-    onLabelChange?: (id: string, label: string) => void;
-    onColorChange?: (id: string, color: string) => void;
-    onDelete?: (id: string) => void;
+    color?: 'slate' | 'indigo' | 'emerald' | 'amber' | 'rose' | 'cyan';
+    onLabelChange?: (nodeId: string, label: string) => void;
+    onColorChange?: (nodeId: string, color: string) => void;
+    onDelete?: (nodeId: string) => void;
 }
 
-interface ShapeNodeProps {
-    id: string;
-    data: ShapeNodeData;
-    selected?: boolean;
-}
-
+// Color palette
 const colorMap: Record<string, { fill: string; stroke: string; text: string }> = {
-    slate: { fill: '#1e293b', stroke: '#475569', text: 'text-slate-200' },
-    indigo: { fill: '#312e81', stroke: '#6366f1', text: 'text-indigo-200' },
-    emerald: { fill: '#064e3b', stroke: '#10b981', text: 'text-emerald-200' },
-    amber: { fill: '#78350f', stroke: '#f59e0b', text: 'text-amber-200' },
-    rose: { fill: '#881337', stroke: '#f43f5e', text: 'text-rose-200' },
-    cyan: { fill: '#164e63', stroke: '#06b6d4', text: 'text-cyan-200' },
+    slate: { fill: '#334155', stroke: '#475569', text: 'text-slate-100' },
+    indigo: { fill: '#4338ca', stroke: '#6366f1', text: 'text-white' },
+    emerald: { fill: '#059669', stroke: '#10b981', text: 'text-white' },
+    amber: { fill: '#d97706', stroke: '#f59e0b', text: 'text-white' },
+    rose: { fill: '#e11d48', stroke: '#f43f5e', text: 'text-white' },
+    cyan: { fill: '#0891b2', stroke: '#06b6d4', text: 'text-white' },
 };
 
-const colorOptions = Object.keys(colorMap);
+const colorOptions = ['slate', 'indigo', 'emerald', 'amber', 'rose', 'cyan'];
 
-const ShapeNode = memo(({ id, data, selected }: ShapeNodeProps) => {
+function ShapeNode({ id, data, selected }: NodeProps) {
+    const shapeData = data as ShapeData;
     const [isEditing, setIsEditing] = useState(false);
-    const [editValue, setEditValue] = useState(data.label || '');
-    const [showColorPicker, setShowColorPicker] = useState(false);
+    const [editValue, setEditValue] = useState(shapeData.label || '');
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const shape = data.shape || 'rectangle';
-    const color = data.color || 'indigo';
+    const shape = shapeData.shape || 'rectangle';
+    const color = shapeData.color || 'indigo';
     const colors = colorMap[color] || colorMap.indigo;
+
+    // Shape dimensions
+    const size = 80;
+    const width = shape === 'cloud' ? 120 : size;
+    const height = shape === 'cloud' ? 80 : size;
+    const strokeWidth = 2;
+
+    useEffect(() => {
+        setEditValue(shapeData.label || '');
+    }, [shapeData.label]);
 
     useEffect(() => {
         if (isEditing && inputRef.current) {
@@ -47,45 +53,42 @@ const ShapeNode = memo(({ id, data, selected }: ShapeNodeProps) => {
         }
     }, [isEditing]);
 
-    useEffect(() => {
-        setEditValue(data.label || '');
-    }, [data.label]);
-
-    const handleDoubleClick = (e: React.MouseEvent) => {
+    const handleDoubleClick = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
-        setEditValue(data.label || '');
         setIsEditing(true);
-    };
+    }, []);
 
-    const handleSave = () => {
+    const handleSave = useCallback(() => {
         setIsEditing(false);
-        const trimmed = editValue.trim();
-        if (trimmed && trimmed !== data.label && data.onLabelChange) {
-            data.onLabelChange(id, trimmed);
+        if (shapeData.onLabelChange && editValue !== shapeData.label) {
+            shapeData.onLabelChange(id, editValue);
         }
-    };
+    }, [id, editValue, shapeData]);
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        e.stopPropagation();
-        if (e.key === 'Enter') handleSave();
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSave();
+        }
         if (e.key === 'Escape') {
             setIsEditing(false);
-            setEditValue(data.label || '');
+            setEditValue(shapeData.label || '');
         }
-    };
+    }, [handleSave, shapeData.label]);
 
-    const handleColorSelect = (newColor: string) => {
-        setShowColorPicker(false);
-        if (data.onColorChange) {
-            data.onColorChange(id, newColor);
+    const handleColorSelect = useCallback((c: string) => {
+        if (shapeData.onColorChange) {
+            shapeData.onColorChange(id, c);
         }
-    };
+    }, [id, shapeData]);
 
-    // SVG Shapes
+    const handleDelete = useCallback(() => {
+        if (shapeData.onDelete) {
+            shapeData.onDelete(id);
+        }
+    }, [id, shapeData]);
+
     const renderShape = () => {
-        const size = 100;
-        const strokeWidth = 2;
-
         switch (shape) {
             case 'circle':
                 return (
@@ -102,7 +105,7 @@ const ShapeNode = memo(({ id, data, selected }: ShapeNodeProps) => {
             case 'triangle':
                 return (
                     <svg width={size} height={size} viewBox="0 0 100 100" className="absolute inset-0">
-                        <polygon points="50,5 95,90 5,90" fill={colors.fill} stroke={colors.stroke} strokeWidth={strokeWidth} />
+                        <polygon points="50,10 90,85 10,85" fill={colors.fill} stroke={colors.stroke} strokeWidth={strokeWidth} />
                     </svg>
                 );
             case 'hexagon':
@@ -119,41 +122,27 @@ const ShapeNode = memo(({ id, data, selected }: ShapeNodeProps) => {
                 );
             default: // rectangle
                 return (
-                    <svg width="120" height="60" viewBox="0 0 120 60" className="absolute inset-0">
-                        <rect x="2" y="2" width="116" height="56" rx="8" fill={colors.fill} stroke={colors.stroke} strokeWidth={strokeWidth} />
+                    <svg width={size} height={size} viewBox="0 0 100 100" className="absolute inset-0">
+                        <rect x="5" y="15" width="90" height="70" rx="8" fill={colors.fill} stroke={colors.stroke} strokeWidth={strokeWidth} />
                     </svg>
                 );
         }
     };
 
-    const isSquare = shape !== 'rectangle';
-    const width = isSquare ? 100 : 120;
-    const height = isSquare ? 100 : 60;
-
     return (
         <>
-            {/* Floating Toolbar */}
-            <NodeToolbar isVisible={selected} position={Position.Top} className="flex gap-1">
-                <button
-                    onClick={() => setShowColorPicker(!showColorPicker)}
-                    className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-300"
-                    title="Mudar cor"
-                >
-                    <Palette size={14} />
-                </button>
-                <button
-                    onClick={() => data.onDelete?.(id)}
-                    className="p-1.5 bg-red-900/80 hover:bg-red-800 rounded text-red-300"
-                    title="Excluir"
-                >
-                    <Trash2 size={14} />
-                </button>
-            </NodeToolbar>
-
-            {/* Color Picker */}
-            {showColorPicker && selected && (
-                <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-600 rounded-lg p-2 shadow-xl z-50">
-                    <div className="grid grid-cols-3 gap-1">
+            {/* Toolbar */}
+            {selected && (
+                <NodeToolbar isVisible position={Position.Top} offset={8}>
+                    <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-1 shadow-xl border border-slate-600">
+                        <button
+                            onClick={handleDelete}
+                            className="p-1.5 rounded hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors"
+                            title="Excluir"
+                        >
+                            <Trash2 size={14} />
+                        </button>
+                        <div className="w-px h-4 bg-slate-600 mx-1" />
                         {colorOptions.map((c) => (
                             <button
                                 key={c}
@@ -163,10 +152,10 @@ const ShapeNode = memo(({ id, data, selected }: ShapeNodeProps) => {
                             />
                         ))}
                     </div>
-                </div>
+                </NodeToolbar>
             )}
 
-            {/* Shape */}
+            {/* Shape - z-50 relative for layering above edges */}
             <div
                 className={`relative z-50 group cursor-pointer ${selected ? 'ring-2 ring-blue-500 rounded' : ''}`}
                 style={{ width, height }}
@@ -174,66 +163,30 @@ const ShapeNode = memo(({ id, data, selected }: ShapeNodeProps) => {
             >
                 {renderShape()}
 
-                {/* 4-WAY CONNECTION HANDLES - Positioned on edges with high z-index */}
-                {/* TOP */}
-                <Handle
-                    type="target"
-                    position={Position.Top}
-                    id="top-target"
-                    isConnectable={true}
-                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-top-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
-                />
+                {/* CLEAN HANDLES - Only 1 per side, type="source" with ConnectionMode.Loose */}
                 <Handle
                     type="source"
                     position={Position.Top}
-                    id="top"
-                    isConnectable={true}
-                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-top-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
-                />
-                {/* RIGHT */}
-                <Handle
-                    type="target"
-                    position={Position.Right}
-                    id="right-target"
-                    isConnectable={true}
-                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-right-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                    id="t"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-top-1.5 !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
                 />
                 <Handle
                     type="source"
                     position={Position.Right}
-                    id="right"
-                    isConnectable={true}
-                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-right-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
-                />
-                {/* BOTTOM */}
-                <Handle
-                    type="target"
-                    position={Position.Bottom}
-                    id="bottom-target"
-                    isConnectable={true}
-                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-bottom-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                    id="r"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-right-1.5 !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
                 />
                 <Handle
                     type="source"
                     position={Position.Bottom}
-                    id="bottom"
-                    isConnectable={true}
-                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-bottom-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
-                />
-                {/* LEFT */}
-                <Handle
-                    type="target"
-                    position={Position.Left}
-                    id="left-target"
-                    isConnectable={true}
-                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-left-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                    id="b"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-bottom-1.5 !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
                 />
                 <Handle
                     type="source"
                     position={Position.Left}
-                    id="left"
-                    isConnectable={true}
-                    className="!w-4 !h-4 !bg-blue-500 !border-2 !border-slate-900 !z-[100] !-left-2 !opacity-0 group-hover:!opacity-100 transition-opacity"
+                    id="l"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-left-1.5 !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
                 />
 
                 {/* Label */}
@@ -250,16 +203,13 @@ const ShapeNode = memo(({ id, data, selected }: ShapeNodeProps) => {
                         />
                     ) : (
                         <span className={`text-xs font-medium ${colors.text} text-center truncate`}>
-                            {data.label || 'Label'}
+                            {shapeData.label || 'Label'}
                         </span>
                     )}
                 </div>
             </div>
         </>
     );
-});
+}
 
-ShapeNode.displayName = 'ShapeNode';
-
-export default ShapeNode;
-export type { ShapeNodeData };
+export default memo(ShapeNode);

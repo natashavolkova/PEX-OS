@@ -371,85 +371,101 @@ function StrategicMapInner({
         }
     }, [onEdgesChange, nodes, emitChange, setEdges]);
 
-    // SMART AUTO-CONNECT - Calculates optimal handles based on node positions
-    const onConnect = useCallback((params: Connection) => {
-        // Get the nodes involved
-        const sourceNode = reactFlowInstance.getNode(params.source || '');
-        const targetNode = reactFlowInstance.getNode(params.target || '');
+    // SMART AUTO-CONNECT V2 - With failsafe dimension reading and console logging
+    const onConnect = useCallback(
+        (params: Connection) => {
+            // 1. Get complete nodes to access positions
+            const sourceNode = reactFlowInstance.getNode(params.source || '');
+            const targetNode = reactFlowInstance.getNode(params.target || '');
 
-        if (!sourceNode || !targetNode) {
-            // Fallback to simple connect if nodes not found
+            if (!sourceNode || !targetNode) {
+                // Fallback if something goes wrong - connect normally
+                console.log('[SmartConnect] FALLBACK: Source or target node not found');
+                setEdges((eds) => {
+                    const props = configToEdgeProps(edgeConfig);
+                    const newEdges = addEdge({ ...params, ...props }, eds);
+                    emitChange(nodes, newEdges);
+                    return newEdges;
+                });
+                return;
+            }
+
+            // 2. Calculate Centers with FAILSAFE for width/height (assumes 150x128 if null)
+            // React Flow v11+ uses 'width', v12+ may use 'measured'
+            const sourceW = sourceNode.measured?.width ?? (sourceNode as unknown as { width?: number }).width ?? 150;
+            const sourceH = sourceNode.measured?.height ?? (sourceNode as unknown as { height?: number }).height ?? 128;
+            const targetW = targetNode.measured?.width ?? (targetNode as unknown as { width?: number }).width ?? 150;
+            const targetH = targetNode.measured?.height ?? (targetNode as unknown as { height?: number }).height ?? 128;
+
+            const sourceCenter = {
+                x: sourceNode.position.x + sourceW / 2,
+                y: sourceNode.position.y + sourceH / 2,
+            };
+            const targetCenter = {
+                x: targetNode.position.x + targetW / 2,
+                y: targetNode.position.y + targetH / 2,
+            };
+
+            // 3. Direction Vector
+            const dx = targetCenter.x - sourceCenter.x;
+            const dy = targetCenter.y - sourceCenter.y;
+
+            // 4. Routing Decision
+            let smartSourceHandle = params.sourceHandle;
+            let smartTargetHandle = params.targetHandle;
+
+            // Audit log (View in F12)
+            console.log(`[SmartConnect] Source: ${params.source} (${sourceW}x${sourceH}) @ ${sourceNode.position.x},${sourceNode.position.y}`);
+            console.log(`[SmartConnect] Target: ${params.target} (${targetW}x${targetH}) @ ${targetNode.position.x},${targetNode.position.y}`);
+            console.log(`[SmartConnect] DX: ${dx.toFixed(0)}, DY: ${dy.toFixed(0)}`);
+
+            if (Math.abs(dy) > Math.abs(dx)) {
+                // VERTICAL
+                if (dy > 0) {
+                    // Target is BELOW -> Exit from Bottom (b), Enter from Top (t)
+                    smartSourceHandle = 'b';
+                    smartTargetHandle = 't';
+                    console.log('[SmartConnect] -> Route Vertical: BOTTOM -> TOP');
+                } else {
+                    // Target is ABOVE -> Exit from Top (t), Enter from Bottom (b)
+                    smartSourceHandle = 't';
+                    smartTargetHandle = 'b';
+                    console.log('[SmartConnect] -> Route Vertical: TOP -> BOTTOM');
+                }
+            } else {
+                // HORIZONTAL
+                if (dx > 0) {
+                    // Target is to the RIGHT -> Exit from Right (r), Enter from Left (l)
+                    smartSourceHandle = 'r';
+                    smartTargetHandle = 'l';
+                    console.log('[SmartConnect] -> Route Horizontal: RIGHT -> LEFT');
+                } else {
+                    // Target is to the LEFT -> Exit from Left (l), Enter from Right (r)
+                    smartSourceHandle = 'l';
+                    smartTargetHandle = 'r';
+                    console.log('[SmartConnect] -> Route Horizontal: LEFT -> RIGHT');
+                }
+            }
+
+            // 5. Create Edge with Forced Handles and current config from Sidebar
+            const props = configToEdgeProps(edgeConfig);
+            const smartEdge = {
+                ...params,
+                sourceHandle: smartSourceHandle,
+                targetHandle: smartTargetHandle,
+                ...props,
+            };
+
+            console.log(`[SmartConnect] Final: ${smartSourceHandle} -> ${smartTargetHandle}, type: ${props.type}`);
+
             setEdges((eds) => {
-                const props = configToEdgeProps(edgeConfig);
-                const newEdges = addEdge({ ...params, ...props }, eds);
+                const newEdges = addEdge(smartEdge, eds);
                 emitChange(nodes, newEdges);
                 return newEdges;
             });
-            return;
-        }
-
-        // Calculate node centers
-        const sourceWidth = sourceNode.measured?.width || 128;
-        const sourceHeight = sourceNode.measured?.height || 128;
-        const targetWidth = targetNode.measured?.width || 128;
-        const targetHeight = targetNode.measured?.height || 128;
-
-        const sourceCenter = {
-            x: sourceNode.position.x + sourceWidth / 2,
-            y: sourceNode.position.y + sourceHeight / 2,
-        };
-        const targetCenter = {
-            x: targetNode.position.x + targetWidth / 2,
-            y: targetNode.position.y + targetHeight / 2,
-        };
-
-        // Determine dominant direction (Horizontal vs Vertical)
-        const dx = targetCenter.x - sourceCenter.x;
-        const dy = targetCenter.y - sourceCenter.y;
-
-        // Handle IDs: 't' (top), 'r' (right), 'b' (bottom), 'l' (left)
-        let newSourceHandle = params.sourceHandle;
-        let newTargetHandle = params.targetHandle;
-
-        // If vertical distance is greater than horizontal (Vertical Layout)
-        if (Math.abs(dy) > Math.abs(dx)) {
-            if (dy > 0) {
-                // Target is BELOW source -> Exit from Bottom, Enter from Top
-                newSourceHandle = 'b';
-                newTargetHandle = 't';
-            } else {
-                // Target is ABOVE source -> Exit from Top, Enter from Bottom
-                newSourceHandle = 't';
-                newTargetHandle = 'b';
-            }
-        } else {
-            // Horizontal Layout
-            if (dx > 0) {
-                // Target is to the RIGHT -> Exit from Right, Enter from Left
-                newSourceHandle = 'r';
-                newTargetHandle = 'l';
-            } else {
-                // Target is to the LEFT -> Exit from Left, Enter from Right
-                newSourceHandle = 'l';
-                newTargetHandle = 'r';
-            }
-        }
-
-        // Create connection with corrected handles and current edge config
-        const props = configToEdgeProps(edgeConfig);
-        const smartParams = {
-            ...params,
-            sourceHandle: newSourceHandle,
-            targetHandle: newTargetHandle,
-            ...props,
-        };
-
-        setEdges((eds) => {
-            const newEdges = addEdge(smartParams, eds);
-            emitChange(nodes, newEdges);
-            return newEdges;
-        });
-    }, [reactFlowInstance, setEdges, nodes, emitChange, edgeConfig]);
+        },
+        [reactFlowInstance, setEdges, nodes, emitChange, edgeConfig]
+    );
 
     // Keyboard delete handler
     useEffect(() => {

@@ -41,6 +41,9 @@ interface LibrarySidebarProps {
     // Selected edges from canvas
     selectedEdges: Edge[];
     onApplyToSelected: (config: Partial<EdgeConfig>) => void;
+    // Mass selection
+    onSelectAllEdges: () => void;
+    totalEdgesCount: number;
 }
 
 export default function LibrarySidebar({
@@ -49,6 +52,8 @@ export default function LibrarySidebar({
     onEdgeConfigChange,
     selectedEdges,
     onApplyToSelected,
+    onSelectAllEdges,
+    totalEdgesCount,
 }: LibrarySidebarProps) {
     const [activePanel, setActivePanel] = useState<PanelType>(null);
 
@@ -68,6 +73,7 @@ export default function LibrarySidebar({
     };
 
     // Smart apply: if edges selected, apply to them; otherwise update defaults
+    // IMPORTANT: Only updates the specific property, NOT others (type change doesn't affect markers)
     const applyConfig = (updates: Partial<EdgeConfig>) => {
         if (hasSelectedEdges) {
             onApplyToSelected(updates);
@@ -84,8 +90,8 @@ export default function LibrarySidebar({
                 <button
                     onClick={() => handleIconClick('shapes')}
                     className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${activePanel === 'shapes'
-                            ? 'bg-purple-600 text-white'
-                            : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                        ? 'bg-purple-600 text-white'
+                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                         }`}
                     title="Formas"
                 >
@@ -96,8 +102,8 @@ export default function LibrarySidebar({
                 <button
                     onClick={() => handleIconClick('sticky')}
                     className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${activePanel === 'sticky'
-                            ? 'bg-yellow-500 text-slate-900'
-                            : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                        ? 'bg-yellow-500 text-slate-900'
+                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                         }`}
                     title="Notas Adesivas"
                 >
@@ -108,8 +114,8 @@ export default function LibrarySidebar({
                 <button
                     onClick={() => handleIconClick('connectors')}
                     className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${activePanel === 'connectors'
-                            ? 'bg-blue-500 text-white'
-                            : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                        ? 'bg-blue-500 text-white'
+                        : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                         }`}
                     title="Conectores"
                 >
@@ -187,17 +193,27 @@ export default function LibrarySidebar({
                         {/* CONNECTORS PANEL - MASTER CONTROL */}
                         {activePanel === 'connectors' && (
                             <div className="space-y-6">
-                                {/* Selection indicator */}
-                                {hasSelectedEdges && (
-                                    <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-3 text-center">
-                                        <span className="text-xs text-blue-300 font-medium">
-                                            🎯 {selectedEdges.length} linha(s) selecionada(s)
+                                {/* Mass Selection Controls */}
+                                <div className="bg-slate-800/50 rounded-lg p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs text-slate-400">Seleção em Massa</span>
+                                        <span className="text-[10px] text-slate-500">
+                                            {selectedEdges.length}/{totalEdgesCount} linhas
                                         </span>
-                                        <p className="text-[10px] text-blue-400 mt-1">
-                                            Alterações serão aplicadas às linhas selecionadas
-                                        </p>
                                     </div>
-                                )}
+                                    <button
+                                        onClick={onSelectAllEdges}
+                                        disabled={totalEdgesCount === 0}
+                                        className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:text-slate-500 text-white text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        📋 Selecionar Todas as Linhas
+                                    </button>
+                                    {hasSelectedEdges && (
+                                        <p className="text-[10px] text-blue-400 mt-2 text-center">
+                                            🎯 {selectedEdges.length} selecionada(s) — alterações aplicam a todas
+                                        </p>
+                                    )}
+                                </div>
 
                                 {/* SECTION A: Geometry (Path Type) */}
                                 <div>
@@ -208,8 +224,8 @@ export default function LibrarySidebar({
                                         <button
                                             onClick={() => applyConfig({ type: 'default' })}
                                             className={`p-3 rounded-lg transition-all flex flex-col items-center gap-2 ${edgeConfig.type === 'default'
-                                                    ? 'bg-blue-600 text-white ring-2 ring-blue-400'
-                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                ? 'bg-blue-600 text-white ring-2 ring-blue-400'
+                                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                                                 }`}
                                         >
                                             <svg viewBox="0 0 40 20" className="w-full h-5">
@@ -220,8 +236,8 @@ export default function LibrarySidebar({
                                         <button
                                             onClick={() => applyConfig({ type: 'smoothstep' })}
                                             className={`p-3 rounded-lg transition-all flex flex-col items-center gap-2 ${edgeConfig.type === 'smoothstep'
-                                                    ? 'bg-blue-600 text-white ring-2 ring-blue-400'
-                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                ? 'bg-blue-600 text-white ring-2 ring-blue-400'
+                                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                                                 }`}
                                         >
                                             <svg viewBox="0 0 40 20" className="w-full h-5">
@@ -232,8 +248,8 @@ export default function LibrarySidebar({
                                         <button
                                             onClick={() => applyConfig({ type: 'straight' })}
                                             className={`p-3 rounded-lg transition-all flex flex-col items-center gap-2 ${edgeConfig.type === 'straight'
-                                                    ? 'bg-blue-600 text-white ring-2 ring-blue-400'
-                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                ? 'bg-blue-600 text-white ring-2 ring-blue-400'
+                                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                                                 }`}
                                         >
                                             <svg viewBox="0 0 40 20" className="w-full h-5">
@@ -253,8 +269,8 @@ export default function LibrarySidebar({
                                         <button
                                             onClick={() => applyConfig({ strokeStyle: 'solid' })}
                                             className={`p-3 rounded-lg transition-all flex flex-col items-center gap-2 ${edgeConfig.strokeStyle === 'solid'
-                                                    ? 'bg-purple-600 text-white ring-2 ring-purple-400'
-                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                ? 'bg-purple-600 text-white ring-2 ring-purple-400'
+                                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                                                 }`}
                                         >
                                             <div className="w-full h-0.5 bg-current" />
@@ -263,8 +279,8 @@ export default function LibrarySidebar({
                                         <button
                                             onClick={() => applyConfig({ strokeStyle: 'dashed' })}
                                             className={`p-3 rounded-lg transition-all flex flex-col items-center gap-2 ${edgeConfig.strokeStyle === 'dashed'
-                                                    ? 'bg-purple-600 text-white ring-2 ring-purple-400'
-                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                ? 'bg-purple-600 text-white ring-2 ring-purple-400'
+                                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                                                 }`}
                                         >
                                             <div className="flex gap-1 justify-center">
@@ -277,8 +293,8 @@ export default function LibrarySidebar({
                                         <button
                                             onClick={() => applyConfig({ strokeStyle: 'dotted' })}
                                             className={`p-3 rounded-lg transition-all flex flex-col items-center gap-2 ${edgeConfig.strokeStyle === 'dotted'
-                                                    ? 'bg-purple-600 text-white ring-2 ring-purple-400'
-                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                ? 'bg-purple-600 text-white ring-2 ring-purple-400'
+                                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                                                 }`}
                                         >
                                             <div className="flex gap-1 justify-center">
@@ -305,8 +321,8 @@ export default function LibrarySidebar({
                                             <button
                                                 onClick={() => applyConfig({ markerStart: 'none' })}
                                                 className={`p-2 rounded-lg text-[10px] transition-all ${edgeConfig.markerStart === 'none'
-                                                        ? 'bg-emerald-600 text-white'
-                                                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                    ? 'bg-emerald-600 text-white'
+                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                                                     }`}
                                             >
                                                 Nenhum
@@ -314,8 +330,8 @@ export default function LibrarySidebar({
                                             <button
                                                 onClick={() => applyConfig({ markerStart: 'arrow' })}
                                                 className={`p-2 rounded-lg text-[10px] transition-all ${edgeConfig.markerStart === 'arrow'
-                                                        ? 'bg-emerald-600 text-white'
-                                                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                    ? 'bg-emerald-600 text-white'
+                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                                                     }`}
                                             >
                                                 ← Seta
@@ -323,8 +339,8 @@ export default function LibrarySidebar({
                                             <button
                                                 onClick={() => applyConfig({ markerStart: 'circle' })}
                                                 className={`p-2 rounded-lg text-[10px] transition-all ${edgeConfig.markerStart === 'circle'
-                                                        ? 'bg-emerald-600 text-white'
-                                                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                    ? 'bg-emerald-600 text-white'
+                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                                                     }`}
                                             >
                                                 ○ Círculo
@@ -339,8 +355,8 @@ export default function LibrarySidebar({
                                             <button
                                                 onClick={() => applyConfig({ markerEnd: 'none' })}
                                                 className={`p-2 rounded-lg text-[10px] transition-all ${edgeConfig.markerEnd === 'none'
-                                                        ? 'bg-emerald-600 text-white'
-                                                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                    ? 'bg-emerald-600 text-white'
+                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                                                     }`}
                                             >
                                                 Nenhum
@@ -348,8 +364,8 @@ export default function LibrarySidebar({
                                             <button
                                                 onClick={() => applyConfig({ markerEnd: 'arrowClosed' })}
                                                 className={`p-2 rounded-lg text-[10px] transition-all ${edgeConfig.markerEnd === 'arrowClosed'
-                                                        ? 'bg-emerald-600 text-white'
-                                                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                    ? 'bg-emerald-600 text-white'
+                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                                                     }`}
                                             >
                                                 →| Fechada
@@ -357,8 +373,8 @@ export default function LibrarySidebar({
                                             <button
                                                 onClick={() => applyConfig({ markerEnd: 'arrowOpen' })}
                                                 className={`p-2 rounded-lg text-[10px] transition-all ${edgeConfig.markerEnd === 'arrowOpen'
-                                                        ? 'bg-emerald-600 text-white'
-                                                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                    ? 'bg-emerald-600 text-white'
+                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                                                     }`}
                                             >
                                                 → Aberta
@@ -375,8 +391,8 @@ export default function LibrarySidebar({
                                     <button
                                         onClick={() => applyConfig({ animated: !edgeConfig.animated })}
                                         className={`w-full p-4 rounded-lg transition-all flex items-center justify-between ${edgeConfig.animated
-                                                ? 'bg-amber-600 text-white ring-2 ring-amber-400'
-                                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                            ? 'bg-amber-600 text-white ring-2 ring-amber-400'
+                                            : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                                             }`}
                                     >
                                         <div className="flex items-center gap-3">

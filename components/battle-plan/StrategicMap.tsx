@@ -202,26 +202,28 @@ function StrategicMapInner({
         setEdgeConfig(prev => ({ ...prev, ...updates }));
     }, []);
 
-    // Apply config to selected edges
+    // Apply config to selected edges - ONLY updates the specific properties passed
     const handleApplyToSelected = useCallback((updates: Partial<EdgeConfig>) => {
         const selectedIds = new Set(selectedEdges.map(e => e.id));
         if (selectedIds.size === 0) return;
 
-        // Update local config display
+        // Update local config display - merge with existing, not replace
         setEdgeConfig(prev => ({ ...prev, ...updates }));
 
-        // Apply to selected edges
+        // Apply ONLY the changed properties to selected edges
         setEdges((eds) => {
             const updatedEdges = eds.map((edge) => {
                 if (!selectedIds.has(edge.id)) return edge;
 
-                const newConfig = { ...edgeConfig, ...updates };
-                const props = configToEdgeProps(newConfig);
+                // Get current edge config merged with updates
+                const currentConfig = { ...edgeConfig, ...updates };
+                const props = configToEdgeProps(currentConfig);
 
                 return {
                     ...edge,
                     type: props.type,
                     style: props.style,
+                    pathOptions: props.pathOptions,
                     markerStart: props.markerStart,
                     markerEnd: props.markerEnd,
                     animated: props.animated,
@@ -233,6 +235,16 @@ function StrategicMapInner({
             return updatedEdges;
         });
     }, [selectedEdges, edgeConfig, setEdges, nodes, emitChange]);
+
+    // Select all edges - for mass editing
+    const handleSelectAllEdges = useCallback(() => {
+        setEdges((eds) => {
+            return eds.map((edge) => ({
+                ...edge,
+                selected: true,
+            }));
+        });
+    }, [setEdges]);
 
     // Label change handler
     const handleLabelChange = useCallback((nodeId: string, newLabel: string) => {
@@ -402,6 +414,8 @@ function StrategicMapInner({
                 onEdgeConfigChange={handleEdgeConfigChange}
                 selectedEdges={selectedEdges}
                 onApplyToSelected={handleApplyToSelected}
+                onSelectAllEdges={handleSelectAllEdges}
+                totalEdgesCount={edges.length}
             />
 
             {/* Canvas Area */}

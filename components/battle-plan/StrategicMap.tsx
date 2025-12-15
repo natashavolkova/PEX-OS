@@ -24,11 +24,17 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import './strategic-map.css'; // CSS for animated edges
-import { Sparkles, ChevronDown, ArrowDown, ArrowRight } from 'lucide-react';
+import { Sparkles, ChevronDown, ArrowDown, ArrowRight, AlertTriangle } from 'lucide-react';
 import dagre from 'dagre';
 import LibrarySidebar, { type EdgeConfig } from './LibrarySidebar';
 import StickyNoteNode from './nodes/StickyNoteNode';
 import ShapeNode from './nodes/ShapeNode';
+import {
+    isDiagonalConnection,
+    getNodeCenter,
+    findCollisions,
+    getOptimalHandles,
+} from '@/lib/edgePathfinding';
 
 // Node types
 const nodeTypes: NodeTypes = {
@@ -92,6 +98,10 @@ function getLayoutedElements(nodes: Node[], edges: Edge[], direction: 'TB' | 'LR
 }
 
 // Helper: Convert EdgeConfig to React Flow edge properties
+// ALL CURVED TYPES NOW USE SMOOTHSTEP - No more wavy bezier!
+// - 'bezier' (Curva Suave): smoothstep with high borderRadius (50)
+// - 'smoothstep' (Ortogonal): smoothstep with medium borderRadius (15)
+// - 'straight' (Reta): straight line
 function configToEdgeProps(config: EdgeConfig) {
     // Stroke style
     let strokeDasharray = '0';
@@ -114,24 +124,27 @@ function configToEdgeProps(config: EdgeConfig) {
         markerEnd = { type: MarkerType.Arrow, color: '#64748b' };
     }
 
-    // 3 EDGE TYPES:
-    // - 'bezier': True bezier curve (React Flow 'default')
-    // - 'smoothstep': Angular with rounded corners
-    // - 'straight': Direct line
+    // 3 EDGE TYPES - ALL USE SMOOTHSTEP EXCEPT STRAIGHT:
+    // This gives us: ——╭——╮—— (straight segments with rounded corners)
+    // NOT: ~~~~~~~ (wavy bezier)
     let edgeType: string;
     let borderRadius = 0;
 
     switch (config.type) {
         case 'bezier':
-            edgeType = 'default'; // React Flow uses 'default' for bezier
+            // "Curva Suave" - smoothstep with VERY rounded corners (looks curved)
+            edgeType = 'smoothstep';
+            borderRadius = 50; // High radius = very smooth curves
             break;
         case 'smoothstep':
+            // "Ortogonal" - smoothstep with slight rounding
             edgeType = 'smoothstep';
-            borderRadius = 30; // Rounded corners
+            borderRadius = 15; // Lower radius = more angular
             break;
         case 'straight':
         default:
             edgeType = 'straight';
+            borderRadius = 0;
             break;
     }
 
@@ -202,6 +215,13 @@ function StrategicMapInner({
 
     // Edge configuration state (for new edges and sidebar display)
     const [edgeConfig, setEdgeConfig] = useState<EdgeConfig>(defaultEdgeConfig);
+
+    // Diagonal warning tooltip state
+    const [diagonalWarning, setDiagonalWarning] = useState<{
+        visible: boolean;
+        message: string;
+        position: { x: number; y: number };
+    }>({ visible: false, message: '', position: { x: 0, y: 0 } });
 
     const isExternalUpdateRef = useRef(false);
     const prevExternalSigRef = useRef<string>('');
@@ -556,8 +576,34 @@ function StrategicMapInner({
                 }
             }
 
-            // 5. Create Edge with Forced Handles and current config from Sidebar
-            const props = configToEdgeProps(edgeConfig);
+            // 5. SMART VALIDATION: Detect diagonal and apply appropriate edge type
+            const isDiag = isDiagonalConnection(sourceCenter, targetCenter);
+
+            // Get the configured props
+            let effectiveConfig = { ...edgeConfig };
+
+            // If diagonal and user selected straight, force to smoothstep with warning
+            if (isDiag && edgeConfig.type === 'straight') {
+                console.log('[SmartConnect] DIAGONAL DETECTED: Forcing smoothstep instead of straight');
+                effectiveConfig = { ...edgeConfig, type: 'smoothstep' };
+
+                // Show warning tooltip
+                setDiagonalWarning({
+                    visible: true,
+                    message: 'Linhas retas não funcionam em diagonais. Usando linha angular.',
+                    position: {
+                        x: (sourceCenter.x + targetCenter.x) / 2,
+                        y: Math.min(sourceCenter.y, targetCenter.y) - 50,
+                    },
+                });
+
+                // Auto-hide after 3 seconds
+                setTimeout(() => {
+                    setDiagonalWarning(prev => ({ ...prev, visible: false }));
+                }, 3000);
+            }
+
+            const props = configToEdgeProps(effectiveConfig);
             const smartEdge = {
                 ...params,
                 sourceHandle: smartSourceHandle,
@@ -565,7 +611,7 @@ function StrategicMapInner({
                 ...props,
             };
 
-            console.log(`[SmartConnect] Final: ${smartSourceHandle} -> ${smartTargetHandle}, type: ${props.type}`);
+            console.log(`[SmartConnect] Final: ${smartSourceHandle} -> ${smartTargetHandle}, type: ${props.type}, diagonal: ${isDiag}`);
 
             setEdges((eds) => {
                 const newEdges = addEdge(smartEdge, eds);
@@ -625,6 +671,24 @@ function StrategicMapInner({
                                 ⚠️ {syncError}
                             </div>
                         )}
+                    </div>
+                )}
+
+                {/* Diagonal Warning Tooltip */}
+                {diagonalWarning.visible && (
+                    <div
+                        className="absolute z-50 pointer-events-none transform -translate-x-1/2 animate-pulse"
+                        style={{
+                            left: diagonalWarning.position.x,
+                            top: diagonalWarning.position.y + 100, // Offset for canvas transform
+                        }}
+                    >
+                        <div className="flex items-center gap-2 px-4 py-2 bg-amber-900/95 border border-amber-500/60 rounded-lg shadow-xl">
+                            <AlertTriangle size={16} className="text-amber-400" />
+                            <span className="text-xs font-medium text-amber-200">
+                                {diagonalWarning.message}
+                            </span>
+                        </div>
                     </div>
                 )}
 

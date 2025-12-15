@@ -419,6 +419,50 @@ function StrategicMapInner({
         }
     }, [onEdgesChange, nodes, emitChange, setEdges]);
 
+    // AUTO-REROUTE ON NODE DRAG - Smart re-routing when nodes are moved
+    const onNodeDragStop = useCallback(
+        (_event: React.MouseEvent, node: Node) => {
+            // 1. Find all edges connected to this node
+            const connectedEdges = edges.filter(
+                (e) => e.source === node.id || e.target === node.id
+            );
+
+            // 2. If no connections, ignore
+            if (connectedEdges.length === 0) return;
+
+            // 3. Prepare updates with smart handles
+            const updates = connectedEdges.map((edge) => {
+                const sourceNode = reactFlowInstance.getNode(edge.source);
+                const targetNode = reactFlowInstance.getNode(edge.target);
+
+                if (!sourceNode || !targetNode) return edge;
+
+                // 4. Recalculate smart route
+                const smartHandles = getSmartHandleIds(sourceNode, targetNode);
+
+                console.log(`[AutoReroute] Edge ${edge.id}: ${smartHandles.source} -> ${smartHandles.target}`);
+
+                // 5. Return edge with new handles
+                return {
+                    ...edge,
+                    sourceHandle: smartHandles.source,
+                    targetHandle: smartHandles.target,
+                };
+            });
+
+            // 6. Apply changes
+            setEdges((eds) => {
+                const updatedEdges = eds.map((e) => {
+                    const update = updates.find((u) => u.id === e.id);
+                    return update ? update : e;
+                });
+                emitChange(nodes, updatedEdges);
+                return updatedEdges;
+            });
+        },
+        [edges, reactFlowInstance, setEdges, nodes, emitChange]
+    );
+
     // SMART AUTO-CONNECT V2 - With failsafe dimension reading and console logging
     const onConnect = useCallback(
         (params: Connection) => {
@@ -573,6 +617,7 @@ function StrategicMapInner({
                     onNodesChange={handleNodesChange}
                     onEdgesChange={handleEdgesChange}
                     onConnect={onConnect}
+                    onNodeDragStop={onNodeDragStop}
                     onDragOver={onDragOver}
                     onDrop={onDrop}
                     nodeTypes={nodeTypes}

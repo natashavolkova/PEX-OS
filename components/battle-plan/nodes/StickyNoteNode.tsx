@@ -116,30 +116,30 @@ function StickyNoteNode({ id, data, selected }: NodeProps) {
                     style={{ clipPath: 'polygon(100% 0, 0 0, 100% 100%)' }}
                 />
 
-                {/* CLEAN HANDLES - Positioned at edge (3px outside for tight fit) */}
+                {/* CLEAN HANDLES - Center at edge for zero gap (w-3=12px, half=6px=-1.5) */}
                 <Handle
                     type="source"
                     position={Position.Top}
                     id="t"
-                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-top-[3px] !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-top-1.5 !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
                 />
                 <Handle
                     type="source"
                     position={Position.Right}
                     id="r"
-                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-right-[3px] !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-right-1.5 !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
                 />
                 <Handle
                     type="source"
                     position={Position.Bottom}
                     id="b"
-                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-bottom-[3px] !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-bottom-1.5 !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
                 />
                 <Handle
                     type="source"
                     position={Position.Left}
                     id="l"
-                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-left-[3px] !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-left-1.5 !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
                 />
 
                 {/* Content */}

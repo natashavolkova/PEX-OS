@@ -1,33 +1,118 @@
 'use client';
 
 import { useCallback, useRef } from 'react';
-import type { Node, Edge } from '@xyflow/react';
+import type { Node, Edge, EdgeMarker } from '@xyflow/react';
 
-interface DiagramJSON {
-    nodes: Array<{ id: string; nodeType: string; label: string; shape?: string; color?: string; x?: number; y?: number }>;
-    edges: Array<{ source: string; target: string; label?: string }>;
+// =============================================================================
+// COMPLETE DIAGRAM JSON STRUCTURE - Persists ALL visual state
+// =============================================================================
+interface DiagramNodeJSON {
+    id: string;
+    type: string;
+    position: { x: number; y: number };
+    width?: number;
+    height?: number;
+    data: {
+        label: string;
+        shape?: string;
+        color?: string;
+    };
 }
 
+interface DiagramEdgeJSON {
+    id: string;
+    source: string;
+    target: string;
+    sourceHandle?: string;   // CRITICAL: Which side the line exits
+    targetHandle?: string;   // CRITICAL: Which side the line enters
+    type: string;            // smoothstep, straight (NO 'default' - that's legacy Bezier)
+    label?: string;
+    markerEnd?: { type: string; color?: string };
+    markerStart?: { type: string; color?: string };
+    style?: {
+        stroke?: string;
+        strokeWidth?: number;
+        strokeDasharray?: string;
+    };
+    animated?: boolean;
+}
+
+interface DiagramJSON {
+    nodes: DiagramNodeJSON[];
+    edges: DiagramEdgeJSON[];
+}
+
+// =============================================================================
+// SERIALIZER - Converts React Flow state to JSON
+// =============================================================================
 function serializeToJSON(nodes: Node[], edges: Edge[]): string {
     const diagramData: DiagramJSON = {
-        nodes: nodes.map(node => ({
-            id: node.id,
-            nodeType: node.type || 'shape',
-            label: (node.data as { label: string }).label || '',
-            shape: (node.data as { shape?: string }).shape,
-            color: (node.data as { color?: string }).color,
-            x: Math.round(node.position.x),
-            y: Math.round(node.position.y),
-        })),
-        edges: edges.map(edge => ({
-            source: edge.source,
-            target: edge.target,
-            ...(edge.label ? { label: String(edge.label) } : {}),
-        })),
+        nodes: nodes.map(node => {
+            const data = node.data as { label?: string; shape?: string; color?: string };
+            return {
+                id: node.id,
+                type: node.type || 'shape',
+                position: {
+                    x: Math.round(node.position.x),
+                    y: Math.round(node.position.y),
+                },
+                width: node.width,
+                height: node.height,
+                data: {
+                    label: data.label || '',
+                    shape: data.shape,
+                    color: data.color,
+                },
+            };
+        }),
+        edges: edges.map(edge => {
+            // Extract style properties
+            const style = edge.style as Record<string, unknown> | undefined;
+
+            // Convert markerEnd to serializable format
+            const serializeMarker = (marker: EdgeMarker | string | undefined): { type: string; color?: string } | undefined => {
+                if (!marker) return undefined;
+                if (typeof marker === 'string') {
+                    return { type: marker };
+                }
+                return {
+                    type: String(marker.type),
+                    color: marker.color ?? undefined,  // Convert null to undefined
+                };
+            };
+
+            // CRITICAL: Force 'smoothstep' if type is 'default' (legacy Bezier)
+            let edgeType = edge.type || 'smoothstep';
+            if (edgeType === 'default') {
+                edgeType = 'smoothstep'; // Migrate legacy type
+            }
+
+            return {
+                id: edge.id,
+                source: edge.source,
+                target: edge.target,
+                sourceHandle: edge.sourceHandle ?? undefined,
+                targetHandle: edge.targetHandle ?? undefined,
+                type: edgeType,
+                label: edge.label ? String(edge.label) : undefined,
+                markerEnd: serializeMarker(edge.markerEnd),
+                markerStart: serializeMarker(edge.markerStart),
+                style: style ? {
+                    stroke: style.stroke as string | undefined,
+                    strokeWidth: style.strokeWidth as number | undefined,
+                    strokeDasharray: style.strokeDasharray as string | undefined,
+                } : undefined,
+                animated: edge.animated ?? undefined,
+            };
+        }),
     };
+
     return JSON.stringify(diagramData, null, 2);
 }
 
+// =============================================================================
+// MARKDOWN INTEGRATION - Replace or create json-diagram block
+// =============================================================================
 function replaceJsonDiagramBlock(markdown: string, newJson: string): string {
     const regex = /(```json-diagram\s*)([\s\S]*?)(```)/;
     const match = markdown.match(regex);
@@ -40,15 +125,41 @@ function replaceJsonDiagramBlock(markdown: string, newJson: string): string {
     return `${markdown}\n\n\`\`\`json-diagram\n${newJson}\n\`\`\``;
 }
 
+// =============================================================================
+// SIGNATURE - Detects changes (now includes FULL edge data)
+// =============================================================================
 function computeSignature(nodes: Node[], edges: Edge[]): string {
+    // Nodes signature
     const nodesSig = nodes.map(n => {
         const data = n.data as { label?: string; shape?: string; color?: string };
         return `${n.id}:${n.type}:${Math.round(n.position.x)}:${Math.round(n.position.y)}:${data.label || ''}:${data.shape || ''}:${data.color || ''}`;
     }).sort().join('|');
-    const edgesSig = edges.map(e => `${e.source}->${e.target}`).sort().join('|');
+
+    // Edges signature - NOW INCLUDES ALL PROPERTIES
+    const edgesSig = edges.map(e => {
+        const style = e.style as Record<string, unknown> | undefined;
+        const parts = [
+            e.id,
+            e.source,
+            e.target,
+            e.sourceHandle || '',
+            e.targetHandle || '',
+            e.type || 'smoothstep',
+            e.label || '',
+            JSON.stringify(e.markerEnd || ''),
+            JSON.stringify(e.markerStart || ''),
+            style?.strokeDasharray || '',
+            e.animated ? '1' : '0',
+        ];
+        return parts.join(':');
+    }).sort().join('|');
+
     return `${nodesSig}::${edgesSig}`;
 }
 
+// =============================================================================
+// HOOK - Real-time persistence with 200ms debounce
+// =============================================================================
 interface UseUpdateTextFromDiagramOptions {
     debounceMs?: number;
 }
@@ -58,7 +169,8 @@ export function useUpdateTextFromDiagram(
     setMarkdown: (value: string) => void,
     options: UseUpdateTextFromDiagramOptions = {}
 ) {
-    const { debounceMs = 400 } = options;
+    // REDUCED from 400ms to 200ms for faster persistence
+    const { debounceMs = 200 } = options;
 
     const lastSignatureRef = useRef<string>('');
     const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -86,6 +198,12 @@ export function useUpdateTextFromDiagram(
 
                 const newJson = serializeToJSON(nodes, edges);
                 const updatedMarkdown = replaceJsonDiagramBlock(markdown, newJson);
+
+                console.log('[Persistence] Saving diagram state:', {
+                    nodes: nodes.length,
+                    edges: edges.length,
+                    debounceMs,
+                });
 
                 // Mark as updating to prevent loop
                 isUpdatingRef.current = true;

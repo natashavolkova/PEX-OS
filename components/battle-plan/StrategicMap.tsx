@@ -114,10 +114,11 @@ function configToEdgeProps(config: EdgeConfig) {
         markerEnd = { type: MarkerType.Arrow, color: '#64748b' };
     }
 
-    // Use smoothstep for all types to get smart routing
-    // 'default' becomes smoothstep with more borderRadius for Bezier-like feel
+    // ONLY TWO TYPES: smoothstep (with rounded corners) or straight
+    // NO MORE 'default' (legacy Bezier) type
     const edgeType = config.type === 'straight' ? 'straight' : 'smoothstep';
-    const borderRadius = config.type === 'default' ? 30 : (config.type === 'smoothstep' ? 10 : 0);
+    // borderRadius 30 gives nice rounded corners for smoothstep
+    const borderRadius = config.type === 'smoothstep' ? 30 : 0;
 
     return {
         type: edgeType,

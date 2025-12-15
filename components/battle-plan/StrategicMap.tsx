@@ -131,6 +131,7 @@ function configToEdgeProps(config: EdgeConfig) {
         markerEnd,
         animated: config.animated,
         className: config.animated ? 'animated-edge' : '',
+        zIndex: 0, // Edges render behind nodes (z-50) for visual masking
     };
 }
 

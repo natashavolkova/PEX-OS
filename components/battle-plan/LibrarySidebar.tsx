@@ -26,7 +26,7 @@ type PanelType = 'shapes' | 'sticky' | 'connectors' | null;
 
 // Edge configuration types
 export interface EdgeConfig {
-    type: 'smoothstep' | 'straight';  // REMOVED 'default' (legacy Bezier)
+    type: 'bezier' | 'smoothstep' | 'straight';  // 3 TYPES: Curva, Ortogonal, Reta
     strokeStyle: 'solid' | 'dashed' | 'dotted';
     markerStart: 'none' | 'arrow' | 'circle';
     markerEnd: 'none' | 'arrowClosed' | 'arrowOpen';
@@ -215,12 +215,24 @@ export default function LibrarySidebar({
                                     )}
                                 </div>
 
-                                {/* SECTION A: Geometry (Path Type) - Only SmoothStep and Straight */}
+                                {/* SECTION A: Geometry (Path Type) - 3 TYPES RESTORED */}
                                 <div>
                                     <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
                                         🔷 Geometria
                                     </h4>
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <button
+                                            onClick={() => applyConfig({ type: 'bezier' })}
+                                            className={`p-3 rounded-lg transition-all flex flex-col items-center gap-2 ${edgeConfig.type === 'bezier'
+                                                ? 'bg-blue-600 text-white ring-2 ring-blue-400'
+                                                : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                                }`}
+                                        >
+                                            <svg viewBox="0 0 40 20" className="w-full h-5">
+                                                <path d="M4 16 C 12 16, 12 4, 20 4 S 28 16, 36 4" stroke="currentColor" strokeWidth="2" fill="none" />
+                                            </svg>
+                                            <span className="text-[10px]">Curva</span>
+                                        </button>
                                         <button
                                             onClick={() => applyConfig({ type: 'smoothstep' })}
                                             className={`p-3 rounded-lg transition-all flex flex-col items-center gap-2 ${edgeConfig.type === 'smoothstep'
@@ -229,7 +241,7 @@ export default function LibrarySidebar({
                                                 }`}
                                         >
                                             <svg viewBox="0 0 40 20" className="w-full h-5">
-                                                <path d="M4 16 L 4 10 Q 4 4 10 4 L 30 4 Q 36 4 36 10 L 36 4" stroke="currentColor" strokeWidth="2" fill="none" />
+                                                <path d="M4 16 L 4 10 L 20 10 L 20 4 L 36 4" stroke="currentColor" strokeWidth="2" fill="none" />
                                             </svg>
                                             <span className="text-[10px]">Ortogonal</span>
                                         </button>

@@ -117,22 +117,31 @@ export async function PATCH(
             );
         }
 
+        const updateData = {
+            title: body.title,
+            content: body.content,
+            contentMarkdown: body.contentMarkdown,
+            diagramData: body.diagramData,
+            status: body.status,
+            updatedAt: nowISO(),
+        };
+
         // Update
         await db.update(battlePlans)
-            .set({
-                title: body.title,
-                content: body.content,
-                contentMarkdown: body.contentMarkdown,
-                diagramData: body.diagramData,
-                status: body.status,
-                updatedAt: nowISO(),
-            })
+            .set(updateData)
             .where(eq(battlePlans.id, existing[0].id));
+
+        // Fetch updated record to return to client
+        const updated = await db.select()
+            .from(battlePlans)
+            .where(eq(battlePlans.id, existing[0].id))
+            .limit(1);
 
         console.log(`[API] PATCH /api/projects/${projectId}/battle-plan: Updated ${existing[0].id}`);
 
         return NextResponse.json({
             success: true,
+            data: updated[0], // RETURN UPDATED DATA
             message: 'Battle plan updated',
         });
     } catch (error) {
@@ -143,3 +152,4 @@ export async function PATCH(
         );
     }
 }
+

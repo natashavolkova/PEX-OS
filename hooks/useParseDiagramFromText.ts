@@ -86,8 +86,13 @@ function convertToReactFlow(data: DiagramData): { nodes: Node[]; edges: Edge[] }
         // Fallback ID if not saved
         const edgeId = edge.id || `e${edge.source}-${edge.target}-${index}`;
 
-        // CRITICAL: Fallback to smoothstep for old data (Bezier fix)
-        const edgeType = edge.type || 'smoothstep';
+        // Type mapping:
+        // Our 'bezier' = React Flow 'default'
+        // Otherwise use as-is, fallback to 'smoothstep'
+        let edgeType = edge.type || 'smoothstep';
+        if (edgeType === 'bezier') {
+            edgeType = 'default'; // React Flow uses 'default' for bezier
+        }
 
         // Helper to convert marker from JSON to proper EdgeMarker type
         const parseMarker = (marker: typeof edge.markerEnd): EdgeMarker | undefined => {

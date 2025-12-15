@@ -81,10 +81,12 @@ function serializeToJSON(nodes: Node[], edges: Edge[]): string {
                 };
             };
 
-            // CRITICAL: Force 'smoothstep' if type is 'default' (legacy Bezier)
+            // Type mapping:
+            // React Flow uses 'default' for bezier curves
+            // We save as: 'bezier', 'smoothstep', or 'straight'
             let edgeType = edge.type || 'smoothstep';
             if (edgeType === 'default') {
-                edgeType = 'smoothstep'; // Migrate legacy type
+                edgeType = 'bezier'; // React Flow 'default' = our 'bezier'
             }
 
             return {

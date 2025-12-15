@@ -114,11 +114,26 @@ function configToEdgeProps(config: EdgeConfig) {
         markerEnd = { type: MarkerType.Arrow, color: '#64748b' };
     }
 
-    // ONLY TWO TYPES: smoothstep (with rounded corners) or straight
-    // NO MORE 'default' (legacy Bezier) type
-    const edgeType = config.type === 'straight' ? 'straight' : 'smoothstep';
-    // borderRadius 30 gives nice rounded corners for smoothstep
-    const borderRadius = config.type === 'smoothstep' ? 30 : 0;
+    // 3 EDGE TYPES:
+    // - 'bezier': True bezier curve (React Flow 'default')
+    // - 'smoothstep': Angular with rounded corners
+    // - 'straight': Direct line
+    let edgeType: string;
+    let borderRadius = 0;
+
+    switch (config.type) {
+        case 'bezier':
+            edgeType = 'default'; // React Flow uses 'default' for bezier
+            break;
+        case 'smoothstep':
+            edgeType = 'smoothstep';
+            borderRadius = 30; // Rounded corners
+            break;
+        case 'straight':
+        default:
+            edgeType = 'straight';
+            break;
+    }
 
     return {
         type: edgeType,

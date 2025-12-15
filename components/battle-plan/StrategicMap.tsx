@@ -630,6 +630,12 @@ function StrategicMapInner({
                     deleteKeyCode={null}
                     selectionOnDrag
                     panOnDrag={[1, 2]}
+                    defaultEdgeOptions={{
+                        type: 'smoothstep',
+                        markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' },
+                        style: { strokeWidth: 2, stroke: '#64748b' },
+                        animated: false,
+                    }}
                 >
                     <Background variant={BackgroundVariant.Dots} color="#334155" gap={20} size={1} />
                     <Controls className="!bg-slate-900 !border-slate-700 !rounded-lg !shadow-xl [&>button]:!bg-slate-800 [&>button]:!border-slate-600 [&>button]:!text-slate-300 [&>button:hover]:!bg-slate-700" />

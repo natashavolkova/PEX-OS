@@ -1,11 +1,38 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import type { Node, Edge } from '@xyflow/react';
+import type { Node, Edge, EdgeMarker } from '@xyflow/react';
+import { MarkerType } from '@xyflow/react';
 
 interface DiagramData {
-    nodes: Array<{ id: string; nodeType?: string; label: string; shape?: string; color?: string; x?: number; y?: number }>;
-    edges: Array<{ source: string; target: string; label?: string }>;
+    nodes: Array<{
+        id: string;
+        type?: string;
+        nodeType?: string;
+        label?: string;
+        shape?: string;
+        color?: string;
+        x?: number;
+        y?: number;
+        position?: { x: number; y: number };
+        width?: number;
+        height?: number;
+        measured?: { width?: number; height?: number };
+        data?: { label?: string; shape?: string; color?: string };
+    }>;
+    edges: Array<{
+        id?: string;
+        source: string;
+        target: string;
+        sourceHandle?: string;
+        targetHandle?: string;
+        type?: string;
+        label?: string;
+        markerEnd?: { type: string; color?: string } | string;
+        markerStart?: { type: string; color?: string } | string;
+        style?: Record<string, unknown>;
+        animated?: boolean;
+    }>;
 }
 
 interface ParseResult {
@@ -38,26 +65,63 @@ function parseDiagramBlock(markdown: string): DiagramData | null {
 function convertToReactFlow(data: DiagramData): { nodes: Node[]; edges: Edge[] } {
     const nodes: Node[] = data.nodes.map((node, index) => ({
         id: node.id,
-        type: node.nodeType || 'shape',
+        type: node.type || node.nodeType || 'shape',
         position: {
-            x: node.x ?? 250,
-            y: node.y ?? index * DEFAULT_NODE_SPACING + 50
+            // Priority: position object > x/y fields > fallback
+            x: node.position?.x ?? node.x ?? 250,
+            y: node.position?.y ?? node.y ?? index * DEFAULT_NODE_SPACING + 50
         },
+        width: node.width,
+        height: node.height,
+        measured: node.measured,
         data: {
-            label: node.label,
-            shape: node.shape || 'rectangle',
-            color: node.color || 'indigo',
+            // Priority: data object > direct fields
+            label: node.data?.label ?? node.label ?? 'Node',
+            shape: node.data?.shape ?? node.shape ?? 'rectangle',
+            color: node.data?.color ?? node.color ?? 'indigo',
         },
     }));
 
-    const edges: Edge[] = (data.edges || []).map((edge, index) => ({
-        id: `e${edge.source}-${edge.target}-${index}`,
-        source: edge.source,
-        target: edge.target,
-        label: edge.label,
-        type: 'default',
-        style: { stroke: '#64748b', strokeWidth: 2 },
-    }));
+    const edges: Edge[] = (data.edges || []).map((edge, index) => {
+        // Fallback ID if not saved
+        const edgeId = edge.id || `e${edge.source}-${edge.target}-${index}`;
+
+        // CRITICAL: Fallback to smoothstep for old data (Bezier fix)
+        const edgeType = edge.type || 'smoothstep';
+
+        // Helper to convert marker from JSON to proper EdgeMarker type
+        const parseMarker = (marker: typeof edge.markerEnd): EdgeMarker | undefined => {
+            if (!marker) return undefined;
+            if (typeof marker === 'string') {
+                // String format: "arrow" or "arrowclosed"
+                return { type: marker === 'arrow' ? MarkerType.Arrow : MarkerType.ArrowClosed, color: '#64748b' };
+            }
+            // Object format: { type: 'arrowclosed', color: '#64748b' }
+            const markerType = marker.type?.toLowerCase();
+            return {
+                type: markerType === 'arrow' ? MarkerType.Arrow : MarkerType.ArrowClosed,
+                color: marker.color ?? '#64748b'
+            };
+        };
+
+        // Preserve or create markerEnd (default: arrow at destination)
+        const markerEnd = parseMarker(edge.markerEnd) ?? { type: MarkerType.ArrowClosed, color: '#64748b' };
+        const markerStart = parseMarker(edge.markerStart);
+
+        return {
+            id: edgeId,
+            source: edge.source,
+            target: edge.target,
+            sourceHandle: edge.sourceHandle,   // CRITICAL: Preserve handle positions
+            targetHandle: edge.targetHandle,   // CRITICAL: Preserve handle positions
+            label: edge.label,
+            type: edgeType,
+            style: edge.style ?? { stroke: '#64748b', strokeWidth: 2 },
+            markerEnd,
+            markerStart,
+            animated: edge.animated ?? false,
+        };
+    });
 
     return { nodes, edges };
 }

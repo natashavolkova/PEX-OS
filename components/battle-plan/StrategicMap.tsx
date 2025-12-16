@@ -269,7 +269,8 @@ function StrategicMapInner({
         setEdgeConfig(prev => ({ ...prev, ...updates }));
     }, []);
 
-    // Apply config to selected edges - Recalculates smart handles when type changes
+    // Apply config to selected edges - ONLY applies the properties that changed!
+    // Does NOT reset markers when changing geometry, or vice versa
     const handleApplyToSelected = useCallback((updates: Partial<EdgeConfig>) => {
         const selectedIds = new Set(selectedEdges.map(e => e.id));
         if (selectedIds.size === 0) return;
@@ -280,21 +281,83 @@ function StrategicMapInner({
         // Check if type is being changed - triggers smart re-routing
         const isTypeChange = updates.type !== undefined;
 
-        // Apply properties to selected edges
+        // Apply properties to selected edges - PRESERVING EXISTING VALUES
         setEdges((eds) => {
             const updatedEdges = eds.map((edge) => {
                 if (!selectedIds.has(edge.id)) return edge;
 
-                // Get current edge config merged with updates
-                const currentConfig = { ...edgeConfig, ...updates };
-                const props = configToEdgeProps(currentConfig);
+                // CRITICAL: Build config from EXISTING edge state, not edgeConfig preset!
+                // This ensures we don't inject markers when user only changed geometry
+
+                // Start with edge's current actual state
+                let newType = edge.type || 'straight';
+                let newMarkerEnd = edge.markerEnd;
+                let newMarkerStart = edge.markerStart;
+                let newStyle = edge.style || { stroke: '#64748b', strokeWidth: 2 };
+                let newAnimated = edge.animated ?? false;
+
+                // Only override what was EXPLICITLY updated by user
+                if (updates.type !== undefined) {
+                    // User changed geometry type
+                    switch (updates.type) {
+                        case 'bezier':
+                            newType = 'smoothstep'; // Our bezier = smoothstep with high radius
+                            break;
+                        case 'smoothstep':
+                            newType = 'smoothstep';
+                            break;
+                        case 'straight':
+                        default:
+                            newType = 'straight';
+                            break;
+                    }
+                }
+
+                if (updates.markerEnd !== undefined) {
+                    // User explicitly changed end marker
+                    if (updates.markerEnd === 'arrowClosed') {
+                        newMarkerEnd = { type: MarkerType.ArrowClosed, color: '#64748b' };
+                    } else if (updates.markerEnd === 'arrowOpen') {
+                        newMarkerEnd = { type: MarkerType.Arrow, color: '#64748b' };
+                    } else {
+                        newMarkerEnd = undefined; // 'none'
+                    }
+                }
+
+                if (updates.markerStart !== undefined) {
+                    // User explicitly changed start marker
+                    if (updates.markerStart === 'arrow') {
+                        newMarkerStart = { type: MarkerType.Arrow, color: '#64748b' };
+                    } else if (updates.markerStart === 'circle') {
+                        newMarkerStart = { type: MarkerType.ArrowClosed, color: '#64748b' };
+                    } else {
+                        newMarkerStart = undefined; // 'none'
+                    }
+                }
+
+                if (updates.strokeStyle !== undefined) {
+                    // User changed stroke style
+                    let strokeDasharray = '0';
+                    if (updates.strokeStyle === 'dashed') strokeDasharray = '8, 4';
+                    if (updates.strokeStyle === 'dotted') strokeDasharray = '2, 2';
+                    newStyle = { ...newStyle, strokeDasharray };
+                }
+
+                if (updates.animated !== undefined) {
+                    newAnimated = updates.animated;
+                }
+
+                // Calculate pathOptions based on final type
+                let pathOptions = { borderRadius: 0 };
+                if (newType === 'smoothstep') {
+                    pathOptions = { borderRadius: updates.type === 'bezier' ? 50 : 15 };
+                }
 
                 // If type is changing, recalculate optimal handles
                 let newSourceHandle = edge.sourceHandle;
                 let newTargetHandle = edge.targetHandle;
 
                 if (isTypeChange) {
-                    // Find the connected nodes
                     const srcNode = nodes.find(n => n.id === edge.source);
                     const tgtNode = nodes.find(n => n.id === edge.target);
 
@@ -306,17 +369,19 @@ function StrategicMapInner({
                     }
                 }
 
+                console.log(`[ApplyToSelected] Edge ${edge.id}: updates=${JSON.stringify(updates)}, finalType=${newType}, markerEnd=${newMarkerEnd ? 'set' : 'none'}`);
+
                 return {
                     ...edge,
                     sourceHandle: newSourceHandle,
                     targetHandle: newTargetHandle,
-                    type: props.type,
-                    style: props.style,
-                    pathOptions: props.pathOptions,
-                    markerStart: props.markerStart,
-                    markerEnd: props.markerEnd,
-                    animated: props.animated,
-                    className: props.className,
+                    type: newType,
+                    style: newStyle,
+                    pathOptions,
+                    markerStart: newMarkerStart,
+                    markerEnd: newMarkerEnd,
+                    animated: newAnimated,
+                    className: newAnimated ? 'animated-edge' : '',
                 };
             });
 

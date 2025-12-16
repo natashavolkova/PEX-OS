@@ -87,11 +87,12 @@ function convertToReactFlow(data: DiagramData): { nodes: Node[]; edges: Edge[] }
         const edgeId = edge.id || `e${edge.source}-${edge.target}-${index}`;
 
         // Type mapping:
-        // Our 'bezier' = React Flow 'default'
-        // Otherwise use as-is, fallback to 'smoothstep'
+        // CRITICAL: Never use React Flow 'default' type (wavy bezier)
+        // All curve types use 'smoothstep' with different borderRadius
+        // 'bezier' in JSON -> 'smoothstep' in React Flow (with high borderRadius applied by StrategicMap)
         let edgeType = edge.type || 'smoothstep';
-        if (edgeType === 'bezier') {
-            edgeType = 'default'; // React Flow uses 'default' for bezier
+        if (edgeType === 'bezier' || edgeType === 'default') {
+            edgeType = 'smoothstep'; // Force smoothstep, never wavy bezier
         }
 
         // Helper to convert marker from JSON to proper EdgeMarker type

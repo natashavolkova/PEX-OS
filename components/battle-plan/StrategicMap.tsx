@@ -31,6 +31,8 @@ import StickyNoteNode from './nodes/StickyNoteNode';
 import ShapeNode from './nodes/ShapeNode';
 import {
     isDiagonalConnection,
+    isAlignedConnection,
+    getOptimalEdgeType,
     getNodeCenter,
     findCollisions,
     getOptimalHandles,
@@ -173,8 +175,10 @@ const initialNodes: Node[] = [
 ];
 
 const initialEdges: Edge[] = [
+    // e1-2: Horizontal connection (X: 100->300) - smoothstep is appropriate
     { id: 'e1-2', source: '1', target: '2', type: 'smoothstep', style: { stroke: '#64748b', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' } },
-    { id: 'e2-3', source: '2', target: '3', type: 'smoothstep', style: { stroke: '#64748b', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' } },
+    // e2-3: VERTICAL connection (same X: 300, Y: 100->250) - STRAIGHT is optimal!
+    { id: 'e2-3', source: '2', target: '3', type: 'straight', sourceHandle: 'b', targetHandle: 't', style: { stroke: '#64748b', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' } },
 ];
 
 interface StrategicMapProps {
@@ -576,18 +580,22 @@ function StrategicMapInner({
                 }
             }
 
-            // 5. SMART VALIDATION: Detect diagonal and apply appropriate edge type
-            const isDiag = isDiagonalConnection(sourceCenter, targetCenter);
+            // 5. AUTO LINE TYPE SELECTION based on geometry
+            // Rules:
+            // - Cards aligned (vert/horiz within 50px): STRAIGHT
+            // - Cards diagonal: SMOOTHSTEP (angular)
+            // User's edgeConfig.type is OVERRIDDEN by geometry for optimal visual result
 
-            // Get the configured props
-            let effectiveConfig = { ...edgeConfig };
+            const optimalType = getOptimalEdgeType(sourceCenter, targetCenter);
+            const isAligned = isAlignedConnection(sourceCenter, targetCenter);
 
-            // If diagonal and user selected straight, force to smoothstep with warning
-            if (isDiag && edgeConfig.type === 'straight') {
-                console.log('[SmartConnect] DIAGONAL DETECTED: Forcing smoothstep instead of straight');
-                effectiveConfig = { ...edgeConfig, type: 'smoothstep' };
+            // Start with user's config but force optimal type
+            // Cast needed because getOptimalEdgeType returns 'smoothstep'|'straight' but EdgeConfig has 'bezier' too
+            let effectiveConfig: EdgeConfig = { ...edgeConfig, type: optimalType as EdgeConfig['type'] };
 
-                // Show warning tooltip
+            // Only show warning if user EXPLICITLY selected straight on a diagonal
+            if (edgeConfig.type === 'straight' && !isAligned) {
+                console.log('[SmartConnect] User wanted straight but connection is diagonal - using smoothstep');
                 setDiagonalWarning({
                     visible: true,
                     message: 'Linhas retas não funcionam em diagonais. Usando linha angular.',
@@ -596,11 +604,16 @@ function StrategicMapInner({
                         y: Math.min(sourceCenter.y, targetCenter.y) - 50,
                     },
                 });
-
-                // Auto-hide after 3 seconds
                 setTimeout(() => {
                     setDiagonalWarning(prev => ({ ...prev, visible: false }));
                 }, 3000);
+            }
+
+            // If user selected bezier/smoothstep on an aligned connection, let them
+            // (only force straight when we're auto-selecting)
+            if (edgeConfig.type !== 'straight' && isAligned) {
+                // User chose curves for aligned - that's their choice, keep it
+                effectiveConfig = { ...edgeConfig };
             }
 
             const props = configToEdgeProps(effectiveConfig);
@@ -611,7 +624,7 @@ function StrategicMapInner({
                 ...props,
             };
 
-            console.log(`[SmartConnect] Final: ${smartSourceHandle} -> ${smartTargetHandle}, type: ${props.type}, diagonal: ${isDiag}`);
+            console.log(`[SmartConnect] Final: ${smartSourceHandle} -> ${smartTargetHandle}, type: ${props.type}, aligned: ${isAligned}, userType: ${edgeConfig.type}`);
 
             setEdges((eds) => {
                 const newEdges = addEdge(smartEdge, eds);

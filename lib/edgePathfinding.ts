@@ -136,46 +136,77 @@ function pathLength(points: XYPosition[]): number {
 }
 
 // =============================================================================
-// DIAGONAL DETECTION
+// ALIGNMENT DETECTION - Using 50px threshold as specified
 // =============================================================================
+
+const ALIGNMENT_THRESHOLD = 50; // pixels
+
+/**
+ * Check if cards are vertically aligned (same column)
+ * |deltaX| < 50px means they are in the same column
+ */
+export function isVerticallyAligned(source: XYPosition, target: XYPosition): boolean {
+    const dx = Math.abs(target.x - source.x);
+    return dx < ALIGNMENT_THRESHOLD;
+}
+
+/**
+ * Check if cards are horizontally aligned (same row)
+ * |deltaY| < 50px means they are in the same row
+ */
+export function isHorizontallyAligned(source: XYPosition, target: XYPosition): boolean {
+    const dy = Math.abs(target.y - source.y);
+    return dy < ALIGNMENT_THRESHOLD;
+}
 
 /**
  * Check if connection between two points is diagonal
- * Returns true if the angle is between 20° and 70° (or 110°-160°, etc.)
+ * Diagonal = NOT vertically aligned AND NOT horizontally aligned
  */
 export function isDiagonalConnection(source: XYPosition, target: XYPosition): boolean {
-    const dx = Math.abs(target.x - source.x);
-    const dy = Math.abs(target.y - source.y);
+    return !isVerticallyAligned(source, target) && !isHorizontallyAligned(source, target);
+}
 
-    // Avoid division by zero
-    if (dx < 10 && dy < 10) return false; // Too close to determine
+/**
+ * Check if cards are aligned (either vertically OR horizontally)
+ * Aligned connections should use STRAIGHT lines
+ */
+export function isAlignedConnection(source: XYPosition, target: XYPosition): boolean {
+    return isVerticallyAligned(source, target) || isHorizontallyAligned(source, target);
+}
 
-    const maxDist = Math.max(dx, dy);
-    const minDist = Math.min(dx, dy);
-    const ratio = minDist / maxDist;
-
-    // If ratio > 0.3, connection is diagonal (roughly 17° to 73° from axis)
-    return ratio > 0.3;
+/**
+ * Get the OPTIMAL edge type based on connection geometry
+ * This is used for auto-selection when creating new connections
+ * 
+ * Rules:
+ * - Vertically aligned (same column): STRAIGHT
+ * - Horizontally aligned (same row): STRAIGHT
+ * - Diagonal: SMOOTHSTEP (never straight!)
+ */
+export function getOptimalEdgeType(source: XYPosition, target: XYPosition): 'smoothstep' | 'straight' {
+    if (isAlignedConnection(source, target)) {
+        return 'straight'; // Clean straight line for aligned cards
+    }
+    return 'smoothstep'; // Angular routing for diagonals
 }
 
 /**
  * Get suggested edge type based on connection geometry
+ * @deprecated Use getOptimalEdgeType instead
  */
 export function getSuggestedEdgeType(
     source: XYPosition,
     target: XYPosition
 ): 'smoothstep' | 'straight' {
-    if (isDiagonalConnection(source, target)) {
-        return 'smoothstep'; // Angular/curved for diagonals
-    }
-    return 'straight'; // Straight is OK for aligned connections
+    return getOptimalEdgeType(source, target);
 }
 
 /**
  * Check if straight line is appropriate for this connection
  */
 export function isStraightLineAppropriate(source: XYPosition, target: XYPosition): boolean {
-    return !isDiagonalConnection(source, target);
+    return isAlignedConnection(source, target);
 }
 
 // =============================================================================

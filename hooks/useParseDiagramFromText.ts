@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import type { Node, Edge, EdgeMarker } from '@xyflow/react';
 import { MarkerType } from '@xyflow/react';
+import { normalizeDiagram, type NormalizedEdge } from '@/lib/edgePathfinding';
 
 interface DiagramData {
     nodes: Array<{
@@ -139,7 +140,18 @@ function convertToReactFlow(data: DiagramData): { nodes: Node[]; edges: Edge[] }
         };
     });
 
-    return { nodes, edges };
+    // MANDATORY NORMALIZATION - Run BEFORE returning!
+    // This forces correct geometry based on node positions
+    console.log(`[convertToReactFlow] Running mandatory normalization on ${edges.length} edges...`);
+
+    const normalizedEdges = normalizeDiagram(
+        edges as unknown as NormalizedEdge[],
+        nodes
+    ) as unknown as Edge[];
+
+    console.log(`[convertToReactFlow] Normalization complete. Returning ${normalizedEdges.length} edges.`);
+
+    return { nodes, edges: normalizedEdges };
 }
 
 export function useParseDiagramFromText(

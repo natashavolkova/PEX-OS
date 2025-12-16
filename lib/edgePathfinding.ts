@@ -420,3 +420,212 @@ export function getEdgeRecommendation(
         blocked: false,
     };
 }
+
+// =============================================================================
+// MANDATORY EDGE NORMALIZATION - Runs BEFORE rendering!
+// =============================================================================
+
+const ALIGNMENT_THRESHOLD_NORM = 50; // pixels
+
+export interface NormalizedEdge {
+    id: string;
+    source: string;
+    target: string;
+    sourceHandle?: string;
+    targetHandle?: string;
+    type: 'straight' | 'smoothstep' | 'step';
+    markerEnd?: unknown;
+    markerStart?: unknown;
+    style?: Record<string, unknown>;
+    animated?: boolean;
+    label?: string;
+    // Flag indicating normalization was applied
+    _normalized?: boolean;
+    _normalizationReason?: string;
+}
+
+/**
+ * MANDATORY NORMALIZATION - Forces correct geometry based on node positions
+ * This function runs for EVERY edge BEFORE rendering!
+ * 
+ * Rules:
+ * - deltaX < 50px (vertically aligned) → FORCE straight
+ * - deltaY < 50px (horizontally aligned) → FORCE straight
+ * - Both > 50px (diagonal) → FORCE smoothstep if type was straight
+ */
+export function normalizeEdge(
+    edge: NormalizedEdge,
+    sourceNode: Node | undefined,
+    targetNode: Node | undefined
+): NormalizedEdge {
+    // If nodes not found, return as-is
+    if (!sourceNode || !targetNode) {
+        console.log(`[NormalizeEdge] Edge ${edge.id}: SKIPPED - nodes not found`);
+        return edge;
+    }
+
+    // Calculate alignment
+    const sourceCenter = getNodeCenter(sourceNode);
+    const targetCenter = getNodeCenter(targetNode);
+
+    const deltaX = Math.abs(targetCenter.x - sourceCenter.x);
+    const deltaY = Math.abs(targetCenter.y - sourceCenter.y);
+
+    const isVerticallyAligned = deltaX < ALIGNMENT_THRESHOLD_NORM;
+    const isHorizontallyAligned = deltaY < ALIGNMENT_THRESHOLD_NORM;
+    const shouldBeStraight = isVerticallyAligned || isHorizontallyAligned;
+
+    // Current type (default to straight if missing)
+    const currentType = edge.type || 'straight';
+
+    console.log(`[NormalizeEdge] Edge ${edge.id}:`, {
+        deltaX: deltaX.toFixed(0),
+        deltaY: deltaY.toFixed(0),
+        currentType,
+        isVerticallyAligned,
+        isHorizontallyAligned,
+        shouldBeStraight,
+    });
+
+    // CASE 1: Aligned cards should use STRAIGHT
+    if (shouldBeStraight && currentType !== 'straight') {
+        console.log(`[NormalizeEdge] Edge ${edge.id}: FORCING straight (was ${currentType})`);
+        return {
+            ...edge,
+            type: 'straight',
+            _normalized: true,
+            _normalizationReason: isVerticallyAligned ? 'vertically_aligned' : 'horizontally_aligned',
+        };
+    }
+
+    // CASE 2: Diagonal should NOT use straight
+    if (!shouldBeStraight && currentType === 'straight') {
+        console.log(`[NormalizeEdge] Edge ${edge.id}: FORCING smoothstep (straight on diagonal)`);
+        return {
+            ...edge,
+            type: 'smoothstep',
+            _normalized: true,
+            _normalizationReason: 'diagonal_requires_curve',
+        };
+    }
+
+    // CASE 3: Already correct
+    console.log(`[NormalizeEdge] Edge ${edge.id}: OK (no change needed)`);
+    return {
+        ...edge,
+        _normalized: true,
+        _normalizationReason: 'already_correct',
+    };
+}
+
+/**
+ * Normalize ALL edges in a diagram
+ * This is called during diagram loading, BEFORE rendering!
+ */
+export function normalizeAllEdges(
+    edges: NormalizedEdge[],
+    nodes: Node[]
+): NormalizedEdge[] {
+    console.log(`[NormalizeAllEdges] Processing ${edges.length} edges...`);
+
+    return edges.map(edge => {
+        const sourceNode = nodes.find(n => n.id === edge.source);
+        const targetNode = nodes.find(n => n.id === edge.target);
+        return normalizeEdge(edge, sourceNode, targetNode);
+    });
+}
+
+// =============================================================================
+// EDGE SPACING - Prevents arrow overlap on same target
+// =============================================================================
+
+const HANDLE_OFFSETS = [-30, -15, 0, 15, 30]; // 5 possible positions
+
+/**
+ * Validate edge spacing and assign handles to prevent arrow overlap
+ * When multiple edges connect to the same target, they get different handles
+ */
+export function validateEdgeSpacing(
+    edges: NormalizedEdge[],
+    nodes: Node[]
+): NormalizedEdge[] {
+    console.log(`[ValidateEdgeSpacing] Processing ${edges.length} edges...`);
+
+    // Group edges by target node
+    const edgesByTarget: Record<string, NormalizedEdge[]> = {};
+    edges.forEach(edge => {
+        if (!edgesByTarget[edge.target]) {
+            edgesByTarget[edge.target] = [];
+        }
+        edgesByTarget[edge.target].push(edge);
+    });
+
+    // Also group by source for outgoing edges
+    const edgesBySource: Record<string, NormalizedEdge[]> = {};
+    edges.forEach(edge => {
+        if (!edgesBySource[edge.source]) {
+            edgesBySource[edge.source] = [];
+        }
+        edgesBySource[edge.source].push(edge);
+    });
+
+    return edges.map(edge => {
+        const targetEdges = edgesByTarget[edge.target] || [];
+        const sourceEdges = edgesBySource[edge.source] || [];
+
+        let newTargetHandle = edge.targetHandle;
+        let newSourceHandle = edge.sourceHandle;
+
+        // If multiple edges arrive at same target, distribute handles
+        if (targetEdges.length > 1) {
+            const index = targetEdges.indexOf(edge);
+            const offset = HANDLE_OFFSETS[index % HANDLE_OFFSETS.length];
+
+            // Generate handle based on current target direction
+            const currentHandle = edge.targetHandle || 't';
+            const baseHandle = currentHandle.replace(/-?\d+$/, ''); // Remove any existing offset
+            newTargetHandle = offset === 0 ? baseHandle : `${baseHandle}${offset}`;
+
+            console.log(`[ValidateEdgeSpacing] Edge ${edge.id}: target handle ${edge.targetHandle} -> ${newTargetHandle} (${targetEdges.length} edges on same target)`);
+        }
+
+        // If multiple edges leave same source, distribute handles
+        if (sourceEdges.length > 1) {
+            const index = sourceEdges.indexOf(edge);
+            const offset = HANDLE_OFFSETS[index % HANDLE_OFFSETS.length];
+
+            const currentHandle = edge.sourceHandle || 'b';
+            const baseHandle = currentHandle.replace(/-?\d+$/, '');
+            newSourceHandle = offset === 0 ? baseHandle : `${baseHandle}${offset}`;
+
+            console.log(`[ValidateEdgeSpacing] Edge ${edge.id}: source handle ${edge.sourceHandle} -> ${newSourceHandle} (${sourceEdges.length} edges from same source)`);
+        }
+
+        return {
+            ...edge,
+            sourceHandle: newSourceHandle,
+            targetHandle: newTargetHandle,
+        };
+    });
+}
+
+/**
+ * Full diagram normalization pipeline
+ * Run this BEFORE rendering any diagram!
+ */
+export function normalizeDiagram(
+    edges: NormalizedEdge[],
+    nodes: Node[]
+): NormalizedEdge[] {
+    console.log(`[NormalizeDiagram] Starting normalization pipeline...`);
+
+    // Step 1: Normalize geometry based on alignment
+    const geometryNormalized = normalizeAllEdges(edges, nodes);
+
+    // Step 2: Validate spacing to prevent overlaps
+    const spacingValidated = validateEdgeSpacing(geometryNormalized, nodes);
+
+    console.log(`[NormalizeDiagram] Pipeline complete. ${spacingValidated.length} edges processed.`);
+
+    return spacingValidated;
+}

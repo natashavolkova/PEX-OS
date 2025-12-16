@@ -86,14 +86,24 @@ function convertToReactFlow(data: DiagramData): { nodes: Node[]; edges: Edge[] }
         // Fallback ID if not saved
         const edgeId = edge.id || `e${edge.source}-${edge.target}-${index}`;
 
-        // Type mapping:
-        // CRITICAL: Never use React Flow 'default' type (wavy bezier)
-        // All curve types use 'smoothstep' with different borderRadius
-        // 'bezier' in JSON -> 'smoothstep' in React Flow (with high borderRadius applied by StrategicMap)
-        let edgeType = edge.type || 'smoothstep';
-        if (edgeType === 'bezier' || edgeType === 'default') {
-            edgeType = 'smoothstep'; // Force smoothstep, never wavy bezier
+        // CRITICAL: Validate and preserve edge type EXACTLY as saved
+        // Allowed types: 'straight', 'smoothstep', 'step'
+        // Default fallback: 'straight' (NOT smoothstep!)
+        const validTypes = ['straight', 'smoothstep', 'step'];
+        let edgeType: string;
+
+        if (edge.type && validTypes.includes(edge.type)) {
+            // User's saved type is valid - USE IT EXACTLY
+            edgeType = edge.type;
+        } else if (edge.type === 'bezier' || edge.type === 'default') {
+            // Legacy types get converted to smoothstep
+            edgeType = 'smoothstep';
+        } else {
+            // Missing or invalid type - use straight as default
+            edgeType = 'straight';
         }
+
+        console.log(`[Parser] Edge ${edgeId}: saved type="${edge.type}" -> applied type="${edgeType}"`);
 
         // Helper to convert marker from JSON to proper EdgeMarker type
         const parseMarker = (marker: typeof edge.markerEnd): EdgeMarker | undefined => {

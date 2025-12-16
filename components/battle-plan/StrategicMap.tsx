@@ -580,22 +580,21 @@ function StrategicMapInner({
                 }
             }
 
-            // 5. AUTO LINE TYPE SELECTION based on geometry
-            // Rules:
-            // - Cards aligned (vert/horiz within 50px): STRAIGHT
-            // - Cards diagonal: SMOOTHSTEP (angular)
-            // User's edgeConfig.type is OVERRIDDEN by geometry for optimal visual result
+            // 5. RESPECT USER'S EDGE TYPE CHOICE
+            // The user selected the type in LibrarySidebar - we RESPECT that choice
+            // ONLY exception: block straight lines on true diagonals (both dx and dy > 50px)
 
-            const optimalType = getOptimalEdgeType(sourceCenter, targetCenter);
-            const isAligned = isAlignedConnection(sourceCenter, targetCenter);
+            const absDx = Math.abs(dx);
+            const absDy = Math.abs(dy);
+            const isTrueDiagonal = absDx > 50 && absDy > 50;
 
-            // Start with user's config but force optimal type
-            // Cast needed because getOptimalEdgeType returns 'smoothstep'|'straight' but EdgeConfig has 'bezier' too
-            let effectiveConfig: EdgeConfig = { ...edgeConfig, type: optimalType as EdgeConfig['type'] };
+            // Start with EXACTLY what the user configured
+            let effectiveConfig: EdgeConfig = { ...edgeConfig };
 
-            // Only show warning if user EXPLICITLY selected straight on a diagonal
-            if (edgeConfig.type === 'straight' && !isAligned) {
-                console.log('[SmartConnect] User wanted straight but connection is diagonal - using smoothstep');
+            // ONLY override if user chose straight on a true diagonal
+            if (edgeConfig.type === 'straight' && isTrueDiagonal) {
+                console.log('[SmartConnect] Blocking straight on true diagonal - forcing smoothstep');
+                effectiveConfig = { ...edgeConfig, type: 'smoothstep' };
                 setDiagonalWarning({
                     visible: true,
                     message: 'Linhas retas não funcionam em diagonais. Usando linha angular.',
@@ -609,13 +608,6 @@ function StrategicMapInner({
                 }, 3000);
             }
 
-            // If user selected bezier/smoothstep on an aligned connection, let them
-            // (only force straight when we're auto-selecting)
-            if (edgeConfig.type !== 'straight' && isAligned) {
-                // User chose curves for aligned - that's their choice, keep it
-                effectiveConfig = { ...edgeConfig };
-            }
-
             const props = configToEdgeProps(effectiveConfig);
             const smartEdge = {
                 ...params,
@@ -624,7 +616,7 @@ function StrategicMapInner({
                 ...props,
             };
 
-            console.log(`[SmartConnect] Final: ${smartSourceHandle} -> ${smartTargetHandle}, type: ${props.type}, aligned: ${isAligned}, userType: ${edgeConfig.type}`);
+            console.log(`[SmartConnect] Final: ${smartSourceHandle} -> ${smartTargetHandle}, type: ${props.type}, diagonal: ${isTrueDiagonal}, userType: ${edgeConfig.type}`);
 
             setEdges((eds) => {
                 const newEdges = addEdge(smartEdge, eds);

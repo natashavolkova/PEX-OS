@@ -559,6 +559,9 @@ export function normalizeEdge(
 /**
  * Normalize ALL edges in a diagram
  * This is called during diagram loading, BEFORE rendering!
+ * 
+ * CRITICAL: Detects duplicate edges (same source-target) and forces smoothstep
+ * to prevent straight lines from overlapping
  */
 export function normalizeAllEdges(
     edges: NormalizedEdge[],
@@ -566,10 +569,41 @@ export function normalizeAllEdges(
 ): NormalizedEdge[] {
     console.log(`[NormalizeAllEdges] Processing ${edges.length} edges...`);
 
+    // Step 1: Group edges by source-target pair to detect duplicates
+    const pairCount: Record<string, number> = {};
+    edges.forEach(edge => {
+        const key = `${edge.source}->${edge.target}`;
+        pairCount[key] = (pairCount[key] || 0) + 1;
+    });
+
+    // Track which pairs we've seen to alternate types
+    const pairSeen: Record<string, number> = {};
+
     return edges.map(edge => {
         const sourceNode = nodes.find(n => n.id === edge.source);
         const targetNode = nodes.find(n => n.id === edge.target);
-        return normalizeEdge(edge, sourceNode, targetNode);
+
+        // First normalize based on alignment
+        let normalizedEdge = normalizeEdge(edge, sourceNode, targetNode);
+
+        // Step 2: Check if this is a duplicate pair
+        const key = `${edge.source}->${edge.target}`;
+        const count = pairCount[key] || 1;
+        const seenIndex = pairSeen[key] || 0;
+        pairSeen[key] = seenIndex + 1;
+
+        // If there are multiple edges between same nodes AND this edge is straight
+        // Only the FIRST one can be straight, rest must be smoothstep to separate
+        if (count > 1 && normalizedEdge.type === 'straight' && seenIndex > 0) {
+            console.log(`[NormalizeAllEdges] Edge ${edge.id}: FORCING smoothstep (duplicate straight would overlap)`);
+            normalizedEdge = {
+                ...normalizedEdge,
+                type: 'smoothstep',
+                _normalizationReason: 'duplicate_straight_prevented',
+            };
+        }
+
+        return normalizedEdge;
     });
 }
 

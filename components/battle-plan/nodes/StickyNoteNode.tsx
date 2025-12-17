@@ -116,56 +116,32 @@ function StickyNoteNode({ id, data, selected }: NodeProps) {
                     style={{ clipPath: 'polygon(100% 0, 0 0, 100% 100%)' }}
                 />
 
-                {/* HANDLES - Multiple offset handles to prevent arrow overlap */}
-                {/* Each position (t, r, b, l) has 5 handles at -30, -15, 0, 15, 30 offsets */}
-
-                {/* TOP handles */}
-                {[-30, -15, 0, 15, 30].map(offset => (
-                    <Handle
-                        key={`t${offset}`}
-                        type="source"
-                        position={Position.Top}
-                        id={offset === 0 ? 't' : `t${offset}`}
-                        className="!w-2 !h-2 !bg-blue-500 !z-[100] !-top-[4px] !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
-                        style={{ left: `calc(50% + ${offset}px)` }}
-                    />
-                ))}
-
-                {/* BOTTOM handles */}
-                {[-30, -15, 0, 15, 30].map(offset => (
-                    <Handle
-                        key={`b${offset}`}
-                        type="source"
-                        position={Position.Bottom}
-                        id={offset === 0 ? 'b' : `b${offset}`}
-                        className="!w-2 !h-2 !bg-blue-500 !z-[100] !-bottom-[4px] !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
-                        style={{ left: `calc(50% + ${offset}px)` }}
-                    />
-                ))}
-
-                {/* RIGHT handles */}
-                {[-30, -15, 0, 15, 30].map(offset => (
-                    <Handle
-                        key={`r${offset}`}
-                        type="source"
-                        position={Position.Right}
-                        id={offset === 0 ? 'r' : `r${offset}`}
-                        className="!w-2 !h-2 !bg-blue-500 !z-[100] !-right-[4px] !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
-                        style={{ top: `calc(50% + ${offset}px)` }}
-                    />
-                ))}
-
-                {/* LEFT handles */}
-                {[-30, -15, 0, 15, 30].map(offset => (
-                    <Handle
-                        key={`l${offset}`}
-                        type="source"
-                        position={Position.Left}
-                        id={offset === 0 ? 'l' : `l${offset}`}
-                        className="!w-2 !h-2 !bg-blue-500 !z-[100] !-left-[4px] !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
-                        style={{ top: `calc(50% + ${offset}px)` }}
-                    />
-                ))}
+                {/* HANDLES - 1 per side (4 total) - Clean interface */}
+                {/* Invisible by default, visible on hover */}
+                <Handle
+                    type="source"
+                    position={Position.Top}
+                    id="t"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-top-[5px] !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
+                />
+                <Handle
+                    type="source"
+                    position={Position.Bottom}
+                    id="b"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-bottom-[5px] !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
+                />
+                <Handle
+                    type="source"
+                    position={Position.Right}
+                    id="r"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-right-[5px] !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
+                />
+                <Handle
+                    type="source"
+                    position={Position.Left}
+                    id="l"
+                    className="!w-3 !h-3 !bg-blue-500 !z-[100] !-left-[5px] !opacity-0 group-hover:!opacity-100 !border-2 !border-white transition-opacity"
+                />
 
                 {/* Content */}
                 <div className="p-3 h-full flex items-center justify-center">

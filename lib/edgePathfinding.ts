@@ -425,7 +425,7 @@ export function getEdgeRecommendation(
 // MANDATORY EDGE NORMALIZATION - Runs BEFORE rendering!
 // =============================================================================
 
-const ALIGNMENT_THRESHOLD_NORM = 80; // pixels (increased from 50 for more tolerance)
+const ALIGNMENT_THRESHOLD_NORM = 30; // pixels (reduced from 80 for precision)
 
 export interface NormalizedEdge {
     id: string;
@@ -634,7 +634,7 @@ export function normalizeDiagram(
 // SNAP-TO-ALIGNMENT - Automatic position correction when dropping cards
 // =============================================================================
 
-const SNAP_THRESHOLD = 100; // pixels - how close to "almost aligned"
+const SNAP_THRESHOLD = 15; // pixels - VERY precise, almost millimetric
 
 export interface SnapAlignment {
     axis: 'x' | 'y';

@@ -425,7 +425,7 @@ export function getEdgeRecommendation(
 // MANDATORY EDGE NORMALIZATION - Runs BEFORE rendering!
 // =============================================================================
 
-const ALIGNMENT_THRESHOLD_NORM = 50; // pixels
+const ALIGNMENT_THRESHOLD_NORM = 80; // pixels (increased from 50 for more tolerance)
 
 export interface NormalizedEdge {
     id: string;
@@ -628,4 +628,106 @@ export function normalizeDiagram(
     console.log(`[NormalizeDiagram] Pipeline complete. ${spacingValidated.length} edges processed.`);
 
     return spacingValidated;
+}
+
+// =============================================================================
+// SNAP-TO-ALIGNMENT - Automatic position correction when dropping cards
+// =============================================================================
+
+const SNAP_THRESHOLD = 100; // pixels - how close to "almost aligned"
+
+export interface SnapAlignment {
+    axis: 'x' | 'y';
+    targetValue: number;
+    alignedWithNodeId: string;
+}
+
+/**
+ * Detect if a dragged node is "almost" aligned with other nodes
+ * Returns the alignment target if within SNAP_THRESHOLD
+ */
+export function detectNearAlignment(
+    draggedNode: Node,
+    otherNodes: Node[]
+): SnapAlignment | null {
+    console.log(`[SnapDetect] Checking alignment for node ${draggedNode.id}...`);
+
+    // Check vertical alignment (same X position)
+    for (const node of otherNodes) {
+        if (node.id === draggedNode.id) continue;
+
+        const deltaX = Math.abs(node.position.x - draggedNode.position.x);
+
+        if (deltaX < SNAP_THRESHOLD && deltaX > 0) {
+            console.log(`[SnapDetect] Node ${draggedNode.id} is ${deltaX.toFixed(0)}px from vertical alignment with ${node.id}`);
+            return {
+                axis: 'x',
+                targetValue: node.position.x,
+                alignedWithNodeId: node.id,
+            };
+        }
+    }
+
+    // Check horizontal alignment (same Y position)
+    for (const node of otherNodes) {
+        if (node.id === draggedNode.id) continue;
+
+        const deltaY = Math.abs(node.position.y - draggedNode.position.y);
+
+        if (deltaY < SNAP_THRESHOLD && deltaY > 0) {
+            console.log(`[SnapDetect] Node ${draggedNode.id} is ${deltaY.toFixed(0)}px from horizontal alignment with ${node.id}`);
+            return {
+                axis: 'y',
+                targetValue: node.position.y,
+                alignedWithNodeId: node.id,
+            };
+        }
+    }
+
+    console.log(`[SnapDetect] No alignment opportunity for node ${draggedNode.id}`);
+    return null;
+}
+
+/**
+ * Apply snap correction to a node's position
+ */
+export function applySnapCorrection(
+    node: Node,
+    alignment: SnapAlignment
+): Node {
+    const newPosition = {
+        x: alignment.axis === 'x' ? alignment.targetValue : node.position.x,
+        y: alignment.axis === 'y' ? alignment.targetValue : node.position.y,
+    };
+
+    console.log(`[SnapApply] ${node.id}: ${alignment.axis}=${node.position[alignment.axis].toFixed(0)} -> ${alignment.targetValue.toFixed(0)}`);
+
+    return {
+        ...node,
+        position: newPosition,
+    };
+}
+
+/**
+ * Normalize edges connected to a specific node
+ * Called after node position is corrected
+ */
+export function normalizeEdgesForNode(
+    nodeId: string,
+    edges: NormalizedEdge[],
+    nodes: Node[]
+): NormalizedEdge[] {
+    console.log(`[NormalizeForNode] Recalculating edges connected to ${nodeId}...`);
+
+    return edges.map(edge => {
+        // Only normalize edges connected to the moved node
+        if (edge.source !== nodeId && edge.target !== nodeId) {
+            return edge;
+        }
+
+        const sourceNode = nodes.find(n => n.id === edge.source);
+        const targetNode = nodes.find(n => n.id === edge.target);
+
+        return normalizeEdge(edge, sourceNode, targetNode);
+    });
 }

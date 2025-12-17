@@ -36,6 +36,10 @@ import {
     getNodeCenter,
     findCollisions,
     getOptimalHandles,
+    detectNearAlignment,
+    applySnapCorrection,
+    normalizeEdgesForNode,
+    type NormalizedEdge,
 } from '@/lib/edgePathfinding';
 
 // Node types
@@ -458,6 +462,61 @@ function StrategicMapInner({
         }
     }, [externalNodes, externalEdges, setNodes, setEdges]);
 
+    // SNAP-TO-ALIGNMENT: Auto-correct card position when dropped
+    const onNodeDragStop = useCallback(
+        (_event: React.MouseEvent, node: Node) => {
+            console.log(`[onNodeDragStop] Node ${node.id} dropped at x=${node.position.x.toFixed(0)}, y=${node.position.y.toFixed(0)}`);
+
+            // Detect if node is "almost" aligned with any other node
+            const alignment = detectNearAlignment(node, nodes);
+
+            if (alignment) {
+                console.log(`[onNodeDragStop] SNAP: Aligning ${node.id} to ${alignment.axis}=${alignment.targetValue}`);
+
+                // Apply snap correction to node position
+                const correctedNode = applySnapCorrection(node, alignment);
+
+                // Update nodes with corrected position
+                setNodes(nds => {
+                    const updatedNodes = nds.map(n =>
+                        n.id === node.id ? correctedNode : n
+                    );
+
+                    // Recalculate edges connected to this node
+                    setTimeout(() => {
+                        setEdges(eds => {
+                            const normalizedEdges = normalizeEdgesForNode(
+                                node.id,
+                                eds as unknown as NormalizedEdge[],
+                                updatedNodes
+                            );
+
+                            // Emit change after edge normalization
+                            emitChange(updatedNodes, normalizedEdges as Edge[]);
+
+                            return normalizedEdges as Edge[];
+                        });
+                    }, 50); // Small delay for smooth animation
+
+                    return updatedNodes;
+                });
+
+                // Visual feedback: add snap class to node element
+                const nodeElement = document.querySelector(`[data-id="${node.id}"]`);
+                if (nodeElement) {
+                    nodeElement.classList.add(`snap-${alignment.axis}`);
+                    setTimeout(() => {
+                        nodeElement.classList.remove(`snap-${alignment.axis}`);
+                    }, 300);
+                }
+            } else {
+                // No snap needed, just emit change for persistence
+                emitChange(nodes, edges);
+            }
+        },
+        [nodes, edges, setNodes, setEdges, emitChange]
+    );
+
     // Drag and Drop handlers
     const onDragOver = useCallback((event: DragEvent) => {
         event.preventDefault();
@@ -525,49 +584,7 @@ function StrategicMapInner({
         }
     }, [onEdgesChange, nodes, emitChange, setEdges]);
 
-    // AUTO-REROUTE ON NODE DRAG - Smart re-routing when nodes are moved
-    const onNodeDragStop = useCallback(
-        (_event: React.MouseEvent, node: Node) => {
-            // 1. Find all edges connected to this node
-            const connectedEdges = edges.filter(
-                (e) => e.source === node.id || e.target === node.id
-            );
-
-            // 2. If no connections, ignore
-            if (connectedEdges.length === 0) return;
-
-            // 3. Prepare updates with smart handles
-            const updates = connectedEdges.map((edge) => {
-                const sourceNode = reactFlowInstance.getNode(edge.source);
-                const targetNode = reactFlowInstance.getNode(edge.target);
-
-                if (!sourceNode || !targetNode) return edge;
-
-                // 4. Recalculate smart route
-                const smartHandles = getSmartHandleIds(sourceNode, targetNode);
-
-                console.log(`[AutoReroute] Edge ${edge.id}: ${smartHandles.source} -> ${smartHandles.target}`);
-
-                // 5. Return edge with new handles
-                return {
-                    ...edge,
-                    sourceHandle: smartHandles.source,
-                    targetHandle: smartHandles.target,
-                };
-            });
-
-            // 6. Apply changes
-            setEdges((eds) => {
-                const updatedEdges = eds.map((e) => {
-                    const update = updates.find((u) => u.id === e.id);
-                    return update ? update : e;
-                });
-                emitChange(nodes, updatedEdges);
-                return updatedEdges;
-            });
-        },
-        [edges, reactFlowInstance, setEdges, nodes, emitChange]
-    );
+    // (onNodeDragStop is now defined earlier with SNAP-TO-ALIGNMENT functionality)
 
     // SMART AUTO-CONNECT V2 - With failsafe dimension reading and console logging
     const onConnect = useCallback(

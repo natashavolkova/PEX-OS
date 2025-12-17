@@ -478,6 +478,37 @@ export function normalizeEdge(
     // Current type (default to straight if missing)
     const currentType = edge.type || 'straight';
 
+    // CRITICAL: Calculate OPTIMAL HANDLES based on node positions
+    // Horizontal: right → left or left → right
+    // Vertical: bottom → top or top → bottom
+    const isHorizontalDominant = deltaX > deltaY;
+    let optimalSourceHandle: string;
+    let optimalTargetHandle: string;
+
+    if (isHorizontalDominant) {
+        // Horizontal connection
+        if (targetCenter.x > sourceCenter.x) {
+            // Target is to the RIGHT of source
+            optimalSourceHandle = 'r';
+            optimalTargetHandle = 'l';
+        } else {
+            // Target is to the LEFT of source
+            optimalSourceHandle = 'l';
+            optimalTargetHandle = 'r';
+        }
+    } else {
+        // Vertical connection
+        if (targetCenter.y > sourceCenter.y) {
+            // Target is BELOW source
+            optimalSourceHandle = 'b';
+            optimalTargetHandle = 't';
+        } else {
+            // Target is ABOVE source
+            optimalSourceHandle = 't';
+            optimalTargetHandle = 'b';
+        }
+    }
+
     console.log(`[NormalizeEdge] Edge ${edge.id}:`, {
         deltaX: deltaX.toFixed(0),
         deltaY: deltaY.toFixed(0),
@@ -485,6 +516,7 @@ export function normalizeEdge(
         isVerticallyAligned,
         isHorizontallyAligned,
         shouldBeStraight,
+        optimalHandles: `${optimalSourceHandle} → ${optimalTargetHandle}`,
     });
 
     // CASE 1: Aligned cards should use STRAIGHT
@@ -493,6 +525,8 @@ export function normalizeEdge(
         return {
             ...edge,
             type: 'straight',
+            sourceHandle: optimalSourceHandle,
+            targetHandle: optimalTargetHandle,
             _normalized: true,
             _normalizationReason: isVerticallyAligned ? 'vertically_aligned' : 'horizontally_aligned',
         };
@@ -504,15 +538,19 @@ export function normalizeEdge(
         return {
             ...edge,
             type: 'smoothstep',
+            sourceHandle: optimalSourceHandle,
+            targetHandle: optimalTargetHandle,
             _normalized: true,
             _normalizationReason: 'diagonal_requires_curve',
         };
     }
 
-    // CASE 3: Already correct
-    console.log(`[NormalizeEdge] Edge ${edge.id}: OK (no change needed)`);
+    // CASE 3: Already correct type, but ensure handles are optimal
+    console.log(`[NormalizeEdge] Edge ${edge.id}: OK (applying optimal handles)`);
     return {
         ...edge,
+        sourceHandle: optimalSourceHandle,
+        targetHandle: optimalTargetHandle,
         _normalized: true,
         _normalizationReason: 'already_correct',
     };

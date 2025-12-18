@@ -39,6 +39,7 @@ import {
     detectNearAlignment,
     applySnapCorrection,
     normalizeEdgesForNode,
+    normalizeDiagram,
     type NormalizedEdge,
 } from '@/lib/edgePathfinding';
 
@@ -389,8 +390,14 @@ function StrategicMapInner({
                 };
             });
 
-            emitChange(nodes, updatedEdges);
-            return updatedEdges;
+            // CRITICAL: Normalize after geometry change
+            const normalizedEdges = normalizeDiagram(
+                updatedEdges as unknown as NormalizedEdge[],
+                nodes
+            ) as unknown as Edge[];
+            console.log(`[NORM] Geometry change: normalized ${normalizedEdges.length} edges`);
+            emitChange(nodes, normalizedEdges);
+            return normalizedEdges;
         });
     }, [selectedEdges, edgeConfig, setEdges, nodes, emitChange]);
 
@@ -456,7 +463,14 @@ function StrategicMapInner({
                 prevExternalSigRef.current = sig;
                 isExternalUpdateRef.current = true;
                 setNodes(externalNodes);
-                setEdges(externalEdges || []);
+                // CRITICAL: Normalize edges BEFORE rendering
+                const rawEdges = externalEdges || [];
+                const normalizedEdges = normalizeDiagram(
+                    rawEdges as unknown as NormalizedEdge[],
+                    externalNodes
+                ) as unknown as Edge[];
+                console.log(`[NORM] External load: ${rawEdges.length} edges → ${normalizedEdges.length} normalized`);
+                setEdges(normalizedEdges);
                 requestAnimationFrame(() => { isExternalUpdateRef.current = false; });
             }
         }
@@ -510,8 +524,16 @@ function StrategicMapInner({
                     }, 300);
                 }
             } else {
-                // No snap needed, just emit change for persistence
-                emitChange(nodes, edges);
+                // ALWAYS normalize edges connected to this node
+                setEdges(eds => {
+                    const normalizedEdges = normalizeDiagram(
+                        eds as unknown as NormalizedEdge[],
+                        nodes
+                    ) as unknown as Edge[];
+                    console.log(`[NORM] Node drag: normalized ${normalizedEdges.length} edges`);
+                    emitChange(nodes, normalizedEdges);
+                    return normalizedEdges;
+                });
             }
         },
         [nodes, edges, setNodes, setEdges, emitChange]
@@ -559,8 +581,14 @@ function StrategicMapInner({
     const handleLayout = useCallback((direction: 'TB' | 'LR') => {
         const { nodes: ln, edges: le } = getLayoutedElements(nodes, edges, direction);
         setNodes(ln);
-        setEdges(le);
-        emitChange(ln, le);
+        // Normalize after layout
+        const normalizedEdges = normalizeDiagram(
+            le as unknown as NormalizedEdge[],
+            ln
+        ) as unknown as Edge[];
+        console.log(`[NORM] Auto-layout: normalized ${normalizedEdges.length} edges`);
+        setEdges(normalizedEdges);
+        emitChange(ln, normalizedEdges);
         setShowLayoutMenu(false);
         requestAnimationFrame(() => { reactFlowInstance.fitView({ padding: 0.3 }); });
     }, [nodes, edges, setNodes, setEdges, emitChange, reactFlowInstance]);
@@ -702,8 +730,14 @@ function StrategicMapInner({
 
             setEdges((eds) => {
                 const newEdges = addEdge(smartEdge, eds);
-                emitChange(nodes, newEdges);
-                return newEdges;
+                // Normalize entire diagram including new edge
+                const normalizedEdges = normalizeDiagram(
+                    newEdges as unknown as NormalizedEdge[],
+                    nodes
+                ) as unknown as Edge[];
+                console.log(`[NORM] New connection: normalized ${normalizedEdges.length} edges`);
+                emitChange(nodes, normalizedEdges);
+                return normalizedEdges;
             });
         },
         [reactFlowInstance, setEdges, nodes, emitChange, edgeConfig]

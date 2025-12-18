@@ -682,6 +682,32 @@ export function validateEdgeSpacing(
 }
 
 /**
+ * Remove edges that reference non-existent nodes (orphans)
+ * Called during normalization pipeline
+ */
+export function validateAndCleanEdges(
+    edges: NormalizedEdge[],
+    nodes: Node[]
+): NormalizedEdge[] {
+    const nodeIds = new Set(nodes.map(n => n.id));
+    const validEdges = edges.filter(edge => {
+        const sourceExists = nodeIds.has(edge.source);
+        const targetExists = nodeIds.has(edge.target);
+        
+        if (!sourceExists || !targetExists) {
+            console.warn(`[ValidateEdges] Removing orphan edge ${edge.id}: source=${edge.source}(${sourceExists}), target=${edge.target}(${targetExists})`);
+            return false;
+        }
+        return true;
+    });
+    
+    if (edges.length !== validEdges.length) {
+        console.log(`[ValidateEdges] ${edges.length} edges → ${validEdges.length} valid (${edges.length - validEdges.length} orphans removed)`);
+    }
+    return validEdges;
+}
+
+/**
  * Full diagram normalization pipeline
  * Run this BEFORE rendering any diagram!
  */
@@ -691,8 +717,11 @@ export function normalizeDiagram(
 ): NormalizedEdge[] {
     console.log(`[NormalizeDiagram] Starting normalization pipeline...`);
 
+    // Step 0: Remove orphan edges
+    const cleanedEdges = validateAndCleanEdges(edges, nodes);
+
     // Step 1: Normalize geometry based on alignment
-    const geometryNormalized = normalizeAllEdges(edges, nodes);
+    const geometryNormalized = normalizeAllEdges(cleanedEdges, nodes);
 
     // Step 2: Validate spacing to prevent overlaps
     const spacingValidated = validateEdgeSpacing(geometryNormalized, nodes);

@@ -3,6 +3,7 @@
  */
 import React from 'react'
 import { render, screen } from '@testing-library/react'
+import '@testing-library/jest-dom'
 import { Toast } from '@/components/prompt-manager/Toast'
 
 describe('Toast - Smoke Tests', () => {

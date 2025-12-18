@@ -3,6 +3,7 @@
  */
 import React from 'react'
 import { render, screen } from '@testing-library/react'
+import '@testing-library/jest-dom'
 
 // Mock the store
 jest.mock('@/stores/promptManager', () => ({

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, DragEvent, useMemo } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, DragEvent, useMemo } from 'react';
 import {
     ReactFlow,
     Background,
@@ -455,7 +455,7 @@ function StrategicMapInner({
         },
     }));
 
-    // External data sync
+    // External data sync - NODES
     useEffect(() => {
         if (externalNodes && externalNodes.length > 0) {
             const sig = JSON.stringify(externalNodes.map(n => ({ id: n.id, label: n.data?.label, color: n.data?.color, shape: n.data?.shape })));
@@ -463,18 +463,46 @@ function StrategicMapInner({
                 prevExternalSigRef.current = sig;
                 isExternalUpdateRef.current = true;
                 setNodes(externalNodes);
-                // CRITICAL: Normalize edges BEFORE rendering
-                const rawEdges = externalEdges || [];
-                const normalizedEdges = normalizeDiagram(
-                    rawEdges as unknown as NormalizedEdge[],
-                    externalNodes
-                ) as unknown as Edge[];
-                console.log(`[NORM] External load: ${rawEdges.length} edges → ${normalizedEdges.length} normalized`);
-                setEdges(normalizedEdges);
                 requestAnimationFrame(() => { isExternalUpdateRef.current = false; });
             }
         }
-    }, [externalNodes, externalEdges, setNodes, setEdges]);
+    }, [externalNodes, setNodes]);
+
+    // External data sync - EDGES (separate check for independent updates)
+    const prevEdgeSigRef = useRef<string>('');
+    useEffect(() => {
+        if (externalEdges && externalEdges.length > 0) {
+            const edgeSig = JSON.stringify(externalEdges.map(e => ({ id: e.id, source: e.source, target: e.target, type: e.type })));
+            if (edgeSig !== prevEdgeSigRef.current) {
+                prevEdgeSigRef.current = edgeSig;
+                console.log(`[EdgeSync] Syncing ${externalEdges.length} edges from external source`);
+
+                // Use externalNodes if available, fallback to current nodes
+                const currentNodes = externalNodes && externalNodes.length > 0 ? externalNodes : nodes;
+
+                // Normalize edges BEFORE rendering
+                const normalizedEdges = normalizeDiagram(
+                    externalEdges as unknown as NormalizedEdge[],
+                    currentNodes
+                ) as unknown as Edge[];
+
+                console.log(`[NORM] External load: ${externalEdges.length} edges → ${normalizedEdges.length} normalized`);
+                setEdges(normalizedEdges);
+            }
+        }
+    }, [externalEdges, externalNodes, nodes, setEdges]);
+
+    // FORCE RENDER: Ensure edges are visible on first paint
+    const [edgeRenderKey, setEdgeRenderKey] = useState(0);
+    useLayoutEffect(() => {
+        // Force a re-render of edges after mount to ensure they're visible
+        if (edges.length > 0) {
+            requestAnimationFrame(() => {
+                setEdgeRenderKey(prev => prev + 1);
+                console.log(`[ForceRender] Edges: ${edges.length}, key: ${edgeRenderKey + 1}`);
+            });
+        }
+    }, [edges.length]);
 
     // SNAP DISABLED: Card stays EXACTLY where dropped
     const onNodeDragStop = useCallback(

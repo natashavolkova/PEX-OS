@@ -476,67 +476,23 @@ function StrategicMapInner({
         }
     }, [externalNodes, externalEdges, setNodes, setEdges]);
 
-    // SNAP-TO-ALIGNMENT: Auto-correct card position when dropped
+    // SNAP DISABLED: Card stays EXACTLY where dropped
     const onNodeDragStop = useCallback(
         (_event: React.MouseEvent, node: Node) => {
             console.log(`[onNodeDragStop] Node ${node.id} dropped at x=${node.position.x.toFixed(0)}, y=${node.position.y.toFixed(0)}`);
 
-            // Detect if node is "almost" aligned with any other node
-            const alignment = detectNearAlignment(node, nodes);
-
-            if (alignment) {
-                console.log(`[onNodeDragStop] SNAP: Aligning ${node.id} to ${alignment.axis}=${alignment.targetValue}`);
-
-                // Apply snap correction to node position
-                const correctedNode = applySnapCorrection(node, alignment);
-
-                // Update nodes with corrected position
-                setNodes(nds => {
-                    const updatedNodes = nds.map(n =>
-                        n.id === node.id ? correctedNode : n
-                    );
-
-                    // Recalculate edges connected to this node
-                    setTimeout(() => {
-                        setEdges(eds => {
-                            const normalizedEdges = normalizeEdgesForNode(
-                                node.id,
-                                eds as unknown as NormalizedEdge[],
-                                updatedNodes
-                            );
-
-                            // Emit change after edge normalization
-                            emitChange(updatedNodes, normalizedEdges as Edge[]);
-
-                            return normalizedEdges as Edge[];
-                        });
-                    }, 50); // Small delay for smooth animation
-
-                    return updatedNodes;
-                });
-
-                // Visual feedback: add snap class to node element
-                const nodeElement = document.querySelector(`[data-id="${node.id}"]`);
-                if (nodeElement) {
-                    nodeElement.classList.add(`snap-${alignment.axis}`);
-                    setTimeout(() => {
-                        nodeElement.classList.remove(`snap-${alignment.axis}`);
-                    }, 300);
-                }
-            } else {
-                // ALWAYS normalize edges connected to this node
-                setEdges(eds => {
-                    const normalizedEdges = normalizeDiagram(
-                        eds as unknown as NormalizedEdge[],
-                        nodes
-                    ) as unknown as Edge[];
-                    console.log(`[NORM] Node drag: normalized ${normalizedEdges.length} edges`);
-                    emitChange(nodes, normalizedEdges);
-                    return normalizedEdges;
-                });
-            }
+            // NO SNAP: Just normalize edges and emit immediately
+            setEdges(eds => {
+                const normalizedEdges = normalizeDiagram(
+                    eds as unknown as NormalizedEdge[],
+                    nodes
+                ) as unknown as Edge[];
+                console.log(`[NORM] Node drag: normalized ${normalizedEdges.length} edges`);
+                emitChange(nodes, normalizedEdges);
+                return normalizedEdges;
+            });
         },
-        [nodes, edges, setNodes, setEdges, emitChange]
+        [nodes, setEdges, emitChange]
     );
 
     // Drag and Drop handlers

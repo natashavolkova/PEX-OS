@@ -84,19 +84,48 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
     const [showCodePanel, setShowCodePanel] = useState(false);
 
     // ==========================================================================
-    // SINGLE SOURCE OF TRUTH: markdown contains EVERYTHING
-    // The diagram JSON is embedded in the markdown via ```json-diagram block
-    // diagramData state is REMOVED - we only use contentMarkdown
+    // LOCALSTORAGE CACHE - Instant hydration, survives F5
     // ==========================================================================
-    const [markdown, setMarkdown] = useState(battlePlan?.contentMarkdown || '');
+    const CACHE_KEY = `battle-plan-cache-${projectId}`;
+
+    // Initialize from localStorage first (instant), then update from prop
+    const getInitialMarkdown = () => {
+        if (typeof window !== 'undefined') {
+            const cached = localStorage.getItem(CACHE_KEY);
+            if (cached) {
+                console.log('[Cache] Loading from localStorage (instant)');
+                return cached;
+            }
+        }
+        return battlePlan?.contentMarkdown || '';
+    };
+
+    const [markdown, setMarkdown] = useState(getInitialMarkdown);
     const [mermaidCode, setMermaidCode] = useState('graph TD\n  A[Start] --> B{Decision}\n  B --> C[Option 1]\n  B --> D[Option 2]');
+
+    // Update from server data if newer (after initial localStorage load)
+    useEffect(() => {
+        if (battlePlan?.contentMarkdown && battlePlan.contentMarkdown !== markdown) {
+            console.log('[Cache] Server data received, updating state');
+            setMarkdown(battlePlan.contentMarkdown);
+            localStorage.setItem(CACHE_KEY, battlePlan.contentMarkdown);
+        }
+    }, [battlePlan?.contentMarkdown, CACHE_KEY]);
+
+    // Save to localStorage IMMEDIATELY on any change
+    useEffect(() => {
+        if (markdown) {
+            localStorage.setItem(CACHE_KEY, markdown);
+            console.log('[Cache] Saved to localStorage (instant)');
+        }
+    }, [markdown, CACHE_KEY]);
 
     // TWO-WAY DATA BINDING:
     // Text → Graph (parse json-diagram from markdown)
     const parsedDiagram = useParseDiagramFromText(markdown, 300);
     // Graph → Text (serialize graph changes back to markdown)
-    // Debounce reduced to 200ms for fast feedback
-    const { updateTextFromGraph } = useUpdateTextFromDiagram(markdown, setMarkdown, { debounceMs: 200 });
+    // ULTRA-FAST: 50ms debounce for instant feedback
+    const { updateTextFromGraph } = useUpdateTextFromDiagram(markdown, setMarkdown, { debounceMs: 50 });
 
     // Track if content has changed since last save
     const lastSavedMarkdownRef = useRef<string>(markdown);
@@ -142,7 +171,7 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
     }, [markdown, hasUnsavedChanges, onSave, saveStatus]);
 
     // ==========================================================================
-    // AUTO-SAVE - Reduced to 2 seconds for faster persistence
+    // AUTO-SAVE - Ultra-fast 500ms for near-instant persistence
     // ==========================================================================
     useEffect(() => {
         if (autoSaveTimerRef.current) {
@@ -152,9 +181,9 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
         // Only schedule auto-save if there are unsaved changes
         if (hasUnsavedChanges) {
             autoSaveTimerRef.current = setTimeout(() => {
-                console.log('[AutoSave] Triggering...');
+                console.log('[AutoSave] Triggering (500ms)...');
                 handleSave();
-            }, 2000); // Reduced from 5000ms to 2000ms
+            }, 500); // ULTRA-FAST: 500ms to Turso
         }
 
         return () => {
@@ -163,6 +192,37 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
             }
         };
     }, [markdown, hasUnsavedChanges, handleSave]);
+
+    // ==========================================================================
+    // BEFOREUNLOAD - Never lose state on page close/refresh
+    // ==========================================================================
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            if (hasUnsavedChanges && markdown) {
+                // Sync localStorage save (guaranteed)
+                localStorage.setItem(CACHE_KEY, markdown);
+                console.log('[BeforeUnload] Saved to localStorage');
+
+                // Fire-and-forget Turso save via sendBeacon
+                try {
+                    const payload = JSON.stringify({
+                        contentMarkdown: markdown,
+                        diagramData: extractDiagramJson(markdown),
+                    });
+                    navigator.sendBeacon(
+                        `/api/projects/${projectId}/battle-plan`,
+                        new Blob([payload], { type: 'application/json' })
+                    );
+                    console.log('[BeforeUnload] Sent beacon to Turso');
+                } catch (e) {
+                    console.error('[BeforeUnload] Beacon failed:', e);
+                }
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [markdown, hasUnsavedChanges, projectId, CACHE_KEY]);
 
     // ==========================================================================
     // RENDER
@@ -247,8 +307,8 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
                         onClick={handleSave}
                         disabled={saveStatus === 'saving'}
                         className={`flex items-center gap-1.5 px-4 py-2 text-white text-xs font-bold rounded-lg transition-all shadow-md ${saveStatus === 'error'
-                                ? 'bg-red-600 hover:bg-red-500'
-                                : 'bg-[#2979ff] hover:bg-[#2264d1]'
+                            ? 'bg-red-600 hover:bg-red-500'
+                            : 'bg-[#2979ff] hover:bg-[#2264d1]'
                             } disabled:opacity-50`}
                     >
                         {saveStatus === 'saving' ? <RefreshCw size={12} className="animate-spin" /> : <Save size={12} />}

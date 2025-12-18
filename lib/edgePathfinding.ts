@@ -560,8 +560,11 @@ export function normalizeEdge(
  * Normalize ALL edges in a diagram
  * This is called during diagram loading, BEFORE rendering!
  * 
- * CRITICAL: Detects duplicate edges (same source-target) and forces smoothstep
- * to prevent straight lines from overlapping
+ * DUPLICATE DETECTION RULES:
+ * - Key = source + sourceHandle + target + targetHandle (ALL 4 fields)
+ * - Only block if ALL 4 fields are IDENTICAL
+ * - Multiple curves from same handle are ALLOWED (different targets)
+ * - Only block STRAIGHT lines when angle < 3° (nearly perfect overlap)
  */
 export function normalizeAllEdges(
     edges: NormalizedEdge[],
@@ -569,14 +572,15 @@ export function normalizeAllEdges(
 ): NormalizedEdge[] {
     console.log(`[NormalizeAllEdges] Processing ${edges.length} edges...`);
 
-    // Step 1: Group edges by source-target pair to detect duplicates
-    const pairCount: Record<string, number> = {};
+    // Step 1: Group edges by FULL 4-field key to detect TRUE duplicates
+    // Key = source + sourceHandle + target + targetHandle
+    const fullPairCount: Record<string, number> = {};
     edges.forEach(edge => {
-        const key = `${edge.source}->${edge.target}`;
-        pairCount[key] = (pairCount[key] || 0) + 1;
+        const key = `${edge.source}|${edge.sourceHandle || 'default'}|${edge.target}|${edge.targetHandle || 'default'}`;
+        fullPairCount[key] = (fullPairCount[key] || 0) + 1;
     });
 
-    // Track which pairs we've seen to alternate types
+    // Track which pairs we've seen
     const pairSeen: Record<string, number> = {};
 
     return edges.map(edge => {
@@ -586,21 +590,34 @@ export function normalizeAllEdges(
         // First normalize based on alignment
         let normalizedEdge = normalizeEdge(edge, sourceNode, targetNode);
 
-        // Step 2: Check if this is a duplicate pair
-        const key = `${edge.source}->${edge.target}`;
-        const count = pairCount[key] || 1;
+        // Step 2: Check if this is a TRUE duplicate (all 4 fields identical)
+        const key = `${edge.source}|${edge.sourceHandle || 'default'}|${edge.target}|${edge.targetHandle || 'default'}`;
+        const count = fullPairCount[key] || 1;
         const seenIndex = pairSeen[key] || 0;
         pairSeen[key] = seenIndex + 1;
 
-        // If there are multiple edges between same nodes AND this edge is straight
-        // Only the FIRST one can be straight, rest must be smoothstep to separate
+        // Only apply straight->smoothstep conversion for TRUE duplicates
+        // AND only if the edge is nearly horizontal/vertical (angle < 3°)
         if (count > 1 && normalizedEdge.type === 'straight' && seenIndex > 0) {
-            console.log(`[NormalizeAllEdges] Edge ${edge.id}: FORCING smoothstep (duplicate straight would overlap)`);
-            normalizedEdge = {
-                ...normalizedEdge,
-                type: 'smoothstep',
-                _normalizationReason: 'duplicate_straight_prevented',
-            };
+            // Calculate angle to determine if it's nearly straight
+            if (sourceNode && targetNode) {
+                const dx = Math.abs(targetNode.position.x - sourceNode.position.x);
+                const dy = Math.abs(targetNode.position.y - sourceNode.position.y);
+                const angleRad = Math.atan2(Math.min(dx, dy), Math.max(dx, dy));
+                const angleDeg = (angleRad * 180) / Math.PI;
+
+                // Only block if angle < 3° (nearly perfect horizontal/vertical)
+                if (angleDeg < 3) {
+                    console.log(`[NormalizeAllEdges] Edge ${edge.id}: FORCING smoothstep (true duplicate, angle=${angleDeg.toFixed(1)}°)`);
+                    normalizedEdge = {
+                        ...normalizedEdge,
+                        type: 'smoothstep',
+                        _normalizationReason: 'duplicate_straight_prevented',
+                    };
+                } else {
+                    console.log(`[NormalizeAllEdges] Edge ${edge.id}: Allowing straight (angle=${angleDeg.toFixed(1)}° > 3°)`);
+                }
+            }
         }
 
         return normalizedEdge;
@@ -693,14 +710,14 @@ export function validateAndCleanEdges(
     const validEdges = edges.filter(edge => {
         const sourceExists = nodeIds.has(edge.source);
         const targetExists = nodeIds.has(edge.target);
-        
+
         if (!sourceExists || !targetExists) {
             console.warn(`[ValidateEdges] Removing orphan edge ${edge.id}: source=${edge.source}(${sourceExists}), target=${edge.target}(${targetExists})`);
             return false;
         }
         return true;
     });
-    
+
     if (edges.length !== validEdges.length) {
         console.log(`[ValidateEdges] ${edges.length} edges → ${validEdges.length} valid (${edges.length - validEdges.length} orphans removed)`);
     }

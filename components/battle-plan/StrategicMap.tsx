@@ -469,15 +469,24 @@ function StrategicMapInner({
     }, [externalNodes, setNodes]);
 
     // External data sync - EDGES (separate check for independent updates)
+    // CRITICAL: Do NOT include 'nodes' in deps - causes race condition on connect!
     const prevEdgeSigRef = useRef<string>('');
+    const isLocalEditRef = useRef<boolean>(false); // Guard against external overwrite during local edits
+
     useEffect(() => {
+        // GUARD: Skip if we just made a local edit (prevents race condition)
+        if (isLocalEditRef.current) {
+            console.log('[EdgeSync] SKIPPING - local edit in progress');
+            return;
+        }
+
         if (externalEdges && externalEdges.length > 0) {
             const edgeSig = JSON.stringify(externalEdges.map(e => ({ id: e.id, source: e.source, target: e.target, type: e.type })));
             if (edgeSig !== prevEdgeSigRef.current) {
                 prevEdgeSigRef.current = edgeSig;
                 console.log(`[EdgeSync] Syncing ${externalEdges.length} edges from external source`);
 
-                // Use externalNodes if available, fallback to current nodes
+                // Use externalNodes if available for normalization
                 const currentNodes = externalNodes && externalNodes.length > 0 ? externalNodes : nodes;
 
                 // Normalize edges BEFORE rendering
@@ -486,13 +495,20 @@ function StrategicMapInner({
                     currentNodes
                 ) as unknown as Edge[];
 
+                // GUARD: Don't replace if normalized is empty but external had edges
+                if (normalizedEdges.length === 0 && externalEdges.length > 0) {
+                    console.error('[EdgeSync] BLOCKED: normalization returned empty array!');
+                    setEdges([...externalEdges]); // Use raw edges as fallback
+                    return;
+                }
+
                 // FORCE NEW ARRAY REFERENCE for React to detect change
                 const forcedNewArray = [...normalizedEdges];
                 console.log(`[NORM] External load: ${externalEdges.length} edges → ${forcedNewArray.length} normalized`);
                 setEdges(forcedNewArray);
             }
         }
-    }, [externalEdges, externalNodes, nodes, setEdges]);
+    }, [externalEdges, externalNodes, setEdges]); // REMOVED: nodes - causes race condition!
 
     // FORCE RENDER: Ensure edges are visible on first paint
     const [edgeRenderKey, setEdgeRenderKey] = useState(0);
@@ -761,17 +777,43 @@ function StrategicMapInner({
 
             console.log(`[SmartConnect] Final: ${smartSourceHandle} -> ${smartTargetHandle}, type: ${props.type}, diagonal: ${isTrueDiagonal}, userType: ${edgeConfig.type}`);
 
+            // SET LOCAL EDIT FLAG - prevents race condition with external sync
+            isLocalEditRef.current = true;
+
             setEdges((eds) => {
-                const newEdges = addEdge(smartEdge, eds);
+                const edgeCountBefore = eds.length;
+                console.log(`[onConnect] Edge count BEFORE: ${edgeCountBefore}`);
+
+                // ALWAYS use spread to create new array reference
+                const newEdges = [...addEdge(smartEdge, eds)];
+
                 // Normalize entire diagram including new edge
                 const normalizedEdges = normalizeDiagram(
                     newEdges as unknown as NormalizedEdge[],
                     nodes
                 ) as unknown as Edge[];
-                console.log(`[NORM] New connection: normalized ${normalizedEdges.length} edges`);
-                emitChange(nodes, normalizedEdges);
-                return normalizedEdges;
+
+                // SANITY CHECK: normalized should have at least edgeCountBefore + 1
+                const edgeCountAfter = normalizedEdges.length;
+                if (edgeCountAfter < edgeCountBefore) {
+                    console.error(`[onConnect] STATE CORRUPTION: edges went from ${edgeCountBefore} to ${edgeCountAfter}!`);
+                    // Fallback: use newEdges without normalization
+                    emitChange(nodes, newEdges);
+                    return newEdges;
+                }
+
+                console.log(`[NORM] New connection: ${edgeCountBefore} → ${edgeCountAfter} edges`);
+
+                // FORCE NEW ARRAY REFERENCE
+                const forcedNewArray = [...normalizedEdges];
+                emitChange(nodes, forcedNewArray);
+                return forcedNewArray;
             });
+
+            // CLEAR LOCAL EDIT FLAG after a delay (allows state to settle)
+            setTimeout(() => {
+                isLocalEditRef.current = false;
+            }, 100);
         },
         [reactFlowInstance, setEdges, nodes, emitChange, edgeConfig]
     );
@@ -847,7 +889,7 @@ function StrategicMapInner({
                 )}
 
                 <ReactFlow
-                    key={`rf-${edgeRenderKey}-${edges.length}`}
+                    key={`rf-${edges.map(e => e.id).join('-')}`}
                     nodes={nodesWithHandlers}
                     edges={edges}
                     onNodesChange={handleNodesChange}

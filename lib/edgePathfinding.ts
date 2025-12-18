@@ -445,13 +445,12 @@ export interface NormalizedEdge {
 }
 
 /**
- * MANDATORY NORMALIZATION - Forces correct geometry based on node positions
+ * HANDLE-ONLY NORMALIZATION - Adjusts handles based on node positions
  * This function runs for EVERY edge BEFORE rendering!
  * 
- * Rules:
- * - deltaX < 50px (vertically aligned) → FORCE straight
- * - deltaY < 50px (horizontally aligned) → FORCE straight
- * - Both > 50px (diagonal) → FORCE smoothstep if type was straight
+ * CRITICAL: This function does NOT change the edge TYPE!
+ * The user's selection (straight/smoothstep/bezier) is ALWAYS respected.
+ * We ONLY adjust handles for optimal routing.
  */
 export function normalizeEdge(
     edge: NormalizedEdge,
@@ -470,13 +469,6 @@ export function normalizeEdge(
 
     const deltaX = Math.abs(targetCenter.x - sourceCenter.x);
     const deltaY = Math.abs(targetCenter.y - sourceCenter.y);
-
-    const isVerticallyAligned = deltaX < ALIGNMENT_THRESHOLD_NORM;
-    const isHorizontallyAligned = deltaY < ALIGNMENT_THRESHOLD_NORM;
-    const shouldBeStraight = isVerticallyAligned || isHorizontallyAligned;
-
-    // Current type (default to straight if missing)
-    const currentType = edge.type || 'straight';
 
     // CRITICAL: Calculate OPTIMAL HANDLES based on node positions
     // Horizontal: right → left or left → right
@@ -512,47 +504,17 @@ export function normalizeEdge(
     console.log(`[NormalizeEdge] Edge ${edge.id}:`, {
         deltaX: deltaX.toFixed(0),
         deltaY: deltaY.toFixed(0),
-        currentType,
-        isVerticallyAligned,
-        isHorizontallyAligned,
-        shouldBeStraight,
+        type: edge.type, // PRESERVED - never changed!
         optimalHandles: `${optimalSourceHandle} → ${optimalTargetHandle}`,
     });
 
-    // CASE 1: Aligned cards should use STRAIGHT
-    if (shouldBeStraight && currentType !== 'straight') {
-        console.log(`[NormalizeEdge] Edge ${edge.id}: FORCING straight (was ${currentType})`);
-        return {
-            ...edge,
-            type: 'straight',
-            sourceHandle: optimalSourceHandle,
-            targetHandle: optimalTargetHandle,
-            _normalized: true,
-            _normalizationReason: isVerticallyAligned ? 'vertically_aligned' : 'horizontally_aligned',
-        };
-    }
-
-    // CASE 2: Diagonal should NOT use straight
-    if (!shouldBeStraight && currentType === 'straight') {
-        console.log(`[NormalizeEdge] Edge ${edge.id}: FORCING smoothstep (straight on diagonal)`);
-        return {
-            ...edge,
-            type: 'smoothstep',
-            sourceHandle: optimalSourceHandle,
-            targetHandle: optimalTargetHandle,
-            _normalized: true,
-            _normalizationReason: 'diagonal_requires_curve',
-        };
-    }
-
-    // CASE 3: Already correct type, but ensure handles are optimal
-    console.log(`[NormalizeEdge] Edge ${edge.id}: OK (applying optimal handles)`);
+    // ONLY adjust handles - TYPE IS NEVER CHANGED
     return {
         ...edge,
         sourceHandle: optimalSourceHandle,
         targetHandle: optimalTargetHandle,
         _normalized: true,
-        _normalizationReason: 'already_correct',
+        _normalizationReason: 'handles_optimized',
     };
 }
 
@@ -560,67 +522,23 @@ export function normalizeEdge(
  * Normalize ALL edges in a diagram
  * This is called during diagram loading, BEFORE rendering!
  * 
- * DUPLICATE DETECTION RULES:
- * - Key = source + sourceHandle + target + targetHandle (ALL 4 fields)
- * - Only block if ALL 4 fields are IDENTICAL
- * - Multiple curves from same handle are ALLOWED (different targets)
- * - Only block STRAIGHT lines when angle < 3° (nearly perfect overlap)
+ * CRITICAL: This function NEVER deletes edges or changes types!
+ * Multiple edges from same handle to different targets are ALLOWED.
+ * User's edge type selection is ALWAYS respected.
  */
 export function normalizeAllEdges(
     edges: NormalizedEdge[],
     nodes: Node[]
 ): NormalizedEdge[] {
-    console.log(`[NormalizeAllEdges] Processing ${edges.length} edges...`);
+    console.log(`[NormalizeAllEdges] Processing ${edges.length} edges (types preserved)...`);
 
-    // Step 1: Group edges by FULL 4-field key to detect TRUE duplicates
-    // Key = source + sourceHandle + target + targetHandle
-    const fullPairCount: Record<string, number> = {};
-    edges.forEach(edge => {
-        const key = `${edge.source}|${edge.sourceHandle || 'default'}|${edge.target}|${edge.targetHandle || 'default'}`;
-        fullPairCount[key] = (fullPairCount[key] || 0) + 1;
-    });
-
-    // Track which pairs we've seen
-    const pairSeen: Record<string, number> = {};
-
+    // Simply normalize each edge (handle optimization only)
     return edges.map(edge => {
         const sourceNode = nodes.find(n => n.id === edge.source);
         const targetNode = nodes.find(n => n.id === edge.target);
 
-        // First normalize based on alignment
-        let normalizedEdge = normalizeEdge(edge, sourceNode, targetNode);
-
-        // Step 2: Check if this is a TRUE duplicate (all 4 fields identical)
-        const key = `${edge.source}|${edge.sourceHandle || 'default'}|${edge.target}|${edge.targetHandle || 'default'}`;
-        const count = fullPairCount[key] || 1;
-        const seenIndex = pairSeen[key] || 0;
-        pairSeen[key] = seenIndex + 1;
-
-        // Only apply straight->smoothstep conversion for TRUE duplicates
-        // AND only if the edge is nearly horizontal/vertical (angle < 3°)
-        if (count > 1 && normalizedEdge.type === 'straight' && seenIndex > 0) {
-            // Calculate angle to determine if it's nearly straight
-            if (sourceNode && targetNode) {
-                const dx = Math.abs(targetNode.position.x - sourceNode.position.x);
-                const dy = Math.abs(targetNode.position.y - sourceNode.position.y);
-                const angleRad = Math.atan2(Math.min(dx, dy), Math.max(dx, dy));
-                const angleDeg = (angleRad * 180) / Math.PI;
-
-                // Only block if angle < 3° (nearly perfect horizontal/vertical)
-                if (angleDeg < 3) {
-                    console.log(`[NormalizeAllEdges] Edge ${edge.id}: FORCING smoothstep (true duplicate, angle=${angleDeg.toFixed(1)}°)`);
-                    normalizedEdge = {
-                        ...normalizedEdge,
-                        type: 'smoothstep',
-                        _normalizationReason: 'duplicate_straight_prevented',
-                    };
-                } else {
-                    console.log(`[NormalizeAllEdges] Edge ${edge.id}: Allowing straight (angle=${angleDeg.toFixed(1)}° > 3°)`);
-                }
-            }
-        }
-
-        return normalizedEdge;
+        // normalizeEdge only adjusts handles, never changes type
+        return normalizeEdge(edge, sourceNode, targetNode);
     });
 }
 

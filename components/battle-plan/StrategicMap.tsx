@@ -486,8 +486,10 @@ function StrategicMapInner({
                     currentNodes
                 ) as unknown as Edge[];
 
-                console.log(`[NORM] External load: ${externalEdges.length} edges → ${normalizedEdges.length} normalized`);
-                setEdges(normalizedEdges);
+                // FORCE NEW ARRAY REFERENCE for React to detect change
+                const forcedNewArray = [...normalizedEdges];
+                console.log(`[NORM] External load: ${externalEdges.length} edges → ${forcedNewArray.length} normalized`);
+                setEdges(forcedNewArray);
             }
         }
     }, [externalEdges, externalNodes, nodes, setEdges]);
@@ -504,23 +506,70 @@ function StrategicMapInner({
         }
     }, [edges.length]);
 
-    // SNAP DISABLED: Card stays EXACTLY where dropped
+    // AUTO-SNAP: If card is within 5° of horizontal/vertical, snap to axis
     const onNodeDragStop = useCallback(
         (_event: React.MouseEvent, node: Node) => {
             console.log(`[onNodeDragStop] Node ${node.id} dropped at x=${node.position.x.toFixed(0)}, y=${node.position.y.toFixed(0)}`);
 
-            // NO SNAP: Just normalize edges and emit immediately
-            setEdges(eds => {
-                const normalizedEdges = normalizeDiagram(
-                    eds as unknown as NormalizedEdge[],
-                    nodes
-                ) as unknown as Edge[];
-                console.log(`[NORM] Node drag: normalized ${normalizedEdges.length} edges`);
-                emitChange(nodes, normalizedEdges);
-                return normalizedEdges;
-            });
+            // Detect if node is "almost" aligned with any other node (< 5° angle)
+            const alignment = detectNearAlignment(node, nodes);
+
+            if (alignment) {
+                console.log(`[onNodeDragStop] SNAP: Aligning ${node.id} to ${alignment.axis}=${alignment.targetValue}`);
+
+                // Apply snap correction to node position
+                const correctedNode = applySnapCorrection(node, alignment);
+
+                // Update nodes with corrected position
+                setNodes(nds => {
+                    const updatedNodes = nds.map(n =>
+                        n.id === node.id ? correctedNode : n
+                    );
+
+                    // Recalculate edges connected to this node with FORCE NEW ARRAY
+                    setTimeout(() => {
+                        setEdges(eds => {
+                            const normalizedEdges = normalizeDiagram(
+                                eds as unknown as NormalizedEdge[],
+                                updatedNodes
+                            ) as unknown as Edge[];
+
+                            // FORCE NEW ARRAY REFERENCE for React to detect change
+                            const forcedNewArray = [...normalizedEdges];
+                            console.log(`[NORM] Snap: normalized ${forcedNewArray.length} edges`);
+                            emitChange(updatedNodes, forcedNewArray);
+                            return forcedNewArray;
+                        });
+                    }, 16); // 16ms = 1 frame for smooth animation
+
+                    return updatedNodes;
+                });
+
+                // Visual feedback: add snap class to node element
+                const nodeElement = document.querySelector(`[data-id="${node.id}"]`);
+                if (nodeElement) {
+                    nodeElement.classList.add(`snap-${alignment.axis}`);
+                    setTimeout(() => {
+                        nodeElement.classList.remove(`snap-${alignment.axis}`);
+                    }, 300);
+                }
+            } else {
+                // No snap needed, just normalize and emit with FORCE NEW ARRAY
+                setEdges(eds => {
+                    const normalizedEdges = normalizeDiagram(
+                        eds as unknown as NormalizedEdge[],
+                        nodes
+                    ) as unknown as Edge[];
+
+                    // FORCE NEW ARRAY REFERENCE
+                    const forcedNewArray = [...normalizedEdges];
+                    console.log(`[NORM] Node drag: normalized ${forcedNewArray.length} edges`);
+                    emitChange(nodes, forcedNewArray);
+                    return forcedNewArray;
+                });
+            }
         },
-        [nodes, setEdges, emitChange]
+        [nodes, setNodes, setEdges, emitChange]
     );
 
     // Drag and Drop handlers
@@ -798,6 +847,7 @@ function StrategicMapInner({
                 )}
 
                 <ReactFlow
+                    key={`rf-${edgeRenderKey}-${edges.length}`}
                     nodes={nodesWithHandlers}
                     edges={edges}
                     onNodesChange={handleNodesChange}

@@ -171,7 +171,7 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
     }, [markdown, hasUnsavedChanges, onSave, saveStatus]);
 
     // ==========================================================================
-    // AUTO-SAVE - Ultra-fast 500ms for near-instant persistence
+    // AUTO-SAVE - 300ms debounce trailing for near-instant persistence
     // ==========================================================================
     useEffect(() => {
         if (autoSaveTimerRef.current) {
@@ -181,9 +181,9 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
         // Only schedule auto-save if there are unsaved changes
         if (hasUnsavedChanges) {
             autoSaveTimerRef.current = setTimeout(() => {
-                console.log('[AutoSave] Triggering (500ms)...');
+                console.log('[AutoSave] Triggering (300ms debounce)...');
                 handleSave();
-            }, 500); // ULTRA-FAST: 500ms to Turso
+            }, 300); // 300ms as requested
         }
 
         return () => {
@@ -194,7 +194,7 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
     }, [markdown, hasUnsavedChanges, handleSave]);
 
     // ==========================================================================
-    // BEFOREUNLOAD - Never lose state on page close/refresh
+    // BEFOREUNLOAD - Force sync with retry 3x before closing
     // ==========================================================================
     useEffect(() => {
         const handleBeforeUnload = () => {
@@ -203,19 +203,27 @@ export default function BattlePlanEditor({ battlePlan, projectId, onSave }: Batt
                 localStorage.setItem(CACHE_KEY, markdown);
                 console.log('[BeforeUnload] Saved to localStorage');
 
-                // Fire-and-forget Turso save via sendBeacon
-                try {
-                    const payload = JSON.stringify({
-                        contentMarkdown: markdown,
-                        diagramData: extractDiagramJson(markdown),
-                    });
-                    navigator.sendBeacon(
-                        `/api/projects/${projectId}/battle-plan`,
-                        new Blob([payload], { type: 'application/json' })
-                    );
-                    console.log('[BeforeUnload] Sent beacon to Turso');
-                } catch (e) {
-                    console.error('[BeforeUnload] Beacon failed:', e);
+                // Force sync to Turso with 3x retry via sendBeacon
+                const payload = JSON.stringify({
+                    contentMarkdown: markdown,
+                    diagramData: extractDiagramJson(markdown),
+                });
+
+                // Try 3 times (sendBeacon is fire-and-forget, so we do 3 attempts)
+                for (let attempt = 1; attempt <= 3; attempt++) {
+                    try {
+                        const success = navigator.sendBeacon(
+                            `/api/projects/${projectId}/battle-plan`,
+                            new Blob([payload], { type: 'application/json' })
+                        );
+                        if (success) {
+                            console.log(`[BeforeUnload] Beacon sent successfully (attempt ${attempt})`);
+                            break;
+                        }
+                        console.warn(`[BeforeUnload] Beacon attempt ${attempt} returned false`);
+                    } catch (e) {
+                        console.error(`[BeforeUnload] Beacon attempt ${attempt} failed:`, e);
+                    }
                 }
             }
         };

@@ -433,12 +433,17 @@ export interface NormalizedEdge {
     target: string;
     sourceHandle?: string;
     targetHandle?: string;
-    type: 'straight' | 'smoothstep' | 'step';
+    type: 'straight' | 'smoothstep' | 'step' | 'smart';
     markerEnd?: unknown;
     markerStart?: unknown;
     style?: Record<string, unknown>;
     animated?: boolean;
     label?: string;
+    // Data for custom edges (e.g., waypoints for smart routing)
+    data?: {
+        waypoints?: Array<{ x: number; y: number }>;
+        [key: string]: unknown;
+    };
     // Flag indicating normalization was applied
     _normalized?: boolean;
     _normalizationReason?: string;
@@ -695,76 +700,212 @@ function getDirectionScore(
 }
 
 /**
- * SMART EDGE ROUTING - Detects collisions and finds optimal paths
+ * Calculate waypoints to route around obstacles
+ * Tries multiple strategies and picks the first collision-free path
+ */
+function calculateWaypoints(
+    sourcePos: XYPosition,
+    targetPos: XYPosition,
+    nodes: Node[],
+    excludeIds: string[]
+): XYPosition[] {
+    const obstacleNodes = nodes.filter(n => !excludeIds.includes(n.id));
+
+    // If no collision on direct path, return empty (no waypoints needed)
+    if (!detectEdgeCollision(sourcePos, targetPos, nodes, excludeIds)) {
+        return [];
+    }
+
+    console.log(`[Waypoints] Calculating route from (${sourcePos.x.toFixed(0)},${sourcePos.y.toFixed(0)}) to (${targetPos.x.toFixed(0)},${targetPos.y.toFixed(0)})`);
+
+    // Calculate margins for routing around obstacles
+    const margin = 60; // Distance to route around nodes
+
+    // Find bounding box of all obstacles
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    obstacleNodes.forEach(node => {
+        const bounds = getNodeBounds(node, margin);
+        minX = Math.min(minX, bounds.left);
+        maxX = Math.max(maxX, bounds.right);
+        minY = Math.min(minY, bounds.top);
+        maxY = Math.max(maxY, bounds.bottom);
+    });
+
+    // Define routing strategies (in order of preference)
+    const strategies: (() => XYPosition[])[] = [
+        // Strategy 1: Go right around obstacles, then to target
+        () => {
+            const rightX = maxX + margin;
+            return [
+                { x: rightX, y: sourcePos.y },
+                { x: rightX, y: targetPos.y },
+            ];
+        },
+
+        // Strategy 2: Go left around obstacles
+        () => {
+            const leftX = minX - margin;
+            return [
+                { x: leftX, y: sourcePos.y },
+                { x: leftX, y: targetPos.y },
+            ];
+        },
+
+        // Strategy 3: Go down under obstacles
+        () => {
+            const bottomY = maxY + margin;
+            return [
+                { x: sourcePos.x, y: bottomY },
+                { x: targetPos.x, y: bottomY },
+            ];
+        },
+
+        // Strategy 4: Go up over obstacles
+        () => {
+            const topY = minY - margin;
+            return [
+                { x: sourcePos.x, y: topY },
+                { x: targetPos.x, y: topY },
+            ];
+        },
+
+        // Strategy 5: L-shape right then down/up
+        () => {
+            const rightX = maxX + margin;
+            return [
+                { x: rightX, y: sourcePos.y },
+                { x: rightX, y: targetPos.y },
+            ];
+        },
+
+        // Strategy 6: L-shape down then right/left
+        () => {
+            const bottomY = maxY + margin;
+            return [
+                { x: sourcePos.x, y: bottomY },
+                { x: targetPos.x, y: bottomY },
+            ];
+        },
+    ];
+
+    // Test each strategy
+    for (let i = 0; i < strategies.length; i++) {
+        const waypoints = strategies[i]();
+        const fullPath = [sourcePos, ...waypoints, targetPos];
+
+        // Check if this path has any collisions
+        let hasCollision = false;
+        for (let j = 0; j < fullPath.length - 1; j++) {
+            if (detectEdgeCollision(fullPath[j], fullPath[j + 1], nodes, excludeIds)) {
+                hasCollision = true;
+                break;
+            }
+        }
+
+        if (!hasCollision) {
+            console.log(`[Waypoints] Strategy ${i + 1} succeeded: ${waypoints.length} waypoints`);
+            return waypoints;
+        }
+    }
+
+    // Fallback: use the right-side route (most common useful case)
+    console.warn('[Waypoints] All strategies failed, using fallback');
+    const rightX = Math.max(sourcePos.x, targetPos.x) + margin + 50;
+    return [
+        { x: rightX, y: sourcePos.y },
+        { x: rightX, y: targetPos.y },
+    ];
+}
+
+/**
+ * SMART EDGE ROUTING - Full pathfinding with waypoints
  * 
- * CRITICAL RULES:
- * 1. ONLY uses valid handles: 't', 'b', 'l', 'r' - NEVER generates invalid IDs
- * 2. Detects if edge path crosses any node (except source/target)
- * 3. If collision detected, finds alternative path
- * 4. Prioritizes shortest collision-free path
+ * This function:
+ * 1. Detects if edge path crosses any node (collision)
+ * 2. If collision, calculates waypoints to route around obstacles
+ * 3. Sets edge type to 'smart' for CustomSmartEdge to render
+ * 4. Stores waypoints in edge.data.waypoints
+ * 
+ * CRITICAL: Only uses valid handles (t/b/l/r)
  */
 export function validateEdgeSpacing(
     edges: NormalizedEdge[],
     nodes: Node[]
 ): NormalizedEdge[] {
-    console.log(`[ValidateEdgeSpacing] Processing ${edges.length} edges with collision detection...`);
+    console.log(`[ValidateEdgeSpacing] Processing ${edges.length} edges with pathfinding...`);
 
     return edges.map(edge => {
         const sourceNode = nodes.find(n => n.id === edge.source);
         const targetNode = nodes.find(n => n.id === edge.target);
 
         if (!sourceNode || !targetNode) {
-            return edge; // Can't validate without nodes
+            return edge;
         }
 
         // Get current handle positions
         const currentSourceHandle = (edge.sourceHandle || 'b') as ValidHandle;
         const currentTargetHandle = (edge.targetHandle || 't') as ValidHandle;
 
-        // Check if current path has collision
-        const sourcePos = getHandlePosition(sourceNode, currentSourceHandle);
-        const targetPos = getHandlePosition(targetNode, currentTargetHandle);
+        // Ensure handles are valid
+        const validSourceHandle = VALID_HANDLES.includes(currentSourceHandle) ? currentSourceHandle : 'b';
+        const validTargetHandle = VALID_HANDLES.includes(currentTargetHandle) ? currentTargetHandle : 't';
 
-        const collision = detectEdgeCollision(
-            sourcePos,
-            targetPos,
-            nodes,
-            [edge.source, edge.target]
-        );
+        // Get handle positions
+        const sourcePos = getHandlePosition(sourceNode, validSourceHandle);
+        const targetPos = getHandlePosition(targetNode, validTargetHandle);
+
+        // Check for collision
+        const collision = detectEdgeCollision(sourcePos, targetPos, nodes, [edge.source, edge.target]);
 
         if (!collision) {
-            // No collision - keep current handles (but ensure they're valid)
-            const validSource = VALID_HANDLES.includes(currentSourceHandle as ValidHandle)
-                ? currentSourceHandle
-                : 'b';
-            const validTarget = VALID_HANDLES.includes(currentTargetHandle as ValidHandle)
-                ? currentTargetHandle
-                : 't';
-
+            // No collision - keep current path, no waypoints needed
             return {
                 ...edge,
-                sourceHandle: validSource,
-                targetHandle: validTarget,
+                sourceHandle: validSourceHandle,
+                targetHandle: validTargetHandle,
+                type: edge.type || 'smoothstep', // Keep original type
             };
         }
 
-        // Collision detected - find optimal path
-        console.log(`[ValidateEdgeSpacing] Edge ${edge.id} collides with node ${collision.id}, rerouting...`);
+        // Collision detected - calculate waypoints
+        console.log(`[ValidateEdgeSpacing] Edge ${edge.id} collides with node ${collision.id}, calculating waypoints...`);
 
-        const optimal = findOptimalHandles(
-            sourceNode,
-            targetNode,
-            nodes,
-            [edge.source, edge.target]
-        );
+        // First try to find better handles
+        const optimal = findOptimalHandles(sourceNode, targetNode, nodes, [edge.source, edge.target]);
 
-        console.log(`[ValidateEdgeSpacing] Edge ${edge.id}: ${currentSourceHandle}->${currentTargetHandle} => ${optimal.sourceHandle}->${optimal.targetHandle}`);
+        // Get new positions with optimal handles
+        const newSourcePos = getHandlePosition(sourceNode, optimal.sourceHandle);
+        const newTargetPos = getHandlePosition(targetNode, optimal.targetHandle);
+
+        // Check if optimal handles solve the collision
+        const stillCollides = detectEdgeCollision(newSourcePos, newTargetPos, nodes, [edge.source, edge.target]);
+
+        if (!stillCollides) {
+            // Optimal handles solved it - no waypoints needed
+            console.log(`[ValidateEdgeSpacing] Edge ${edge.id}: handles ${optimal.sourceHandle}->${optimal.targetHandle} solve collision`);
+            return {
+                ...edge,
+                sourceHandle: optimal.sourceHandle,
+                targetHandle: optimal.targetHandle,
+                type: edge.type || 'smoothstep',
+            };
+        }
+
+        // Still collides - need waypoints
+        const waypoints = calculateWaypoints(newSourcePos, newTargetPos, nodes, [edge.source, edge.target]);
+
+        console.log(`[ValidateEdgeSpacing] Edge ${edge.id}: using ${waypoints.length} waypoints`);
 
         return {
             ...edge,
             sourceHandle: optimal.sourceHandle,
             targetHandle: optimal.targetHandle,
-        };
+            type: 'smart', // Use CustomSmartEdge
+            data: {
+                ...(edge.data || {}),
+                waypoints: waypoints,
+            },
+        } as NormalizedEdge;
     });
 }
 

@@ -29,6 +29,7 @@ import dagre from 'dagre';
 import LibrarySidebar, { type EdgeConfig } from './LibrarySidebar';
 import StickyNoteNode from './nodes/StickyNoteNode';
 import ShapeNode from './nodes/ShapeNode';
+import CustomSmartEdge from './edges/CustomSmartEdge';
 import {
     isDiagonalConnection,
     isAlignedConnection,
@@ -47,6 +48,11 @@ import {
 const nodeTypes: NodeTypes = {
     stickyNote: StickyNoteNode,
     shape: ShapeNode,
+};
+
+// Edge types - includes CustomSmartEdge for pathfinding with waypoints
+const edgeTypes = {
+    smart: CustomSmartEdge,
 };
 
 // SMART HANDLE CALCULATOR - Shared logic for optimal handle selection based on node positions
@@ -899,6 +905,7 @@ function StrategicMapInner({
                     onDragOver={onDragOver}
                     onDrop={onDrop}
                     nodeTypes={nodeTypes}
+                    edgeTypes={edgeTypes}
                     connectionMode={ConnectionMode.Loose}
                     fitView
                     fitViewOptions={{ padding: 0.3 }}

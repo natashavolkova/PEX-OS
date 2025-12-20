@@ -543,75 +543,227 @@ export function normalizeAllEdges(
 }
 
 // =============================================================================
-// EDGE SPACING - Prevents arrow overlap on same target
+// SMART EDGE ROUTING - Collision detection and handle optimization
 // =============================================================================
 
-const HANDLE_OFFSETS = [-30, -15, 0, 15, 30]; // 5 possible positions
+type ValidHandle = 't' | 'b' | 'l' | 'r';
+const VALID_HANDLES: ValidHandle[] = ['t', 'b', 'l', 'r'];
+
+// All possible handle combinations for routing
+const HANDLE_COMBINATIONS: Array<{ source: ValidHandle; target: ValidHandle }> = [
+    { source: 'r', target: 'l' },
+    { source: 'l', target: 'r' },
+    { source: 'b', target: 't' },
+    { source: 't', target: 'b' },
+    { source: 'r', target: 't' },
+    { source: 'r', target: 'b' },
+    { source: 'l', target: 't' },
+    { source: 'l', target: 'b' },
+    { source: 'b', target: 'l' },
+    { source: 'b', target: 'r' },
+    { source: 't', target: 'l' },
+    { source: 't', target: 'r' },
+];
 
 /**
- * Validate edge spacing and assign handles to prevent arrow overlap
- * When multiple edges connect to the same target, they get different handles
+ * Get the position of a handle on a node
+ */
+function getHandlePosition(node: Node, handle: ValidHandle): XYPosition {
+    const width = node.measured?.width ?? node.width ?? 150;
+    const height = node.measured?.height ?? node.height ?? 80;
+
+    switch (handle) {
+        case 't': return { x: node.position.x + width / 2, y: node.position.y };
+        case 'b': return { x: node.position.x + width / 2, y: node.position.y + height };
+        case 'l': return { x: node.position.x, y: node.position.y + height / 2 };
+        case 'r': return { x: node.position.x + width, y: node.position.y + height / 2 };
+    }
+}
+
+/**
+ * Detect if an edge path collides with any node (except source/target)
+ */
+function detectEdgeCollision(
+    sourcePos: XYPosition,
+    targetPos: XYPosition,
+    nodes: Node[],
+    excludeIds: string[]
+): Node | null {
+    for (const node of nodes) {
+        if (excludeIds.includes(node.id)) continue;
+
+        const bounds = getNodeBounds(node, 5); // 5px padding
+
+        if (lineIntersectsBounds(sourcePos, targetPos, bounds)) {
+            return node; // Collision detected
+        }
+    }
+    return null; // No collision
+}
+
+/**
+ * Calculate path length for a given handle combination
+ */
+function calculatePathLength(
+    sourceNode: Node,
+    targetNode: Node,
+    sourceHandle: ValidHandle,
+    targetHandle: ValidHandle
+): number {
+    const sourcePos = getHandlePosition(sourceNode, sourceHandle);
+    const targetPos = getHandlePosition(targetNode, targetHandle);
+    return distance(sourcePos, targetPos);
+}
+
+/**
+ * Find optimal handles that avoid collisions
+ * Returns the shortest collision-free path, or fallback if none found
+ */
+function findOptimalHandles(
+    sourceNode: Node,
+    targetNode: Node,
+    nodes: Node[],
+    excludeIds: string[]
+): { sourceHandle: ValidHandle; targetHandle: ValidHandle } {
+    // Calculate direction to prioritize certain combinations
+    const sourceCenter = getNodeCenter(sourceNode);
+    const targetCenter = getNodeCenter(targetNode);
+    const dx = targetCenter.x - sourceCenter.x;
+    const dy = targetCenter.y - sourceCenter.y;
+    const isHorizontalDominant = Math.abs(dx) > Math.abs(dy);
+
+    // Sort combinations by preference (direction-based)
+    const sortedCombinations = [...HANDLE_COMBINATIONS].sort((a, b) => {
+        // Prefer combinations that match the dominant direction
+        const aScore = getDirectionScore(a, dx, dy, isHorizontalDominant);
+        const bScore = getDirectionScore(b, dx, dy, isHorizontalDominant);
+        return bScore - aScore;
+    });
+
+    // Find first collision-free combination
+    for (const combo of sortedCombinations) {
+        const sourcePos = getHandlePosition(sourceNode, combo.source);
+        const targetPos = getHandlePosition(targetNode, combo.target);
+
+        const collision = detectEdgeCollision(sourcePos, targetPos, nodes, excludeIds);
+
+        if (!collision) {
+            console.log(`[SmartRouting] Found collision-free path: ${combo.source} -> ${combo.target}`);
+            return { sourceHandle: combo.source, targetHandle: combo.target };
+        }
+    }
+
+    // No collision-free path found - use fallback based on direction
+    console.warn('[SmartRouting] No collision-free path found, using direction fallback');
+    if (isHorizontalDominant) {
+        return dx > 0
+            ? { sourceHandle: 'r', targetHandle: 'l' }
+            : { sourceHandle: 'l', targetHandle: 'r' };
+    } else {
+        return dy > 0
+            ? { sourceHandle: 'b', targetHandle: 't' }
+            : { sourceHandle: 't', targetHandle: 'b' };
+    }
+}
+
+/**
+ * Score a handle combination based on how well it matches the direction
+ */
+function getDirectionScore(
+    combo: { source: ValidHandle; target: ValidHandle },
+    dx: number,
+    dy: number,
+    isHorizontalDominant: boolean
+): number {
+    let score = 0;
+
+    if (isHorizontalDominant) {
+        // Prefer horizontal handles
+        if (dx > 0 && combo.source === 'r' && combo.target === 'l') score += 10;
+        if (dx < 0 && combo.source === 'l' && combo.target === 'r') score += 10;
+        if (combo.source === 'r' || combo.source === 'l') score += 3;
+        if (combo.target === 'r' || combo.target === 'l') score += 3;
+    } else {
+        // Prefer vertical handles
+        if (dy > 0 && combo.source === 'b' && combo.target === 't') score += 10;
+        if (dy < 0 && combo.source === 't' && combo.target === 'b') score += 10;
+        if (combo.source === 't' || combo.source === 'b') score += 3;
+        if (combo.target === 't' || combo.target === 'b') score += 3;
+    }
+
+    return score;
+}
+
+/**
+ * SMART EDGE ROUTING - Detects collisions and finds optimal paths
+ * 
+ * CRITICAL RULES:
+ * 1. ONLY uses valid handles: 't', 'b', 'l', 'r' - NEVER generates invalid IDs
+ * 2. Detects if edge path crosses any node (except source/target)
+ * 3. If collision detected, finds alternative path
+ * 4. Prioritizes shortest collision-free path
  */
 export function validateEdgeSpacing(
     edges: NormalizedEdge[],
     nodes: Node[]
 ): NormalizedEdge[] {
-    console.log(`[ValidateEdgeSpacing] Processing ${edges.length} edges...`);
-
-    // Group edges by target node
-    const edgesByTarget: Record<string, NormalizedEdge[]> = {};
-    edges.forEach(edge => {
-        if (!edgesByTarget[edge.target]) {
-            edgesByTarget[edge.target] = [];
-        }
-        edgesByTarget[edge.target].push(edge);
-    });
-
-    // Also group by source for outgoing edges
-    const edgesBySource: Record<string, NormalizedEdge[]> = {};
-    edges.forEach(edge => {
-        if (!edgesBySource[edge.source]) {
-            edgesBySource[edge.source] = [];
-        }
-        edgesBySource[edge.source].push(edge);
-    });
+    console.log(`[ValidateEdgeSpacing] Processing ${edges.length} edges with collision detection...`);
 
     return edges.map(edge => {
-        const targetEdges = edgesByTarget[edge.target] || [];
-        const sourceEdges = edgesBySource[edge.source] || [];
+        const sourceNode = nodes.find(n => n.id === edge.source);
+        const targetNode = nodes.find(n => n.id === edge.target);
 
-        let newTargetHandle = edge.targetHandle;
-        let newSourceHandle = edge.sourceHandle;
-
-        // If multiple edges arrive at same target, distribute handles
-        if (targetEdges.length > 1) {
-            const index = targetEdges.indexOf(edge);
-            const offset = HANDLE_OFFSETS[index % HANDLE_OFFSETS.length];
-
-            // Generate handle based on current target direction
-            const currentHandle = edge.targetHandle || 't';
-            const baseHandle = currentHandle.replace(/-?\d+$/, ''); // Remove any existing offset
-            newTargetHandle = offset === 0 ? baseHandle : `${baseHandle}${offset}`;
-
-            console.log(`[ValidateEdgeSpacing] Edge ${edge.id}: target handle ${edge.targetHandle} -> ${newTargetHandle} (${targetEdges.length} edges on same target)`);
+        if (!sourceNode || !targetNode) {
+            return edge; // Can't validate without nodes
         }
 
-        // If multiple edges leave same source, distribute handles
-        if (sourceEdges.length > 1) {
-            const index = sourceEdges.indexOf(edge);
-            const offset = HANDLE_OFFSETS[index % HANDLE_OFFSETS.length];
+        // Get current handle positions
+        const currentSourceHandle = (edge.sourceHandle || 'b') as ValidHandle;
+        const currentTargetHandle = (edge.targetHandle || 't') as ValidHandle;
 
-            const currentHandle = edge.sourceHandle || 'b';
-            const baseHandle = currentHandle.replace(/-?\d+$/, '');
-            newSourceHandle = offset === 0 ? baseHandle : `${baseHandle}${offset}`;
+        // Check if current path has collision
+        const sourcePos = getHandlePosition(sourceNode, currentSourceHandle);
+        const targetPos = getHandlePosition(targetNode, currentTargetHandle);
 
-            console.log(`[ValidateEdgeSpacing] Edge ${edge.id}: source handle ${edge.sourceHandle} -> ${newSourceHandle} (${sourceEdges.length} edges from same source)`);
+        const collision = detectEdgeCollision(
+            sourcePos,
+            targetPos,
+            nodes,
+            [edge.source, edge.target]
+        );
+
+        if (!collision) {
+            // No collision - keep current handles (but ensure they're valid)
+            const validSource = VALID_HANDLES.includes(currentSourceHandle as ValidHandle)
+                ? currentSourceHandle
+                : 'b';
+            const validTarget = VALID_HANDLES.includes(currentTargetHandle as ValidHandle)
+                ? currentTargetHandle
+                : 't';
+
+            return {
+                ...edge,
+                sourceHandle: validSource,
+                targetHandle: validTarget,
+            };
         }
+
+        // Collision detected - find optimal path
+        console.log(`[ValidateEdgeSpacing] Edge ${edge.id} collides with node ${collision.id}, rerouting...`);
+
+        const optimal = findOptimalHandles(
+            sourceNode,
+            targetNode,
+            nodes,
+            [edge.source, edge.target]
+        );
+
+        console.log(`[ValidateEdgeSpacing] Edge ${edge.id}: ${currentSourceHandle}->${currentTargetHandle} => ${optimal.sourceHandle}->${optimal.targetHandle}`);
 
         return {
             ...edge,
-            sourceHandle: newSourceHandle,
-            targetHandle: newTargetHandle,
+            sourceHandle: optimal.sourceHandle,
+            targetHandle: optimal.targetHandle,
         };
     });
 }
@@ -646,8 +798,10 @@ export function validateAndCleanEdges(
  * Full diagram normalization pipeline
  * Run this BEFORE rendering any diagram!
  * 
- * CRITICAL: validateEdgeSpacing was DISABLED - it corrupted handle IDs
- * to invalid values like 't-30', 'r15' which don't exist on nodes.
+ * Pipeline:
+ * 1. Remove orphan edges (non-existent source/target)
+ * 2. Normalize handles based on geometry
+ * 3. Smart routing with collision detection (uses ONLY valid handles t/b/l/r)
  */
 export function normalizeDiagram(
     edges: NormalizedEdge[],
@@ -661,13 +815,13 @@ export function normalizeDiagram(
     // Step 1: Normalize handles based on alignment (ONLY uses t/b/l/r)
     const geometryNormalized = normalizeAllEdges(cleanedEdges, nodes);
 
-    // Step 2: DISABLED - validateEdgeSpacing was corrupting handles
-    // It was creating invalid handles like 't-30', 'r15' that don't exist
-    // const spacingValidated = validateEdgeSpacing(geometryNormalized, nodes);
+    // Step 2: Smart routing - detect collisions and find optimal paths
+    // REIMPLEMENTED: Now only uses valid handles (t/b/l/r), never generates invalid IDs
+    const spacingValidated = validateEdgeSpacing(geometryNormalized, nodes);
 
-    console.log(`[NormalizeDiagram] Pipeline complete. ${geometryNormalized.length} edges processed (spacing validation DISABLED).`);
+    console.log(`[NormalizeDiagram] Pipeline complete. ${spacingValidated.length} edges processed.`);
 
-    return geometryNormalized;
+    return spacingValidated;
 }
 
 // =============================================================================

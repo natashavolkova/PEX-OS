@@ -64,7 +64,7 @@ function pointInBounds(point: XYPosition, bounds: BoundingBox): boolean {
 
 /**
  * Check if a line segment intersects a bounding box
- * Uses simplified rectangle intersection check
+ * Handles all cases: line crosses edges, OR line passes through box
  */
 function lineIntersectsBounds(
     start: XYPosition,
@@ -77,9 +77,10 @@ function lineIntersectsBounds(
     if (start.y < bounds.top && end.y < bounds.top) return false;
     if (start.y > bounds.bottom && end.y > bounds.bottom) return false;
 
-    // Check if line passes through box using parametric intersection
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
+    // Check if either endpoint is INSIDE the box
+    if (pointInBounds(start, bounds) || pointInBounds(end, bounds)) {
+        return true;
+    }
 
     // Check intersection with each edge of the box
     const edges = [
@@ -587,6 +588,7 @@ function getHandlePosition(node: Node, handle: ValidHandle): XYPosition {
 
 /**
  * Detect if an edge path collides with any node (except source/target)
+ * WITH DETAILED DEBUG LOGGING
  */
 function detectEdgeCollision(
     sourcePos: XYPosition,
@@ -594,16 +596,42 @@ function detectEdgeCollision(
     nodes: Node[],
     excludeIds: string[]
 ): Node | null {
+    console.group(`[COLLISION] Checking path (${sourcePos.x.toFixed(0)},${sourcePos.y.toFixed(0)}) → (${targetPos.x.toFixed(0)},${targetPos.y.toFixed(0)})`);
+    console.log(`Excluding nodes: ${excludeIds.join(', ')}`);
+    console.log(`Checking ${nodes.length - excludeIds.length} potential obstacles`);
+
+    let collisionFound: Node | null = null;
+
     for (const node of nodes) {
-        if (excludeIds.includes(node.id)) continue;
+        if (excludeIds.includes(node.id)) {
+            console.log(`  ⏭️ Skipping ${node.id} (source/target)`);
+            continue;
+        }
 
         const bounds = getNodeBounds(node, 5); // 5px padding
+        const intersects = lineIntersectsBounds(sourcePos, targetPos, bounds);
 
-        if (lineIntersectsBounds(sourcePos, targetPos, bounds)) {
-            return node; // Collision detected
+        console.log(`  📦 Node ${node.id}:`, {
+            position: `(${node.position.x.toFixed(0)}, ${node.position.y.toFixed(0)})`,
+            size: `${node.measured?.width ?? node.width ?? 150}x${node.measured?.height ?? node.height ?? 80}`,
+            bounds: `L:${bounds.left.toFixed(0)} R:${bounds.right.toFixed(0)} T:${bounds.top.toFixed(0)} B:${bounds.bottom.toFixed(0)}`,
+            intersects: intersects ? '⚠️ COLLISION!' : '✅ Clear',
+        });
+
+        if (intersects && !collisionFound) {
+            collisionFound = node;
+            console.warn(`  ⚠️ COLLISION DETECTED with node ${node.id}!`);
         }
     }
-    return null; // No collision
+
+    if (collisionFound) {
+        console.warn(`[COLLISION] Result: HIT node ${collisionFound.id}`);
+    } else {
+        console.log(`[COLLISION] Result: No collision`);
+    }
+    console.groupEnd();
+
+    return collisionFound;
 }
 
 /**

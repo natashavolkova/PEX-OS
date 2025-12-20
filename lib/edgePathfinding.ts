@@ -645,6 +645,9 @@ export function validateAndCleanEdges(
 /**
  * Full diagram normalization pipeline
  * Run this BEFORE rendering any diagram!
+ * 
+ * CRITICAL: validateEdgeSpacing was DISABLED - it corrupted handle IDs
+ * to invalid values like 't-30', 'r15' which don't exist on nodes.
  */
 export function normalizeDiagram(
     edges: NormalizedEdge[],
@@ -652,18 +655,19 @@ export function normalizeDiagram(
 ): NormalizedEdge[] {
     console.log(`[NormalizeDiagram] Starting normalization pipeline...`);
 
-    // Step 0: Remove orphan edges
+    // Step 0: Remove orphan edges (edges with non-existent source/target)
     const cleanedEdges = validateAndCleanEdges(edges, nodes);
 
-    // Step 1: Normalize geometry based on alignment
+    // Step 1: Normalize handles based on alignment (ONLY uses t/b/l/r)
     const geometryNormalized = normalizeAllEdges(cleanedEdges, nodes);
 
-    // Step 2: Validate spacing to prevent overlaps
-    const spacingValidated = validateEdgeSpacing(geometryNormalized, nodes);
+    // Step 2: DISABLED - validateEdgeSpacing was corrupting handles
+    // It was creating invalid handles like 't-30', 'r15' that don't exist
+    // const spacingValidated = validateEdgeSpacing(geometryNormalized, nodes);
 
-    console.log(`[NormalizeDiagram] Pipeline complete. ${spacingValidated.length} edges processed.`);
+    console.log(`[NormalizeDiagram] Pipeline complete. ${geometryNormalized.length} edges processed (spacing validation DISABLED).`);
 
-    return spacingValidated;
+    return geometryNormalized;
 }
 
 // =============================================================================

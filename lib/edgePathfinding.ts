@@ -649,8 +649,131 @@ function calculatePathLength(
 }
 
 /**
- * Find optimal handles that avoid collisions
- * Returns the shortest collision-free path, or fallback if none found
+ * Calculate Manhattan distance (sum of horizontal + vertical)
+ */
+function manhattanDistance(p1: XYPosition, p2: XYPosition): number {
+    return Math.abs(p2.x - p1.x) + Math.abs(p2.y - p1.y);
+}
+
+/**
+ * Count expected direction changes for a handle pair
+ */
+function countDirectionChanges(
+    sourcePos: XYPosition,
+    targetPos: XYPosition,
+    sourceHandle: ValidHandle,
+    targetHandle: ValidHandle
+): number {
+    // Direct alignment = 0 or 1 change
+    const dx = targetPos.x - sourcePos.x;
+    const dy = targetPos.y - sourcePos.y;
+
+    const isHorizontalExit = sourceHandle === 'l' || sourceHandle === 'r';
+    const isHorizontalEntry = targetHandle === 'l' || targetHandle === 'r';
+
+    // If exit and entry are same orientation and aligned, minimal changes
+    if (isHorizontalExit && isHorizontalEntry) {
+        // Horizontal-horizontal: needs 2 turns unless perfectly aligned
+        return Math.abs(dy) < 10 ? 0 : 2;
+    }
+    if (!isHorizontalExit && !isHorizontalEntry) {
+        // Vertical-vertical: needs 2 turns unless perfectly aligned
+        return Math.abs(dx) < 10 ? 0 : 2;
+    }
+
+    // Mixed orientation: 1 turn for L-shape
+    return 1;
+}
+
+/**
+ * Check if handle pair makes geometric sense
+ * Higher score = better geometry
+ */
+function getGeometryBonus(
+    dx: number,
+    dy: number,
+    sourceHandle: ValidHandle,
+    targetHandle: ValidHandle
+): number {
+    let bonus = 0;
+
+    // RIGHT to LEFT is ideal when target is to the right
+    if (dx > 50 && sourceHandle === 'r' && targetHandle === 'l') bonus += 200;
+    // LEFT to RIGHT is ideal when target is to the left
+    if (dx < -50 && sourceHandle === 'l' && targetHandle === 'r') bonus += 200;
+    // BOTTOM to TOP is ideal when target is below
+    if (dy > 50 && sourceHandle === 'b' && targetHandle === 't') bonus += 200;
+    // TOP to BOTTOM is ideal when target is above
+    if (dy < -50 && sourceHandle === 't' && targetHandle === 'b') bonus += 200;
+
+    // Penalize going backwards
+    if (dx > 50 && sourceHandle === 'l') bonus -= 100;
+    if (dx < -50 && sourceHandle === 'r') bonus -= 100;
+    if (dy > 50 && sourceHandle === 't') bonus -= 100;
+    if (dy < -50 && sourceHandle === 'b') bonus -= 100;
+
+    return bonus;
+}
+
+interface AnchorScore {
+    sourceHandle: ValidHandle;
+    targetHandle: ValidHandle;
+    score: number;
+    hasCollision: boolean;
+}
+
+/**
+ * Score an anchor pair - LOWER is better
+ */
+function scoreAnchorPair(
+    sourceNode: Node,
+    targetNode: Node,
+    sourceHandle: ValidHandle,
+    targetHandle: ValidHandle,
+    nodes: Node[],
+    excludeIds: string[]
+): AnchorScore {
+    const sourcePos = getHandlePosition(sourceNode, sourceHandle);
+    const targetPos = getHandlePosition(targetNode, targetHandle);
+
+    const dx = targetPos.x - sourcePos.x;
+    const dy = targetPos.y - sourcePos.y;
+
+    // Base: Manhattan distance
+    const distanceScore = manhattanDistance(sourcePos, targetPos) * 0.5;
+
+    // Penalty for direction changes
+    const turns = countDirectionChanges(sourcePos, targetPos, sourceHandle, targetHandle);
+    const turnPenalty = turns * 80;
+
+    // Geometry bonus (makes visually sensible routes)
+    const geoBonus = getGeometryBonus(dx, dy, sourceHandle, targetHandle);
+
+    // Check for collision
+    const collision = detectEdgeCollision(sourcePos, targetPos, nodes, excludeIds);
+    const collisionPenalty = collision ? 1000 : 0;
+
+    const finalScore = distanceScore + turnPenalty - geoBonus + collisionPenalty;
+
+    return {
+        sourceHandle,
+        targetHandle,
+        score: finalScore,
+        hasCollision: !!collision,
+    };
+}
+
+// All 16 possible anchor combinations
+const ALL_ANCHOR_PAIRS: Array<{ source: ValidHandle; target: ValidHandle }> = [];
+for (const source of VALID_HANDLES) {
+    for (const target of VALID_HANDLES) {
+        ALL_ANCHOR_PAIRS.push({ source, target });
+    }
+}
+
+/**
+ * Find OPTIMAL handles by testing ALL 16 combinations and scoring each
+ * Picks the combination with minimum score
  */
 function findOptimalHandles(
     sourceNode: Node,
@@ -658,45 +781,44 @@ function findOptimalHandles(
     nodes: Node[],
     excludeIds: string[]
 ): { sourceHandle: ValidHandle; targetHandle: ValidHandle } {
-    // Calculate direction to prioritize certain combinations
-    const sourceCenter = getNodeCenter(sourceNode);
-    const targetCenter = getNodeCenter(targetNode);
-    const dx = targetCenter.x - sourceCenter.x;
-    const dy = targetCenter.y - sourceCenter.y;
-    const isHorizontalDominant = Math.abs(dx) > Math.abs(dy);
+    console.group(`[AnchorSelection] Testing all 16 anchor combinations`);
 
-    // Sort combinations by preference (direction-based)
-    const sortedCombinations = [...HANDLE_COMBINATIONS].sort((a, b) => {
-        // Prefer combinations that match the dominant direction
-        const aScore = getDirectionScore(a, dx, dy, isHorizontalDominant);
-        const bScore = getDirectionScore(b, dx, dy, isHorizontalDominant);
-        return bScore - aScore;
+    const scores: AnchorScore[] = [];
+
+    // Test ALL 16 combinations
+    for (const pair of ALL_ANCHOR_PAIRS) {
+        const result = scoreAnchorPair(
+            sourceNode,
+            targetNode,
+            pair.source,
+            pair.target,
+            nodes,
+            excludeIds
+        );
+        scores.push(result);
+    }
+
+    // Sort by score (lower is better), prioritize no-collision
+    scores.sort((a, b) => {
+        // First: prefer no collision
+        if (a.hasCollision && !b.hasCollision) return 1;
+        if (!a.hasCollision && b.hasCollision) return -1;
+        // Then: by score
+        return a.score - b.score;
     });
 
-    // Find first collision-free combination
-    for (const combo of sortedCombinations) {
-        const sourcePos = getHandlePosition(sourceNode, combo.source);
-        const targetPos = getHandlePosition(targetNode, combo.target);
-
-        const collision = detectEdgeCollision(sourcePos, targetPos, nodes, excludeIds);
-
-        if (!collision) {
-            console.log(`[SmartRouting] Found collision-free path: ${combo.source} -> ${combo.target}`);
-            return { sourceHandle: combo.source, targetHandle: combo.target };
-        }
+    // Log top 3 options
+    console.log('Top 3 anchor pairs:');
+    for (let i = 0; i < Math.min(3, scores.length); i++) {
+        const s = scores[i];
+        console.log(`  ${i + 1}. ${s.sourceHandle}→${s.targetHandle}: score=${s.score.toFixed(0)}${s.hasCollision ? ' ⚠️COLLISION' : ''}`);
     }
 
-    // No collision-free path found - use fallback based on direction
-    console.warn('[SmartRouting] No collision-free path found, using direction fallback');
-    if (isHorizontalDominant) {
-        return dx > 0
-            ? { sourceHandle: 'r', targetHandle: 'l' }
-            : { sourceHandle: 'l', targetHandle: 'r' };
-    } else {
-        return dy > 0
-            ? { sourceHandle: 'b', targetHandle: 't' }
-            : { sourceHandle: 't', targetHandle: 'b' };
-    }
+    const best = scores[0];
+    console.log(`[AnchorSelection] Best: ${best.sourceHandle}→${best.targetHandle} (score=${best.score.toFixed(0)})`);
+    console.groupEnd();
+
+    return { sourceHandle: best.sourceHandle, targetHandle: best.targetHandle };
 }
 
 /**
@@ -742,14 +864,14 @@ interface RouteCandidate {
  */
 function scoreRoute(route: XYPosition[], nodes: Node[], excludeIds: string[]): number {
     let score = 0;
-    
+
     // 1. Path length penalty (shorter is better)
     let totalLength = 0;
     for (let i = 1; i < route.length; i++) {
         totalLength += distance(route[i - 1], route[i]);
     }
     score += totalLength * 0.3;
-    
+
     // 2. Direction changes penalty (fewer turns is better)
     let directionChanges = 0;
     for (let i = 1; i < route.length - 1; i++) {
@@ -757,30 +879,30 @@ function scoreRoute(route: XYPosition[], nodes: Node[], excludeIds: string[]): n
         const prevDy = route[i].y - route[i - 1].y;
         const nextDx = route[i + 1].x - route[i].x;
         const nextDy = route[i + 1].y - route[i].y;
-        
+
         // Check if direction changed
         const prevHorizontal = Math.abs(prevDx) > Math.abs(prevDy);
         const nextHorizontal = Math.abs(nextDx) > Math.abs(nextDy);
-        
+
         if (prevHorizontal !== nextHorizontal) {
             directionChanges++;
         }
     }
     score += directionChanges * 80;
-    
+
     // 3. Alignment bonus (orthogonal segments are better than diagonal)
     let orthogonalBonus = 0;
     for (let i = 1; i < route.length; i++) {
         const dx = Math.abs(route[i].x - route[i - 1].x);
         const dy = Math.abs(route[i].y - route[i - 1].y);
-        
+
         // Perfectly horizontal or vertical
         if (dx < 5 || dy < 5) {
             orthogonalBonus += 50;
         }
     }
     score -= orthogonalBonus;
-    
+
     // 4. Proximity to obstacles penalty
     const obstacleNodes = nodes.filter(n => !excludeIds.includes(n.id));
     for (const point of route) {
@@ -792,7 +914,7 @@ function scoreRoute(route: XYPosition[], nodes: Node[], excludeIds: string[]): n
             }
         }
     }
-    
+
     return score;
 }
 
@@ -884,30 +1006,30 @@ function generateDetourRoute(
  */
 function optimizeWaypoints(waypoints: XYPosition[]): XYPosition[] {
     if (waypoints.length <= 2) return waypoints;
-    
+
     const optimized: XYPosition[] = [waypoints[0]];
-    
+
     for (let i = 1; i < waypoints.length - 1; i++) {
         const prev = waypoints[i - 1];
         const curr = waypoints[i];
         const next = waypoints[i + 1];
-        
+
         // Check if curr is on the same horizontal line between prev and next
-        const isHorizontalLine = 
+        const isHorizontalLine =
             Math.abs(prev.y - curr.y) < 5 && Math.abs(curr.y - next.y) < 5;
-        
+
         // Check if curr is on the same vertical line between prev and next
         const isVerticalLine =
             Math.abs(prev.x - curr.x) < 5 && Math.abs(curr.x - next.x) < 5;
-        
+
         // Skip redundant waypoint
         if (isHorizontalLine || isVerticalLine) continue;
-        
+
         optimized.push(curr);
     }
-    
+
     optimized.push(waypoints[waypoints.length - 1]);
-    
+
     return optimized;
 }
 
@@ -929,33 +1051,33 @@ function calculateWaypoints(
     console.group(`[SmartRouting] Finding optimal route`);
     console.log(`Source: (${sourcePos.x.toFixed(0)}, ${sourcePos.y.toFixed(0)})`);
     console.log(`Target: (${targetPos.x.toFixed(0)}, ${targetPos.y.toFixed(0)})`);
-    
+
     const margin = 80; // Distance to route around obstacles
     const candidates: RouteCandidate[] = [];
-    
+
     // Generate candidate routes
     const routeGenerators: Array<{ gen: () => XYPosition[]; desc: string }> = [
         // Manhattan routes (H then V, V then H)
         { gen: () => generateManhattanHV(sourcePos, targetPos, 0), desc: 'Manhattan H→V' },
         { gen: () => generateManhattanVH(sourcePos, targetPos, 0), desc: 'Manhattan V→H' },
-        
+
         // Detour routes
         { gen: () => generateDetourRoute(sourcePos, targetPos, 'right', margin), desc: 'Detour Right' },
         { gen: () => generateDetourRoute(sourcePos, targetPos, 'left', margin), desc: 'Detour Left' },
         { gen: () => generateDetourRoute(sourcePos, targetPos, 'down', margin), desc: 'Detour Down' },
         { gen: () => generateDetourRoute(sourcePos, targetPos, 'up', margin), desc: 'Detour Up' },
-        
+
         // Manhattan with offsets
         { gen: () => generateManhattanHV(sourcePos, targetPos, margin), desc: 'Manhattan H→V +offset' },
         { gen: () => generateManhattanHV(sourcePos, targetPos, -margin), desc: 'Manhattan H→V -offset' },
         { gen: () => generateManhattanVH(sourcePos, targetPos, margin), desc: 'Manhattan V→H +offset' },
         { gen: () => generateManhattanVH(sourcePos, targetPos, -margin), desc: 'Manhattan V→H -offset' },
     ];
-    
+
     // Evaluate each candidate
     for (const { gen, desc } of routeGenerators) {
         const route = gen();
-        
+
         if (!routeHasCollision(route, nodes, excludeIds)) {
             const score = scoreRoute(route, nodes, excludeIds);
             candidates.push({ waypoints: route, score, description: desc });
@@ -964,24 +1086,24 @@ function calculateWaypoints(
             console.log(`  ✗ ${desc}: has collision`);
         }
     }
-    
+
     // Sort by score (lower is better)
     candidates.sort((a, b) => a.score - b.score);
-    
+
     if (candidates.length > 0) {
         const best = candidates[0];
         console.log(`[SmartRouting] Best route: ${best.description} (score=${best.score.toFixed(0)})`);
         console.groupEnd();
-        
+
         // Extract intermediate waypoints (remove source and target which React Flow provides)
         const intermediateWaypoints = optimizeWaypoints(best.waypoints).slice(1, -1);
         return intermediateWaypoints;
     }
-    
+
     // Fallback: simple right-side detour (always works)
     console.warn('[SmartRouting] All strategies failed, using fallback');
     console.groupEnd();
-    
+
     const fallbackX = Math.max(sourcePos.x, targetPos.x) + margin + 50;
     return [
         { x: fallbackX, y: sourcePos.y },
@@ -990,13 +1112,13 @@ function calculateWaypoints(
 }
 
 /**
- * SMART EDGE ROUTING - Full pathfinding with waypoints
+ * SMART EDGE ROUTING - Full pathfinding with optimal anchors
  * 
  * This function:
- * 1. Detects if edge path crosses any node (collision)
- * 2. If collision, calculates waypoints to route around obstacles
- * 3. Sets edge type to 'smart' for CustomSmartEdge to render
- * 4. Stores waypoints in edge.data.waypoints
+ * 1. ALWAYS tests all 16 anchor combinations to find optimal handles
+ * 2. Uses scoreAnchorPair to pick best geometry
+ * 3. If still collision, calculates waypoints
+ * 4. Sets edge type to 'smart' for CustomSmartEdge if waypoints needed
  * 
  * CRITICAL: Only uses valid handles (t/b/l/r)
  */
@@ -1004,7 +1126,7 @@ export function validateEdgeSpacing(
     edges: NormalizedEdge[],
     nodes: Node[]
 ): NormalizedEdge[] {
-    console.log(`[ValidateEdgeSpacing] Processing ${edges.length} edges with pathfinding...`);
+    console.log(`[ValidateEdgeSpacing] Processing ${edges.length} edges with optimal anchor selection...`);
 
     return edges.map(edge => {
         const sourceNode = nodes.find(n => n.id === edge.source);
@@ -1014,47 +1136,18 @@ export function validateEdgeSpacing(
             return edge;
         }
 
-        // Get current handle positions
-        const currentSourceHandle = (edge.sourceHandle || 'b') as ValidHandle;
-        const currentTargetHandle = (edge.targetHandle || 't') as ValidHandle;
+        // ALWAYS find optimal handles - test all 16 combinations
+        const optimal = findOptimalHandles(sourceNode, targetNode, nodes, [edge.source, edge.target]);
 
-        // Ensure handles are valid
-        const validSourceHandle = VALID_HANDLES.includes(currentSourceHandle) ? currentSourceHandle : 'b';
-        const validTargetHandle = VALID_HANDLES.includes(currentTargetHandle) ? currentTargetHandle : 't';
+        // Get positions with optimal handles
+        const sourcePos = getHandlePosition(sourceNode, optimal.sourceHandle);
+        const targetPos = getHandlePosition(targetNode, optimal.targetHandle);
 
-        // Get handle positions
-        const sourcePos = getHandlePosition(sourceNode, validSourceHandle);
-        const targetPos = getHandlePosition(targetNode, validTargetHandle);
-
-        // Check for collision
+        // Check for collision with optimal handles
         const collision = detectEdgeCollision(sourcePos, targetPos, nodes, [edge.source, edge.target]);
 
         if (!collision) {
-            // No collision - keep current path, no waypoints needed
-            return {
-                ...edge,
-                sourceHandle: validSourceHandle,
-                targetHandle: validTargetHandle,
-                type: edge.type || 'smoothstep', // Keep original type
-            };
-        }
-
-        // Collision detected - calculate waypoints
-        console.log(`[ValidateEdgeSpacing] Edge ${edge.id} collides with node ${collision.id}, calculating waypoints...`);
-
-        // First try to find better handles
-        const optimal = findOptimalHandles(sourceNode, targetNode, nodes, [edge.source, edge.target]);
-
-        // Get new positions with optimal handles
-        const newSourcePos = getHandlePosition(sourceNode, optimal.sourceHandle);
-        const newTargetPos = getHandlePosition(targetNode, optimal.targetHandle);
-
-        // Check if optimal handles solve the collision
-        const stillCollides = detectEdgeCollision(newSourcePos, newTargetPos, nodes, [edge.source, edge.target]);
-
-        if (!stillCollides) {
-            // Optimal handles solved it - no waypoints needed
-            console.log(`[ValidateEdgeSpacing] Edge ${edge.id}: handles ${optimal.sourceHandle}->${optimal.targetHandle} solve collision`);
+            // No collision with optimal handles - use them directly
             return {
                 ...edge,
                 sourceHandle: optimal.sourceHandle,
@@ -1064,9 +1157,11 @@ export function validateEdgeSpacing(
         }
 
         // Still collides - need waypoints
-        const waypoints = calculateWaypoints(newSourcePos, newTargetPos, nodes, [edge.source, edge.target]);
+        console.log(`[ValidateEdgeSpacing] Edge ${edge.id} still collides, calculating waypoints...`);
 
-        console.log(`[ValidateEdgeSpacing] Edge ${edge.id}: using ${waypoints.length} waypoints`);
+        const waypoints = calculateWaypoints(sourcePos, targetPos, nodes, [edge.source, edge.target]);
+
+        console.log(`[ValidateEdgeSpacing] Edge ${edge.id}: ${optimal.sourceHandle}→${optimal.targetHandle} with ${waypoints.length} waypoints`);
 
         return {
             ...edge,

@@ -727,9 +727,193 @@ function getDirectionScore(
     return score;
 }
 
+// =============================================================================
+// INTELLIGENT ROUTE SCORING - Chooses best route, not just first valid one
+// =============================================================================
+
+interface RouteCandidate {
+    waypoints: XYPosition[];
+    score: number;
+    description: string;
+}
+
 /**
- * Calculate waypoints to route around obstacles
- * Tries multiple strategies and picks the first collision-free path
+ * Score a route - LOWER is better
+ */
+function scoreRoute(route: XYPosition[], nodes: Node[], excludeIds: string[]): number {
+    let score = 0;
+    
+    // 1. Path length penalty (shorter is better)
+    let totalLength = 0;
+    for (let i = 1; i < route.length; i++) {
+        totalLength += distance(route[i - 1], route[i]);
+    }
+    score += totalLength * 0.3;
+    
+    // 2. Direction changes penalty (fewer turns is better)
+    let directionChanges = 0;
+    for (let i = 1; i < route.length - 1; i++) {
+        const prevDx = route[i].x - route[i - 1].x;
+        const prevDy = route[i].y - route[i - 1].y;
+        const nextDx = route[i + 1].x - route[i].x;
+        const nextDy = route[i + 1].y - route[i].y;
+        
+        // Check if direction changed
+        const prevHorizontal = Math.abs(prevDx) > Math.abs(prevDy);
+        const nextHorizontal = Math.abs(nextDx) > Math.abs(nextDy);
+        
+        if (prevHorizontal !== nextHorizontal) {
+            directionChanges++;
+        }
+    }
+    score += directionChanges * 80;
+    
+    // 3. Alignment bonus (orthogonal segments are better than diagonal)
+    let orthogonalBonus = 0;
+    for (let i = 1; i < route.length; i++) {
+        const dx = Math.abs(route[i].x - route[i - 1].x);
+        const dy = Math.abs(route[i].y - route[i - 1].y);
+        
+        // Perfectly horizontal or vertical
+        if (dx < 5 || dy < 5) {
+            orthogonalBonus += 50;
+        }
+    }
+    score -= orthogonalBonus;
+    
+    // 4. Proximity to obstacles penalty
+    const obstacleNodes = nodes.filter(n => !excludeIds.includes(n.id));
+    for (const point of route) {
+        for (const node of obstacleNodes) {
+            const center = getNodeCenter(node);
+            const dist = distance(point, center);
+            if (dist < 100) {
+                score += (100 - dist) * 0.5; // Closer = worse
+            }
+        }
+    }
+    
+    return score;
+}
+
+/**
+ * Check if a route has any collisions
+ */
+function routeHasCollision(route: XYPosition[], nodes: Node[], excludeIds: string[]): boolean {
+    for (let i = 0; i < route.length - 1; i++) {
+        if (detectEdgeCollision(route[i], route[i + 1], nodes, excludeIds)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Generate Manhattan-style route (horizontal first, then vertical)
+ */
+function generateManhattanHV(source: XYPosition, target: XYPosition, offset: number = 0): XYPosition[] {
+    const midX = target.x + offset;
+    return [
+        source,
+        { x: midX, y: source.y }, // Go horizontal
+        { x: midX, y: target.y }, // Then vertical
+        target,
+    ];
+}
+
+/**
+ * Generate Manhattan-style route (vertical first, then horizontal)
+ */
+function generateManhattanVH(source: XYPosition, target: XYPosition, offset: number = 0): XYPosition[] {
+    const midY = target.y + offset;
+    return [
+        source,
+        { x: source.x, y: midY }, // Go vertical
+        { x: target.x, y: midY }, // Then horizontal
+        target,
+    ];
+}
+
+/**
+ * Generate detour route (go around to one side)
+ */
+function generateDetourRoute(
+    source: XYPosition,
+    target: XYPosition,
+    direction: 'left' | 'right' | 'up' | 'down',
+    margin: number
+): XYPosition[] {
+    switch (direction) {
+        case 'right':
+            const rightX = Math.max(source.x, target.x) + margin;
+            return [
+                source,
+                { x: rightX, y: source.y },
+                { x: rightX, y: target.y },
+                target,
+            ];
+        case 'left':
+            const leftX = Math.min(source.x, target.x) - margin;
+            return [
+                source,
+                { x: leftX, y: source.y },
+                { x: leftX, y: target.y },
+                target,
+            ];
+        case 'down':
+            const bottomY = Math.max(source.y, target.y) + margin;
+            return [
+                source,
+                { x: source.x, y: bottomY },
+                { x: target.x, y: bottomY },
+                target,
+            ];
+        case 'up':
+            const topY = Math.min(source.y, target.y) - margin;
+            return [
+                source,
+                { x: source.x, y: topY },
+                { x: target.x, y: topY },
+                target,
+            ];
+    }
+}
+
+/**
+ * Optimize waypoints by removing redundant points on same line
+ */
+function optimizeWaypoints(waypoints: XYPosition[]): XYPosition[] {
+    if (waypoints.length <= 2) return waypoints;
+    
+    const optimized: XYPosition[] = [waypoints[0]];
+    
+    for (let i = 1; i < waypoints.length - 1; i++) {
+        const prev = waypoints[i - 1];
+        const curr = waypoints[i];
+        const next = waypoints[i + 1];
+        
+        // Check if curr is on the same horizontal line between prev and next
+        const isHorizontalLine = 
+            Math.abs(prev.y - curr.y) < 5 && Math.abs(curr.y - next.y) < 5;
+        
+        // Check if curr is on the same vertical line between prev and next
+        const isVerticalLine =
+            Math.abs(prev.x - curr.x) < 5 && Math.abs(curr.x - next.x) < 5;
+        
+        // Skip redundant waypoint
+        if (isHorizontalLine || isVerticalLine) continue;
+        
+        optimized.push(curr);
+    }
+    
+    optimized.push(waypoints[waypoints.length - 1]);
+    
+    return optimized;
+}
+
+/**
+ * Calculate optimal waypoints using intelligent routing
+ * Generates multiple candidates, scores each, picks the best
  */
 function calculateWaypoints(
     sourcePos: XYPosition,
@@ -737,111 +921,71 @@ function calculateWaypoints(
     nodes: Node[],
     excludeIds: string[]
 ): XYPosition[] {
-    const obstacleNodes = nodes.filter(n => !excludeIds.includes(n.id));
-
     // If no collision on direct path, return empty (no waypoints needed)
     if (!detectEdgeCollision(sourcePos, targetPos, nodes, excludeIds)) {
         return [];
     }
 
-    console.log(`[Waypoints] Calculating route from (${sourcePos.x.toFixed(0)},${sourcePos.y.toFixed(0)}) to (${targetPos.x.toFixed(0)},${targetPos.y.toFixed(0)})`);
-
-    // Calculate margins for routing around obstacles
-    const margin = 60; // Distance to route around nodes
-
-    // Find bounding box of all obstacles
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    obstacleNodes.forEach(node => {
-        const bounds = getNodeBounds(node, margin);
-        minX = Math.min(minX, bounds.left);
-        maxX = Math.max(maxX, bounds.right);
-        minY = Math.min(minY, bounds.top);
-        maxY = Math.max(maxY, bounds.bottom);
-    });
-
-    // Define routing strategies (in order of preference)
-    const strategies: (() => XYPosition[])[] = [
-        // Strategy 1: Go right around obstacles, then to target
-        () => {
-            const rightX = maxX + margin;
-            return [
-                { x: rightX, y: sourcePos.y },
-                { x: rightX, y: targetPos.y },
-            ];
-        },
-
-        // Strategy 2: Go left around obstacles
-        () => {
-            const leftX = minX - margin;
-            return [
-                { x: leftX, y: sourcePos.y },
-                { x: leftX, y: targetPos.y },
-            ];
-        },
-
-        // Strategy 3: Go down under obstacles
-        () => {
-            const bottomY = maxY + margin;
-            return [
-                { x: sourcePos.x, y: bottomY },
-                { x: targetPos.x, y: bottomY },
-            ];
-        },
-
-        // Strategy 4: Go up over obstacles
-        () => {
-            const topY = minY - margin;
-            return [
-                { x: sourcePos.x, y: topY },
-                { x: targetPos.x, y: topY },
-            ];
-        },
-
-        // Strategy 5: L-shape right then down/up
-        () => {
-            const rightX = maxX + margin;
-            return [
-                { x: rightX, y: sourcePos.y },
-                { x: rightX, y: targetPos.y },
-            ];
-        },
-
-        // Strategy 6: L-shape down then right/left
-        () => {
-            const bottomY = maxY + margin;
-            return [
-                { x: sourcePos.x, y: bottomY },
-                { x: targetPos.x, y: bottomY },
-            ];
-        },
+    console.group(`[SmartRouting] Finding optimal route`);
+    console.log(`Source: (${sourcePos.x.toFixed(0)}, ${sourcePos.y.toFixed(0)})`);
+    console.log(`Target: (${targetPos.x.toFixed(0)}, ${targetPos.y.toFixed(0)})`);
+    
+    const margin = 80; // Distance to route around obstacles
+    const candidates: RouteCandidate[] = [];
+    
+    // Generate candidate routes
+    const routeGenerators: Array<{ gen: () => XYPosition[]; desc: string }> = [
+        // Manhattan routes (H then V, V then H)
+        { gen: () => generateManhattanHV(sourcePos, targetPos, 0), desc: 'Manhattan H→V' },
+        { gen: () => generateManhattanVH(sourcePos, targetPos, 0), desc: 'Manhattan V→H' },
+        
+        // Detour routes
+        { gen: () => generateDetourRoute(sourcePos, targetPos, 'right', margin), desc: 'Detour Right' },
+        { gen: () => generateDetourRoute(sourcePos, targetPos, 'left', margin), desc: 'Detour Left' },
+        { gen: () => generateDetourRoute(sourcePos, targetPos, 'down', margin), desc: 'Detour Down' },
+        { gen: () => generateDetourRoute(sourcePos, targetPos, 'up', margin), desc: 'Detour Up' },
+        
+        // Manhattan with offsets
+        { gen: () => generateManhattanHV(sourcePos, targetPos, margin), desc: 'Manhattan H→V +offset' },
+        { gen: () => generateManhattanHV(sourcePos, targetPos, -margin), desc: 'Manhattan H→V -offset' },
+        { gen: () => generateManhattanVH(sourcePos, targetPos, margin), desc: 'Manhattan V→H +offset' },
+        { gen: () => generateManhattanVH(sourcePos, targetPos, -margin), desc: 'Manhattan V→H -offset' },
     ];
-
-    // Test each strategy
-    for (let i = 0; i < strategies.length; i++) {
-        const waypoints = strategies[i]();
-        const fullPath = [sourcePos, ...waypoints, targetPos];
-
-        // Check if this path has any collisions
-        let hasCollision = false;
-        for (let j = 0; j < fullPath.length - 1; j++) {
-            if (detectEdgeCollision(fullPath[j], fullPath[j + 1], nodes, excludeIds)) {
-                hasCollision = true;
-                break;
-            }
-        }
-
-        if (!hasCollision) {
-            console.log(`[Waypoints] Strategy ${i + 1} succeeded: ${waypoints.length} waypoints`);
-            return waypoints;
+    
+    // Evaluate each candidate
+    for (const { gen, desc } of routeGenerators) {
+        const route = gen();
+        
+        if (!routeHasCollision(route, nodes, excludeIds)) {
+            const score = scoreRoute(route, nodes, excludeIds);
+            candidates.push({ waypoints: route, score, description: desc });
+            console.log(`  ✓ ${desc}: score=${score.toFixed(0)}`);
+        } else {
+            console.log(`  ✗ ${desc}: has collision`);
         }
     }
-
-    // Fallback: use the right-side route (most common useful case)
-    console.warn('[Waypoints] All strategies failed, using fallback');
-    const rightX = Math.max(sourcePos.x, targetPos.x) + margin + 50;
+    
+    // Sort by score (lower is better)
+    candidates.sort((a, b) => a.score - b.score);
+    
+    if (candidates.length > 0) {
+        const best = candidates[0];
+        console.log(`[SmartRouting] Best route: ${best.description} (score=${best.score.toFixed(0)})`);
+        console.groupEnd();
+        
+        // Extract intermediate waypoints (remove source and target which React Flow provides)
+        const intermediateWaypoints = optimizeWaypoints(best.waypoints).slice(1, -1);
+        return intermediateWaypoints;
+    }
+    
+    // Fallback: simple right-side detour (always works)
+    console.warn('[SmartRouting] All strategies failed, using fallback');
+    console.groupEnd();
+    
+    const fallbackX = Math.max(sourcePos.x, targetPos.x) + margin + 50;
     return [
-        { x: rightX, y: sourcePos.y },
-        { x: rightX, y: targetPos.y },
+        { x: fallbackX, y: sourcePos.y },
+        { x: fallbackX, y: targetPos.y },
     ];
 }
 

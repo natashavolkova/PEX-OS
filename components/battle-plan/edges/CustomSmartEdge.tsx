@@ -79,43 +79,60 @@ function CustomSmartEdge({
         );
     }
 
-    // Build path with waypoints using line segments with rounded corners
-    const pathSegments: string[] = [];
+    // Build complete point list (source -> waypoints -> target)
+    const allPoints: Point[] = [
+        { x: sourceX, y: sourceY },
+        ...waypoints,
+        { x: targetX, y: targetY },
+    ];
 
-    // Start at source
-    pathSegments.push(`M ${sourceX},${sourceY}`);
+    const cornerRadius = 10;
+    const pathParts: string[] = [];
 
-    // Add each waypoint
-    waypoints.forEach((point, index) => {
-        if (index === 0) {
-            // First segment: curve from source to first waypoint
-            const midY = (sourceY + point.y) / 2;
-            pathSegments.push(`C ${sourceX},${midY} ${point.x},${midY} ${point.x},${point.y}`);
+    // Start at first point
+    pathParts.push(`M ${allPoints[0].x},${allPoints[0].y}`);
+
+    // Draw orthogonal path with rounded corners
+    for (let i = 1; i < allPoints.length; i++) {
+        const prev = allPoints[i - 1];
+        const curr = allPoints[i];
+        const next = allPoints[i + 1];
+
+        if (!next) {
+            // Last segment - just line to target
+            pathParts.push(`L ${curr.x},${curr.y}`);
         } else {
-            // Subsequent segments: lines with rounded corners
-            const prevPoint = waypoints[index - 1];
-            const cornerRadius = 8;
+            // Calculate corner
+            const dx1 = curr.x - prev.x;
+            const dy1 = curr.y - prev.y;
+            const dx2 = next.x - curr.x;
+            const dy2 = next.y - curr.y;
 
-            // Determine corner direction
-            const dx = point.x - prevPoint.x;
-            const dy = point.y - prevPoint.y;
+            // Distance to corner point
+            const len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+            const len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
 
-            if (Math.abs(dx) > 1 && Math.abs(dy) > 1) {
-                // Diagonal - use curve
-                pathSegments.push(`Q ${prevPoint.x},${point.y} ${point.x},${point.y}`);
+            // Limit corner radius to half the segment length
+            const r = Math.min(cornerRadius, len1 / 2, len2 / 2);
+
+            if (r > 1 && len1 > 2 && len2 > 2) {
+                // Calculate corner entry and exit points
+                const enterX = curr.x - (dx1 / len1) * r;
+                const enterY = curr.y - (dy1 / len1) * r;
+                const exitX = curr.x + (dx2 / len2) * r;
+                const exitY = curr.y + (dy2 / len2) * r;
+
+                // Line to corner entry, then arc to exit
+                pathParts.push(`L ${enterX},${enterY}`);
+                pathParts.push(`Q ${curr.x},${curr.y} ${exitX},${exitY}`);
             } else {
-                // Straight line
-                pathSegments.push(`L ${point.x},${point.y}`);
+                // No room for corner, just line
+                pathParts.push(`L ${curr.x},${curr.y}`);
             }
         }
-    });
+    }
 
-    // Final segment to target
-    const lastWaypoint = waypoints[waypoints.length - 1];
-    const midY = (lastWaypoint.y + targetY) / 2;
-    pathSegments.push(`C ${lastWaypoint.x},${midY} ${targetX},${midY} ${targetX},${targetY}`);
-
-    const fullPath = pathSegments.join(' ');
+    const fullPath = pathParts.join(' ');
 
     return (
         <BaseEdge

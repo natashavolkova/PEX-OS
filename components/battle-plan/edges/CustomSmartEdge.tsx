@@ -1,7 +1,7 @@
 'use client';
 
 // =============================================================================
-// CUSTOM SMART EDGE - Fixed arrow direction + strict collision detection
+// CUSTOM SMART EDGE - With comprehensive collision audit logging
 // =============================================================================
 
 import { memo, useMemo } from 'react';
@@ -20,33 +20,42 @@ interface Card {
     height: number;
 }
 
+interface CardBounds {
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+}
+
 // =============================================================================
-// COLLISION DETECTION - Liang-Barsky algorithm
+// COLLISION DETECTION - With detailed audit logging
 // =============================================================================
 
-function lineIntersectsRect(
+function getCardBounds(card: Card, padding: number = 15): CardBounds {
+    return {
+        left: card.x - padding,
+        right: card.x + card.width + padding,
+        top: card.y - padding,
+        bottom: card.y + card.height + padding
+    };
+}
+
+function lineSegmentIntersectsRect(
     p1: Point,
     p2: Point,
-    card: Card
+    bounds: CardBounds
 ): boolean {
-    const padding = 15;
-    const left = card.x - padding;
-    const right = card.x + card.width + padding;
-    const top = card.y - padding;
-    const bottom = card.y + card.height + padding;
-
     const dx = p2.x - p1.x;
     const dy = p2.y - p1.y;
 
     let tMin = 0;
     let tMax = 1;
 
-    // Check each edge
     const edges = [
-        { p: -dx, q: p1.x - left },
-        { p: dx, q: right - p1.x },
-        { p: -dy, q: p1.y - top },
-        { p: dy, q: bottom - p1.y }
+        { p: -dx, q: p1.x - bounds.left },
+        { p: dx, q: bounds.right - p1.x },
+        { p: -dy, q: p1.y - bounds.top },
+        { p: dy, q: bounds.bottom - p1.y }
     ];
 
     for (const { p, q } of edges) {
@@ -66,26 +75,65 @@ function lineIntersectsRect(
     return true;
 }
 
-function validatePath(
+interface ValidationResult {
+    valid: boolean;
+    collisions: string[];
+}
+
+function validatePathWithAudit(
     path: Point[],
-    allCards: Card[],
+    obstacles: Card[],
+    edgeId: string,
     sourceId: string,
     targetId: string
-): boolean {
+): ValidationResult {
+    const collisions: string[] = [];
+
+    console.log(`[CollisionAudit] Validating edge ${edgeId}`, {
+        pathLength: path.length,
+        obstacleCount: obstacles.length,
+        obstacleIds: obstacles.map(o => o.id)
+    });
+
     for (let i = 0; i < path.length - 1; i++) {
-        for (const card of allCards) {
-            if (card.id === sourceId || card.id === targetId) continue;
-            if (lineIntersectsRect(path[i], path[i + 1], card)) {
-                console.error(`[SmartEdge] Collision: segment ${i} hits ${card.id}`);
-                return false;
+        const segStart = path[i];
+        const segEnd = path[i + 1];
+
+        for (const obstacle of obstacles) {
+            if (obstacle.id === sourceId || obstacle.id === targetId) {
+                continue; // Skip source/target
+            }
+
+            const bounds = getCardBounds(obstacle, 15);
+            const intersects = lineSegmentIntersectsRect(segStart, segEnd, bounds);
+
+            if (intersects) {
+                console.error(`[CollisionAudit] COLLISION!`, {
+                    edgeId,
+                    segment: i,
+                    from: segStart,
+                    to: segEnd,
+                    obstacle: obstacle.id,
+                    obstacleBounds: bounds
+                });
+                if (!collisions.includes(obstacle.id)) {
+                    collisions.push(obstacle.id);
+                }
             }
         }
     }
-    return true;
+
+    const valid = collisions.length === 0;
+
+    if (!valid) {
+        console.error(`[CollisionAudit] Path INVALID for ${edgeId}`, { collisions });
+    }
+
+    return { valid, collisions };
 }
 
 // =============================================================================
-// ANCHOR SELECTION - Based on relative position
+// ANCHOR SELECTION
 // =============================================================================
 
 type Anchor = 'top' | 'right' | 'bottom' | 'left';
@@ -99,32 +147,27 @@ function getAnchorPoint(card: Card, anchor: Anchor): Point {
     }
 }
 
-// Get anchor based on relative position of other card
-function selectAnchors(source: Card, target: Card): { sourceAnchor: Anchor; targetAnchor: Anchor } {
+function selectOptimalAnchors(source: Card, target: Card): { source: Anchor; target: Anchor } {
     const dx = (target.x + target.width / 2) - (source.x + source.width / 2);
     const dy = (target.y + target.height / 2) - (source.y + source.height / 2);
 
-    // Vertical dominant
     if (Math.abs(dy) > Math.abs(dx)) {
-        if (dy > 0) {
-            return { sourceAnchor: 'bottom', targetAnchor: 'top' };
-        } else {
-            return { sourceAnchor: 'top', targetAnchor: 'bottom' };
-        }
+        return dy > 0
+            ? { source: 'bottom', target: 'top' }
+            : { source: 'top', target: 'bottom' };
     }
-    // Horizontal dominant
-    if (dx > 0) {
-        return { sourceAnchor: 'right', targetAnchor: 'left' };
-    } else {
-        return { sourceAnchor: 'left', targetAnchor: 'right' };
-    }
+    return dx > 0
+        ? { source: 'right', target: 'left' }
+        : { source: 'left', target: 'right' };
 }
 
 // =============================================================================
-// PATH GENERATION - Ensures last segment points INTO target
+// PATH GENERATION - Each edge calculates independently
 // =============================================================================
 
-function generatePath(
+const APPROACH_DISTANCE = 30;
+
+function generateOrthogonalPath(
     source: Card,
     target: Card,
     sourceAnchor: Anchor,
@@ -133,124 +176,67 @@ function generatePath(
     const start = getAnchorPoint(source, sourceAnchor);
     const end = getAnchorPoint(target, targetAnchor);
 
-    // Approach distance from anchor
-    const approach = 30;
-
-    // Calculate approach point based on TARGET anchor
-    // This ensures the last segment points INTO the target
-    let approachPoint: Point;
-    switch (targetAnchor) {
-        case 'top':
-            approachPoint = { x: end.x, y: end.y - approach };
-            break;
-        case 'bottom':
-            approachPoint = { x: end.x, y: end.y + approach };
-            break;
-        case 'left':
-            approachPoint = { x: end.x - approach, y: end.y };
-            break;
-        case 'right':
-            approachPoint = { x: end.x + approach, y: end.y };
-            break;
-    }
-
-    // Calculate exit point from source anchor
-    let exitPoint: Point;
+    // Exit point from source
+    let exit: Point;
     switch (sourceAnchor) {
-        case 'top':
-            exitPoint = { x: start.x, y: start.y - approach };
-            break;
-        case 'bottom':
-            exitPoint = { x: start.x, y: start.y + approach };
-            break;
-        case 'left':
-            exitPoint = { x: start.x - approach, y: start.y };
-            break;
-        case 'right':
-            exitPoint = { x: start.x + approach, y: start.y };
-            break;
+        case 'top': exit = { x: start.x, y: start.y - APPROACH_DISTANCE }; break;
+        case 'bottom': exit = { x: start.x, y: start.y + APPROACH_DISTANCE }; break;
+        case 'left': exit = { x: start.x - APPROACH_DISTANCE, y: start.y }; break;
+        case 'right': exit = { x: start.x + APPROACH_DISTANCE, y: start.y }; break;
     }
 
-    // Check if direct connection is possible (same axis)
-    if (sourceAnchor === 'bottom' && targetAnchor === 'top' && Math.abs(start.x - end.x) < 5) {
-        return [start, end];
+    // Approach point to target
+    let approach: Point;
+    switch (targetAnchor) {
+        case 'top': approach = { x: end.x, y: end.y - APPROACH_DISTANCE }; break;
+        case 'bottom': approach = { x: end.x, y: end.y + APPROACH_DISTANCE }; break;
+        case 'left': approach = { x: end.x - APPROACH_DISTANCE, y: end.y }; break;
+        case 'right': approach = { x: end.x + APPROACH_DISTANCE, y: end.y }; break;
     }
-    if (sourceAnchor === 'top' && targetAnchor === 'bottom' && Math.abs(start.x - end.x) < 5) {
+
+    const isSourceVert = sourceAnchor === 'top' || sourceAnchor === 'bottom';
+    const isTargetVert = targetAnchor === 'top' || targetAnchor === 'bottom';
+
+    // Direct line if aligned
+    if (sourceAnchor === 'bottom' && targetAnchor === 'top' && Math.abs(start.x - end.x) < 5) {
         return [start, end];
     }
     if (sourceAnchor === 'right' && targetAnchor === 'left' && Math.abs(start.y - end.y) < 5) {
         return [start, end];
     }
-    if (sourceAnchor === 'left' && targetAnchor === 'right' && Math.abs(start.y - end.y) < 5) {
-        return [start, end];
+
+    if (isSourceVert && isTargetVert) {
+        const midY = (exit.y + approach.y) / 2;
+        return [start, exit, { x: exit.x, y: midY }, { x: approach.x, y: midY }, approach, end];
     }
 
-    // Build orthogonal path
-    const isSourceVertical = sourceAnchor === 'top' || sourceAnchor === 'bottom';
-    const isTargetVertical = targetAnchor === 'top' || targetAnchor === 'bottom';
-
-    if (isSourceVertical && isTargetVertical) {
-        // Both vertical - horizontal middle segment
-        const midY = (exitPoint.y + approachPoint.y) / 2;
-        return [
-            start,
-            exitPoint,
-            { x: exitPoint.x, y: midY },
-            { x: approachPoint.x, y: midY },
-            approachPoint,
-            end
-        ];
+    if (!isSourceVert && !isTargetVert) {
+        const midX = (exit.x + approach.x) / 2;
+        return [start, exit, { x: midX, y: exit.y }, { x: midX, y: approach.y }, approach, end];
     }
 
-    if (!isSourceVertical && !isTargetVertical) {
-        // Both horizontal - vertical middle segment
-        const midX = (exitPoint.x + approachPoint.x) / 2;
-        return [
-            start,
-            exitPoint,
-            { x: midX, y: exitPoint.y },
-            { x: midX, y: approachPoint.y },
-            approachPoint,
-            end
-        ];
-    }
-
-    // Mixed - L-shape
-    if (isSourceVertical) {
-        // Vertical exit, horizontal approach
-        return [
-            start,
-            exitPoint,
-            { x: exitPoint.x, y: approachPoint.y },
-            approachPoint,
-            end
-        ];
+    // Mixed L-shape
+    if (isSourceVert) {
+        return [start, exit, { x: exit.x, y: approach.y }, approach, end];
     } else {
-        // Horizontal exit, vertical approach
-        return [
-            start,
-            exitPoint,
-            { x: approachPoint.x, y: exitPoint.y },
-            approachPoint,
-            end
-        ];
+        return [start, exit, { x: approach.x, y: exit.y }, approach, end];
     }
 }
 
 function generateDetourPath(
     source: Card,
     target: Card,
-    direction: 'left' | 'right' | 'up' | 'down',
+    dir: 'left' | 'right' | 'up' | 'down',
     margin: number
 ): Point[] {
-    const anchors = selectAnchors(source, target);
-    const start = getAnchorPoint(source, anchors.sourceAnchor);
-    const end = getAnchorPoint(target, anchors.targetAnchor);
+    const optimal = selectOptimalAnchors(source, target);
+    const start = getAnchorPoint(source, optimal.source);
+    const end = getAnchorPoint(target, optimal.target);
 
-    switch (direction) {
+    switch (dir) {
         case 'left': {
             const x = Math.min(source.x, target.x) - margin;
-            return [start, { x: start.x, y: start.y }, { x, y: start.y }, { x, y: end.y }, { x: end.x, y: end.y }, end];
+            return [start, { x, y: start.y }, { x, y: end.y }, end];
         }
         case 'right': {
             const x = Math.max(source.x + source.width, target.x + target.width) + margin;
@@ -268,76 +254,103 @@ function generateDetourPath(
 }
 
 // =============================================================================
-// SCORING
+// SCORING - Simple distance + turns
 // =============================================================================
 
-function scorePath(path: Point[], source: Card, target: Card): number {
-    let score = 0;
-    for (let i = 0; i < path.length - 1; i++) {
-        score += Math.abs(path[i + 1].x - path[i].x) + Math.abs(path[i + 1].y - path[i].y);
-    }
-    score += (path.length - 2) * 30;
+function scorePath(path: Point[]): number {
+    let distance = 0;
+    let turns = 0;
 
-    if (target.y > source.y + 30) {
-        for (let i = 0; i < path.length - 1; i++) {
-            if (path[i + 1].y < path[i].y - 5) score += 200;
-        }
+    for (let i = 0; i < path.length - 1; i++) {
+        distance += Math.abs(path[i + 1].x - path[i].x) + Math.abs(path[i + 1].y - path[i].y);
     }
-    return score;
+
+    for (let i = 1; i < path.length - 1; i++) {
+        const isHorizIn = Math.abs(path[i].y - path[i - 1].y) < 2;
+        const isHorizOut = Math.abs(path[i + 1].y - path[i].y) < 2;
+        if (isHorizIn !== isHorizOut) turns++;
+    }
+
+    return distance + turns * 50;
 }
 
 // =============================================================================
-// PATH FINDER
+// MAIN PATH FINDER - No route sharing, each edge independent
 // =============================================================================
 
 interface PathResult {
     path: Point[];
     valid: boolean;
+    collisions: string[];
 }
 
-function findOptimalPath(source: Card, target: Card, allCards: Card[]): PathResult {
-    const candidates: Array<{ path: Point[]; score: number }> = [];
+function findOptimalPath(
+    source: Card,
+    target: Card,
+    obstacles: Card[],
+    edgeId: string
+): PathResult {
+    console.log(`[CollisionAudit] Finding path for edge ${edgeId}`, {
+        source: source.id,
+        target: target.id,
+        obstacles: obstacles.filter(o => o.id !== source.id && o.id !== target.id).map(o => o.id)
+    });
+
+    const candidates: Array<{ path: Point[]; score: number; validation: ValidationResult }> = [];
     const anchors: Anchor[] = ['top', 'right', 'bottom', 'left'];
 
-    // Try all anchor combinations
-    for (const sourceAnchor of anchors) {
-        for (const targetAnchor of anchors) {
-            const path = generatePath(source, target, sourceAnchor, targetAnchor);
-            if (validatePath(path, allCards, source.id, target.id)) {
-                candidates.push({ path, score: scorePath(path, source, target) });
+    // Test all 16 anchor combinations
+    for (const srcAnc of anchors) {
+        for (const tgtAnc of anchors) {
+            const path = generateOrthogonalPath(source, target, srcAnc, tgtAnc);
+            const validation = validatePathWithAudit(path, obstacles, edgeId, source.id, target.id);
+
+            if (validation.valid) {
+                candidates.push({ path, score: scorePath(path), validation });
             }
         }
     }
+
+    console.log(`[CollisionAudit] After anchor combinations: ${candidates.length} valid paths for ${edgeId}`);
 
     // Try detours if needed
     if (candidates.length === 0) {
         const dirs: Array<'left' | 'right' | 'up' | 'down'> = ['up', 'down', 'left', 'right'];
         for (const dir of dirs) {
-            for (const margin of [50, 80, 120]) {
+            for (const margin of [50, 80, 120, 180]) {
                 const path = generateDetourPath(source, target, dir, margin);
-                if (validatePath(path, allCards, source.id, target.id)) {
-                    candidates.push({ path, score: scorePath(path, source, target) + 100 });
+                const validation = validatePathWithAudit(path, obstacles, edgeId, source.id, target.id);
+
+                if (validation.valid) {
+                    candidates.push({ path, score: scorePath(path) + 100, validation });
                 }
             }
         }
     }
 
+    console.log(`[CollisionAudit] After detours: ${candidates.length} valid paths for ${edgeId}`);
+
     if (candidates.length > 0) {
         candidates.sort((a, b) => a.score - b.score);
-        return { path: candidates[0].path, valid: true };
+        return { path: candidates[0].path, valid: true, collisions: [] };
     }
 
-    // No valid path - use fallback with optimal anchors
-    console.error('[SmartEdge] NO VALID PATH', { source: source.id, target: target.id });
-    const optimal = selectAnchors(source, target);
+    // NO VALID PATH - Use fallback but mark as INVALID
+    console.error(`[CollisionAudit] NO VALID PATH for ${edgeId} - ALL PATHS COLLIDE`);
+
+    const optimal = selectOptimalAnchors(source, target);
+    const fallback = generateOrthogonalPath(source, target, optimal.source, optimal.target);
+    const fallbackValidation = validatePathWithAudit(fallback, obstacles, edgeId, source.id, target.id);
+
     return {
-        path: generatePath(source, target, optimal.sourceAnchor, optimal.targetAnchor),
-        valid: false
+        path: fallback,
+        valid: false,
+        collisions: fallbackValidation.collisions
     };
 }
 
 // =============================================================================
-// SVG PATH - Collapse redundant points, smooth corners
+// SVG PATH GENERATION
 // =============================================================================
 
 function collapsePoints(points: Point[]): Point[] {
@@ -410,27 +423,62 @@ function CustomSmartEdge({
 }: EdgeProps) {
     const nodes = useNodes();
 
-    const allCards: Card[] = useMemo(() => {
-        return nodes.map(node => ({
-            id: node.id,
-            x: node.position.x,
-            y: node.position.y,
-            width: node.measured?.width ?? (node as unknown as { width?: number }).width ?? 150,
-            height: node.measured?.height ?? (node as unknown as { height?: number }).height ?? 80,
-        }));
-    }, [nodes]);
+    // Build obstacle list from ALL nodes with dimension audit
+    const { allCards, sourceCard, targetCard } = useMemo(() => {
+        const cards: Card[] = [];
+        let src: Card | undefined;
+        let tgt: Card | undefined;
 
-    const sourceCard = allCards.find(c => c.id === source);
-    const targetCard = allCards.find(c => c.id === target);
+        for (const node of nodes) {
+            const width = node.measured?.width ?? (node as unknown as { width?: number }).width ?? 150;
+            const height = node.measured?.height ?? (node as unknown as { height?: number }).height ?? 80;
 
-    const { path, isValid } = useMemo(() => {
-        if (!sourceCard || !targetCard) {
-            return { path: '', isValid: true };
+            if (!node.measured?.width || !node.measured?.height) {
+                console.warn(`[CollisionAudit] Node ${node.id} without measured dimensions, using fallback:`, { width, height });
+            }
+
+            const card: Card = {
+                id: node.id,
+                x: node.position.x,
+                y: node.position.y,
+                width,
+                height
+            };
+
+            cards.push(card);
+
+            if (node.id === source) src = card;
+            if (node.id === target) tgt = card;
         }
-        const result = findOptimalPath(sourceCard, targetCard, allCards);
-        return { path: generateSvgPath(result.path), isValid: result.valid };
-    }, [sourceCard, targetCard, allCards]);
 
+        console.log(`[CollisionAudit] Built obstacle list for edge ${id}`, {
+            totalNodes: nodes.length,
+            totalCards: cards.length,
+            hasSource: !!src,
+            hasTarget: !!tgt
+        });
+
+        return { allCards: cards, sourceCard: src, targetCard: tgt };
+    }, [nodes, source, target, id]);
+
+    // Calculate path
+    const { path, isValid, collisions } = useMemo(() => {
+        if (!sourceCard || !targetCard) {
+            console.error(`[CollisionAudit] Missing source/target for edge ${id}`);
+            return { path: '', isValid: false, collisions: [] };
+        }
+
+        const result = findOptimalPath(sourceCard, targetCard, allCards, id);
+        const svgPath = generateSvgPath(result.path);
+
+        return {
+            path: svgPath,
+            isValid: result.valid,
+            collisions: result.collisions
+        };
+    }, [sourceCard, targetCard, allCards, id]);
+
+    // Invalid paths render RED DASHED
     const edgeStyle = isValid ? style : {
         ...style,
         stroke: '#ff4444',

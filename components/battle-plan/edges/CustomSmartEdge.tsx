@@ -1,7 +1,7 @@
 'use client';
 
 // =============================================================================
-// CUSTOM SMART EDGE - With comprehensive collision audit logging
+// CUSTOM SMART EDGE - With A* fallback and absolute collision rejection
 // =============================================================================
 
 import { memo, useMemo } from 'react';
@@ -20,31 +20,16 @@ interface Card {
     height: number;
 }
 
-interface CardBounds {
-    left: number;
-    right: number;
-    top: number;
-    bottom: number;
-}
-
 // =============================================================================
-// COLLISION DETECTION - With detailed audit logging
+// COLLISION DETECTION
 // =============================================================================
 
-function getCardBounds(card: Card, padding: number = 15): CardBounds {
-    return {
-        left: card.x - padding,
-        right: card.x + card.width + padding,
-        top: card.y - padding,
-        bottom: card.y + card.height + padding
-    };
-}
+function lineIntersectsCard(p1: Point, p2: Point, card: Card, padding: number = 15): boolean {
+    const left = card.x - padding;
+    const right = card.x + card.width + padding;
+    const top = card.y - padding;
+    const bottom = card.y + card.height + padding;
 
-function lineSegmentIntersectsRect(
-    p1: Point,
-    p2: Point,
-    bounds: CardBounds
-): boolean {
     const dx = p2.x - p1.x;
     const dy = p2.y - p1.y;
 
@@ -52,10 +37,10 @@ function lineSegmentIntersectsRect(
     let tMax = 1;
 
     const edges = [
-        { p: -dx, q: p1.x - bounds.left },
-        { p: dx, q: bounds.right - p1.x },
-        { p: -dy, q: p1.y - bounds.top },
-        { p: dy, q: bounds.bottom - p1.y }
+        { p: -dx, q: p1.x - left },
+        { p: dx, q: right - p1.x },
+        { p: -dy, q: p1.y - top },
+        { p: dy, q: bottom - p1.y }
     ];
 
     for (const { p, q } of edges) {
@@ -75,61 +60,163 @@ function lineSegmentIntersectsRect(
     return true;
 }
 
-interface ValidationResult {
-    valid: boolean;
-    collisions: string[];
-}
-
-function validatePathWithAudit(
-    path: Point[],
-    obstacles: Card[],
-    edgeId: string,
-    sourceId: string,
-    targetId: string
-): ValidationResult {
-    const collisions: string[] = [];
-
-    console.log(`[CollisionAudit] Validating edge ${edgeId}`, {
-        pathLength: path.length,
-        obstacleCount: obstacles.length,
-        obstacleIds: obstacles.map(o => o.id)
-    });
-
+function validatePath(path: Point[], obstacles: Card[], sourceId: string, targetId: string): boolean {
     for (let i = 0; i < path.length - 1; i++) {
-        const segStart = path[i];
-        const segEnd = path[i + 1];
-
-        for (const obstacle of obstacles) {
-            if (obstacle.id === sourceId || obstacle.id === targetId) {
-                continue; // Skip source/target
-            }
-
-            const bounds = getCardBounds(obstacle, 15);
-            const intersects = lineSegmentIntersectsRect(segStart, segEnd, bounds);
-
-            if (intersects) {
-                console.error(`[CollisionAudit] COLLISION!`, {
-                    edgeId,
-                    segment: i,
-                    from: segStart,
-                    to: segEnd,
-                    obstacle: obstacle.id,
-                    obstacleBounds: bounds
-                });
-                if (!collisions.includes(obstacle.id)) {
-                    collisions.push(obstacle.id);
-                }
+        for (const card of obstacles) {
+            if (card.id === sourceId || card.id === targetId) continue;
+            if (lineIntersectsCard(path[i], path[i + 1], card)) {
+                return false;
             }
         }
     }
+    return true;
+}
 
-    const valid = collisions.length === 0;
+// =============================================================================
+// A* GRID PATHFINDING - Guaranteed collision-free paths
+// =============================================================================
 
-    if (!valid) {
-        console.error(`[CollisionAudit] Path INVALID for ${edgeId}`, { collisions });
+interface GridNode {
+    x: number;
+    y: number;
+    g: number;
+    h: number;
+    f: number;
+    parent: GridNode | null;
+}
+
+function isPointBlocked(x: number, y: number, obstacles: Card[], sourceId: string, targetId: string): boolean {
+    const padding = 20;
+    for (const card of obstacles) {
+        if (card.id === sourceId || card.id === targetId) continue;
+        if (x >= card.x - padding && x <= card.x + card.width + padding &&
+            y >= card.y - padding && y <= card.y + card.height + padding) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function findAStarPath(
+    start: Point,
+    end: Point,
+    obstacles: Card[],
+    sourceId: string,
+    targetId: string
+): Point[] | null {
+    const gridSize = 20;
+    const maxIterations = 2000;
+
+    // Snap to grid
+    const startGrid = {
+        x: Math.round(start.x / gridSize) * gridSize,
+        y: Math.round(start.y / gridSize) * gridSize
+    };
+    const endGrid = {
+        x: Math.round(end.x / gridSize) * gridSize,
+        y: Math.round(end.y / gridSize) * gridSize
+    };
+
+    const openSet: GridNode[] = [];
+    const closedSet = new Set<string>();
+
+    const startNode: GridNode = {
+        x: startGrid.x,
+        y: startGrid.y,
+        g: 0,
+        h: Math.abs(endGrid.x - startGrid.x) + Math.abs(endGrid.y - startGrid.y),
+        f: 0,
+        parent: null
+    };
+    startNode.f = startNode.g + startNode.h;
+    openSet.push(startNode);
+
+    let iterations = 0;
+
+    while (openSet.length > 0 && iterations < maxIterations) {
+        iterations++;
+
+        // Get node with lowest f
+        openSet.sort((a, b) => a.f - b.f);
+        const current = openSet.shift()!;
+
+        // Check if reached goal
+        if (Math.abs(current.x - endGrid.x) < gridSize &&
+            Math.abs(current.y - endGrid.y) < gridSize) {
+            // Reconstruct path
+            const path: Point[] = [];
+            let node: GridNode | null = current;
+            while (node) {
+                path.unshift({ x: node.x, y: node.y });
+                node = node.parent;
+            }
+            // Add actual start and end points
+            path[0] = start;
+            path.push(end);
+            return simplifyPath(path);
+        }
+
+        const key = `${current.x},${current.y}`;
+        if (closedSet.has(key)) continue;
+        closedSet.add(key);
+
+        // Explore neighbors (4 directions for orthogonal paths)
+        const directions = [
+            { dx: gridSize, dy: 0 },
+            { dx: -gridSize, dy: 0 },
+            { dx: 0, dy: gridSize },
+            { dx: 0, dy: -gridSize }
+        ];
+
+        for (const dir of directions) {
+            const nx = current.x + dir.dx;
+            const ny = current.y + dir.dy;
+            const nKey = `${nx},${ny}`;
+
+            if (closedSet.has(nKey)) continue;
+            if (isPointBlocked(nx, ny, obstacles, sourceId, targetId)) continue;
+
+            const g = current.g + gridSize;
+            const h = Math.abs(endGrid.x - nx) + Math.abs(endGrid.y - ny);
+
+            const neighbor: GridNode = {
+                x: nx,
+                y: ny,
+                g,
+                h,
+                f: g + h,
+                parent: current
+            };
+
+            openSet.push(neighbor);
+        }
     }
 
-    return { valid, collisions };
+    console.error('[A*] No path found after', iterations, 'iterations');
+    return null;
+}
+
+function simplifyPath(path: Point[]): Point[] {
+    if (path.length < 3) return path;
+
+    const result: Point[] = [path[0]];
+
+    for (let i = 1; i < path.length - 1; i++) {
+        const prev = result[result.length - 1];
+        const curr = path[i];
+        const next = path[i + 1];
+
+        // Check if direction changes
+        const prevHoriz = Math.abs(curr.y - prev.y) < 2;
+        const nextHoriz = Math.abs(next.y - curr.y) < 2;
+
+        if (prevHoriz !== nextHoriz) {
+            result.push(curr); // Keep corner points
+        }
+    }
+
+    result.push(path[path.length - 1]);
+    return result;
 }
 
 // =============================================================================
@@ -147,7 +234,7 @@ function getAnchorPoint(card: Card, anchor: Anchor): Point {
     }
 }
 
-function selectOptimalAnchors(source: Card, target: Card): { source: Anchor; target: Anchor } {
+function selectAnchors(source: Card, target: Card): { source: Anchor; target: Anchor } {
     const dx = (target.x + target.width / 2) - (source.x + source.width / 2);
     const dy = (target.y + target.height / 2) - (source.y + source.height / 2);
 
@@ -162,46 +249,40 @@ function selectOptimalAnchors(source: Card, target: Card): { source: Anchor; tar
 }
 
 // =============================================================================
-// PATH GENERATION - Each edge calculates independently
+// SIMPLE PATH GENERATION
 // =============================================================================
 
-const APPROACH_DISTANCE = 30;
+function generateSimplePath(source: Card, target: Card, srcAnc: Anchor, tgtAnc: Anchor): Point[] {
+    const start = getAnchorPoint(source, srcAnc);
+    const end = getAnchorPoint(target, tgtAnc);
+    const offset = 30;
 
-function generateOrthogonalPath(
-    source: Card,
-    target: Card,
-    sourceAnchor: Anchor,
-    targetAnchor: Anchor
-): Point[] {
-    const start = getAnchorPoint(source, sourceAnchor);
-    const end = getAnchorPoint(target, targetAnchor);
-
-    // Exit point from source
+    // Exit point
     let exit: Point;
-    switch (sourceAnchor) {
-        case 'top': exit = { x: start.x, y: start.y - APPROACH_DISTANCE }; break;
-        case 'bottom': exit = { x: start.x, y: start.y + APPROACH_DISTANCE }; break;
-        case 'left': exit = { x: start.x - APPROACH_DISTANCE, y: start.y }; break;
-        case 'right': exit = { x: start.x + APPROACH_DISTANCE, y: start.y }; break;
+    switch (srcAnc) {
+        case 'top': exit = { x: start.x, y: start.y - offset }; break;
+        case 'bottom': exit = { x: start.x, y: start.y + offset }; break;
+        case 'left': exit = { x: start.x - offset, y: start.y }; break;
+        case 'right': exit = { x: start.x + offset, y: start.y }; break;
     }
 
-    // Approach point to target
+    // Approach point
     let approach: Point;
-    switch (targetAnchor) {
-        case 'top': approach = { x: end.x, y: end.y - APPROACH_DISTANCE }; break;
-        case 'bottom': approach = { x: end.x, y: end.y + APPROACH_DISTANCE }; break;
-        case 'left': approach = { x: end.x - APPROACH_DISTANCE, y: end.y }; break;
-        case 'right': approach = { x: end.x + APPROACH_DISTANCE, y: end.y }; break;
+    switch (tgtAnc) {
+        case 'top': approach = { x: end.x, y: end.y - offset }; break;
+        case 'bottom': approach = { x: end.x, y: end.y + offset }; break;
+        case 'left': approach = { x: end.x - offset, y: end.y }; break;
+        case 'right': approach = { x: end.x + offset, y: end.y }; break;
     }
 
-    const isSourceVert = sourceAnchor === 'top' || sourceAnchor === 'bottom';
-    const isTargetVert = targetAnchor === 'top' || targetAnchor === 'bottom';
+    const isSourceVert = srcAnc === 'top' || srcAnc === 'bottom';
+    const isTargetVert = tgtAnc === 'top' || tgtAnc === 'bottom';
 
     // Direct line if aligned
-    if (sourceAnchor === 'bottom' && targetAnchor === 'top' && Math.abs(start.x - end.x) < 5) {
+    if (srcAnc === 'bottom' && tgtAnc === 'top' && Math.abs(start.x - end.x) < 5) {
         return [start, end];
     }
-    if (sourceAnchor === 'right' && targetAnchor === 'left' && Math.abs(start.y - end.y) < 5) {
+    if (srcAnc === 'right' && tgtAnc === 'left' && Math.abs(start.y - end.y) < 5) {
         return [start, end];
     }
 
@@ -215,7 +296,6 @@ function generateOrthogonalPath(
         return [start, exit, { x: midX, y: exit.y }, { x: midX, y: approach.y }, approach, end];
     }
 
-    // Mixed L-shape
     if (isSourceVert) {
         return [start, exit, { x: exit.x, y: approach.y }, approach, end];
     } else {
@@ -223,15 +303,10 @@ function generateOrthogonalPath(
     }
 }
 
-function generateDetourPath(
-    source: Card,
-    target: Card,
-    dir: 'left' | 'right' | 'up' | 'down',
-    margin: number
-): Point[] {
-    const optimal = selectOptimalAnchors(source, target);
-    const start = getAnchorPoint(source, optimal.source);
-    const end = getAnchorPoint(target, optimal.target);
+function generateDetour(source: Card, target: Card, dir: 'left' | 'right' | 'up' | 'down', margin: number): Point[] {
+    const anchors = selectAnchors(source, target);
+    const start = getAnchorPoint(source, anchors.source);
+    const end = getAnchorPoint(target, anchors.target);
 
     switch (dir) {
         case 'left': {
@@ -254,104 +329,121 @@ function generateDetourPath(
 }
 
 // =============================================================================
-// SCORING - Simple distance + turns
+// MAIN PATH FINDER - Escalates to A* if simple paths fail
 // =============================================================================
 
 function scorePath(path: Point[]): number {
-    let distance = 0;
-    let turns = 0;
-
+    let dist = 0;
     for (let i = 0; i < path.length - 1; i++) {
-        distance += Math.abs(path[i + 1].x - path[i].x) + Math.abs(path[i + 1].y - path[i].y);
+        dist += Math.abs(path[i + 1].x - path[i].x) + Math.abs(path[i + 1].y - path[i].y);
     }
-
-    for (let i = 1; i < path.length - 1; i++) {
-        const isHorizIn = Math.abs(path[i].y - path[i - 1].y) < 2;
-        const isHorizOut = Math.abs(path[i + 1].y - path[i].y) < 2;
-        if (isHorizIn !== isHorizOut) turns++;
-    }
-
-    return distance + turns * 50;
+    return dist + path.length * 20;
 }
-
-// =============================================================================
-// MAIN PATH FINDER - No route sharing, each edge independent
-// =============================================================================
 
 interface PathResult {
     path: Point[];
     valid: boolean;
-    collisions: string[];
+    method: 'simple' | 'detour' | 'astar' | 'failed';
 }
 
-function findOptimalPath(
-    source: Card,
-    target: Card,
-    obstacles: Card[],
-    edgeId: string
-): PathResult {
-    console.log(`[CollisionAudit] Finding path for edge ${edgeId}`, {
-        source: source.id,
-        target: target.id,
-        obstacles: obstacles.filter(o => o.id !== source.id && o.id !== target.id).map(o => o.id)
-    });
-
-    const candidates: Array<{ path: Point[]; score: number; validation: ValidationResult }> = [];
+function findPath(source: Card, target: Card, obstacles: Card[], edgeId: string): PathResult {
     const anchors: Anchor[] = ['top', 'right', 'bottom', 'left'];
+    const validPaths: Array<{ path: Point[]; score: number; method: string }> = [];
 
-    // Test all 16 anchor combinations
-    for (const srcAnc of anchors) {
-        for (const tgtAnc of anchors) {
-            const path = generateOrthogonalPath(source, target, srcAnc, tgtAnc);
-            const validation = validatePathWithAudit(path, obstacles, edgeId, source.id, target.id);
-
-            if (validation.valid) {
-                candidates.push({ path, score: scorePath(path), validation });
+    // Try all simple anchor combinations
+    for (const src of anchors) {
+        for (const tgt of anchors) {
+            const path = generateSimplePath(source, target, src, tgt);
+            if (validatePath(path, obstacles, source.id, target.id)) {
+                validPaths.push({ path, score: scorePath(path), method: 'simple' });
             }
         }
     }
 
-    console.log(`[CollisionAudit] After anchor combinations: ${candidates.length} valid paths for ${edgeId}`);
-
-    // Try detours if needed
-    if (candidates.length === 0) {
+    // Try detours
+    if (validPaths.length === 0) {
         const dirs: Array<'left' | 'right' | 'up' | 'down'> = ['up', 'down', 'left', 'right'];
         for (const dir of dirs) {
             for (const margin of [50, 80, 120, 180]) {
-                const path = generateDetourPath(source, target, dir, margin);
-                const validation = validatePathWithAudit(path, obstacles, edgeId, source.id, target.id);
-
-                if (validation.valid) {
-                    candidates.push({ path, score: scorePath(path) + 100, validation });
+                const path = generateDetour(source, target, dir, margin);
+                if (validatePath(path, obstacles, source.id, target.id)) {
+                    validPaths.push({ path, score: scorePath(path) + 100, method: 'detour' });
                 }
             }
         }
     }
 
-    console.log(`[CollisionAudit] After detours: ${candidates.length} valid paths for ${edgeId}`);
-
-    if (candidates.length > 0) {
-        candidates.sort((a, b) => a.score - b.score);
-        return { path: candidates[0].path, valid: true, collisions: [] };
+    // Return best simple/detour path
+    if (validPaths.length > 0) {
+        validPaths.sort((a, b) => a.score - b.score);
+        return {
+            path: validPaths[0].path,
+            valid: true,
+            method: validPaths[0].method as 'simple' | 'detour'
+        };
     }
 
-    // NO VALID PATH - Use fallback but mark as INVALID
-    console.error(`[CollisionAudit] NO VALID PATH for ${edgeId} - ALL PATHS COLLIDE`);
+    // ESCALATE TO A* - grid-based pathfinding
+    console.warn(`[SmartEdge] No simple path for ${edgeId}, using A*`);
 
-    const optimal = selectOptimalAnchors(source, target);
-    const fallback = generateOrthogonalPath(source, target, optimal.source, optimal.target);
-    const fallbackValidation = validatePathWithAudit(fallback, obstacles, edgeId, source.id, target.id);
+    const optimal = selectAnchors(source, target);
+    const start = getAnchorPoint(source, optimal.source);
+    const end = getAnchorPoint(target, optimal.target);
 
+    const astarPath = findAStarPath(start, end, obstacles, source.id, target.id);
+
+    if (astarPath && validatePath(astarPath, obstacles, source.id, target.id)) {
+        console.log(`[SmartEdge] A* found valid path for ${edgeId}`);
+        return { path: astarPath, valid: true, method: 'astar' };
+    }
+
+    // ABSOLUTE FAILURE - Return minimal path that goes AROUND everything
+    console.error(`[SmartEdge] A* FAILED for ${edgeId} - using extreme detour`);
+
+    // Calculate extreme detour that definitely avoids all cards
+    let minX = source.x, maxX = source.x + source.width;
+    let minY = source.y, maxY = source.y + source.height;
+
+    for (const card of obstacles) {
+        minX = Math.min(minX, card.x);
+        maxX = Math.max(maxX, card.x + card.width);
+        minY = Math.min(minY, card.y);
+        maxY = Math.max(maxY, card.y + card.height);
+    }
+
+    // Try extreme routes
+    const extremeMargin = 60;
+    const extremePaths = [
+        // Go far above
+        [start, { x: start.x, y: minY - extremeMargin }, { x: end.x, y: minY - extremeMargin }, end],
+        // Go far below
+        [start, { x: start.x, y: maxY + extremeMargin }, { x: end.x, y: maxY + extremeMargin }, end],
+        // Go far left
+        [start, { x: minX - extremeMargin, y: start.y }, { x: minX - extremeMargin, y: end.y }, end],
+        // Go far right  
+        [start, { x: maxX + extremeMargin, y: start.y }, { x: maxX + extremeMargin, y: end.y }, end]
+    ];
+
+    for (const path of extremePaths) {
+        if (validatePath(path, obstacles, source.id, target.id)) {
+            return { path, valid: true, method: 'astar' };
+        }
+    }
+
+    // TRUE FAILURE - Cannot find any valid path
+    console.error(`[SmartEdge] CRITICAL: No valid path possible for ${edgeId}`);
     return {
-        path: fallback,
+        path: [start, end],
         valid: false,
-        collisions: fallbackValidation.collisions
+        method: 'failed'
     };
 }
 
 // =============================================================================
 // SVG PATH GENERATION
 // =============================================================================
+
+const CORNER_RADIUS = 8;
 
 function collapsePoints(points: Point[]): Point[] {
     if (points.length < 2) return points;
@@ -365,8 +457,6 @@ function collapsePoints(points: Point[]): Point[] {
     }
     return result;
 }
-
-const CORNER_RADIUS = 8;
 
 function generateSvgPath(waypoints: Point[]): string {
     const points = collapsePoints(waypoints);
@@ -423,68 +513,59 @@ function CustomSmartEdge({
 }: EdgeProps) {
     const nodes = useNodes();
 
-    // Build obstacle list from ALL nodes with dimension audit
     const { allCards, sourceCard, targetCard } = useMemo(() => {
-        const cards: Card[] = [];
-        let src: Card | undefined;
-        let tgt: Card | undefined;
-
-        for (const node of nodes) {
-            const width = node.measured?.width ?? (node as unknown as { width?: number }).width ?? 150;
-            const height = node.measured?.height ?? (node as unknown as { height?: number }).height ?? 80;
-
-            if (!node.measured?.width || !node.measured?.height) {
-                console.warn(`[CollisionAudit] Node ${node.id} without measured dimensions, using fallback:`, { width, height });
-            }
-
-            const card: Card = {
-                id: node.id,
-                x: node.position.x,
-                y: node.position.y,
-                width,
-                height
-            };
-
-            cards.push(card);
-
-            if (node.id === source) src = card;
-            if (node.id === target) tgt = card;
-        }
-
-        console.log(`[CollisionAudit] Built obstacle list for edge ${id}`, {
-            totalNodes: nodes.length,
-            totalCards: cards.length,
-            hasSource: !!src,
-            hasTarget: !!tgt
-        });
-
-        return { allCards: cards, sourceCard: src, targetCard: tgt };
-    }, [nodes, source, target, id]);
-
-    // Calculate path
-    const { path, isValid, collisions } = useMemo(() => {
-        if (!sourceCard || !targetCard) {
-            console.error(`[CollisionAudit] Missing source/target for edge ${id}`);
-            return { path: '', isValid: false, collisions: [] };
-        }
-
-        const result = findOptimalPath(sourceCard, targetCard, allCards, id);
-        const svgPath = generateSvgPath(result.path);
+        const cards: Card[] = nodes.map(node => ({
+            id: node.id,
+            x: node.position.x,
+            y: node.position.y,
+            width: node.measured?.width ?? 150,
+            height: node.measured?.height ?? 80,
+        }));
 
         return {
-            path: svgPath,
-            isValid: result.valid,
-            collisions: result.collisions
+            allCards: cards,
+            sourceCard: cards.find(c => c.id === source),
+            targetCard: cards.find(c => c.id === target)
         };
-    }, [sourceCard, targetCard, allCards, id]);
+    }, [nodes, source, target]);
 
-    // Invalid paths render RED DASHED
-    const edgeStyle = isValid ? style : {
-        ...style,
-        stroke: '#ff4444',
-        strokeWidth: 3,
-        strokeDasharray: '8,4',
-    };
+    const { path, isValid, method } = useMemo(() => {
+        if (!sourceCard || !targetCard) {
+            return { path: '', isValid: false, method: 'failed' };
+        }
+
+        const result = findPath(sourceCard, targetCard, allCards, id);
+
+        // FINAL VALIDATION - Even if findPath says valid, double-check
+        const finalValid = result.valid && validatePath(result.path, allCards, source, target);
+
+        if (!finalValid && result.valid) {
+            console.error(`[SmartEdge] CRITICAL: findPath returned valid but final validation failed for ${id}`);
+        }
+
+        return {
+            path: generateSvgPath(result.path),
+            isValid: finalValid,
+            method: result.method
+        };
+    }, [sourceCard, targetCard, allCards, id, source, target]);
+
+    // INVALID = RED, ASTAR = ORANGE, VALID = NORMAL
+    let edgeStyle = style;
+    if (!isValid) {
+        edgeStyle = {
+            ...style,
+            stroke: '#ff4444',
+            strokeWidth: 3,
+            strokeDasharray: '8,4',
+        };
+    } else if (method === 'astar') {
+        edgeStyle = {
+            ...style,
+            stroke: '#ff9900',
+            strokeWidth: 2,
+        };
+    }
 
     return (
         <path

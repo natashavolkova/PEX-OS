@@ -86,13 +86,13 @@ function CustomSmartEdge({
         { x: targetX, y: targetY },
     ];
 
-    const cornerRadius = 10;
+    const CORNER_RADIUS = 10; // Fixed corner radius
     const pathParts: string[] = [];
 
     // Start at first point
     pathParts.push(`M ${allPoints[0].x},${allPoints[0].y}`);
 
-    // Draw orthogonal path with rounded corners
+    // Draw orthogonal path with rounded corners ONLY at actual direction changes
     for (let i = 1; i < allPoints.length; i++) {
         const prev = allPoints[i - 1];
         const curr = allPoints[i];
@@ -101,34 +101,53 @@ function CustomSmartEdge({
         if (!next) {
             // Last segment - just line to target
             pathParts.push(`L ${curr.x},${curr.y}`);
-        } else {
-            // Calculate corner
-            const dx1 = curr.x - prev.x;
-            const dy1 = curr.y - prev.y;
-            const dx2 = next.x - curr.x;
-            const dy2 = next.y - curr.y;
+            continue;
+        }
 
-            // Distance to corner point
-            const len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
-            const len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+        // Detect if this is a corner (direction changes from H to V or V to H)
+        const isHorizToPrev = Math.abs(prev.y - curr.y) < 2;
+        const isHorizToNext = Math.abs(curr.y - next.y) < 2;
+        const isCorner = isHorizToPrev !== isHorizToNext;
 
-            // Limit corner radius to half the segment length
-            const r = Math.min(cornerRadius, len1 / 2, len2 / 2);
+        if (isCorner) {
+            // Calculate segment lengths for radius limiting
+            const len1 = isHorizToPrev
+                ? Math.abs(curr.x - prev.x)
+                : Math.abs(curr.y - prev.y);
+            const len2 = isHorizToNext
+                ? Math.abs(next.x - curr.x)
+                : Math.abs(next.y - curr.y);
+
+            // Limit radius to half the shortest segment
+            const r = Math.min(CORNER_RADIUS, len1 / 2, len2 / 2);
 
             if (r > 1 && len1 > 2 && len2 > 2) {
-                // Calculate corner entry and exit points
-                const enterX = curr.x - (dx1 / len1) * r;
-                const enterY = curr.y - (dy1 / len1) * r;
-                const exitX = curr.x + (dx2 / len2) * r;
-                const exitY = curr.y + (dy2 / len2) * r;
+                // Calculate entry point (before corner)
+                const enterX = isHorizToPrev
+                    ? curr.x - Math.sign(curr.x - prev.x) * r
+                    : curr.x;
+                const enterY = !isHorizToPrev
+                    ? curr.y - Math.sign(curr.y - prev.y) * r
+                    : curr.y;
 
-                // Line to corner entry, then arc to exit
+                // Calculate exit point (after corner)
+                const exitX = isHorizToNext
+                    ? curr.x + Math.sign(next.x - curr.x) * r
+                    : curr.x;
+                const exitY = !isHorizToNext
+                    ? curr.y + Math.sign(next.y - curr.y) * r
+                    : curr.y;
+
+                // Line to corner entry, then quadratic curve to exit
                 pathParts.push(`L ${enterX},${enterY}`);
                 pathParts.push(`Q ${curr.x},${curr.y} ${exitX},${exitY}`);
             } else {
                 // No room for corner, just line
                 pathParts.push(`L ${curr.x},${curr.y}`);
             }
+        } else {
+            // Same direction, just continue with line
+            pathParts.push(`L ${curr.x},${curr.y}`);
         }
     }
 

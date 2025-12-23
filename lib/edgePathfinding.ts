@@ -686,6 +686,70 @@ function countDirectionChanges(
 }
 
 /**
+ * Calculate flow hierarchy penalty for anchor pair
+ * Respects natural visual flow: top-down, left-right
+ * LOWER score = better flow (penalty-based)
+ */
+function calculateFlowPenalty(
+    sourceNode: Node,
+    targetNode: Node,
+    sourceHandle: ValidHandle,
+    targetHandle: ValidHandle
+): number {
+    const sourceCenter = getNodeCenter(sourceNode);
+    const targetCenter = getNodeCenter(targetNode);
+
+    const isTargetBelow = targetCenter.y > sourceCenter.y + 50;
+    const isTargetAbove = targetCenter.y < sourceCenter.y - 50;
+    const isTargetLeft = targetCenter.x < sourceCenter.x - 50;
+    const isTargetRight = targetCenter.x > sourceCenter.x + 50;
+
+    // Target is below AND to the left: prefer left → top (hierarchical diagonal)
+    if (isTargetBelow && isTargetLeft) {
+        if (sourceHandle === 'l' && targetHandle === 't') return 0;   // Best
+        if (sourceHandle === 'b' && targetHandle === 'r') return 100; // Acceptable
+        return 300; // Heavy penalty for other combinations
+    }
+
+    // Target is below AND to the right: prefer right → top or bottom → top
+    if (isTargetBelow && isTargetRight) {
+        if (sourceHandle === 'r' && targetHandle === 't') return 0;
+        if (sourceHandle === 'b' && targetHandle === 'l') return 50;
+        if (sourceHandle === 'b' && targetHandle === 't') return 50;
+        return 250;
+    }
+
+    // Target is directly below: prefer bottom → top (natural top-down flow)
+    if (isTargetBelow) {
+        if (sourceHandle === 'b' && targetHandle === 't') return 0;
+        if (sourceHandle === 'r' && targetHandle === 'l') return 80;
+        if (sourceHandle === 'l' && targetHandle === 'r') return 80;
+        return 200;
+    }
+
+    // Target is directly above: prefer top → bottom
+    if (isTargetAbove) {
+        if (sourceHandle === 't' && targetHandle === 'b') return 0;
+        return 200;
+    }
+
+    // Target is to the right: prefer right → left
+    if (isTargetRight) {
+        if (sourceHandle === 'r' && targetHandle === 'l') return 0;
+        return 150;
+    }
+
+    // Target is to the left: prefer left → right
+    if (isTargetLeft) {
+        if (sourceHandle === 'l' && targetHandle === 'r') return 0;
+        return 150;
+    }
+
+    // Default for nearly aligned cards
+    return 50;
+}
+
+/**
  * Check if handle pair makes geometric sense
  * Higher score = better geometry
  */
@@ -749,11 +813,15 @@ function scoreAnchorPair(
     // Geometry bonus (makes visually sensible routes)
     const geoBonus = getGeometryBonus(dx, dy, sourceHandle, targetHandle);
 
+    // Flow hierarchy penalty (respects top-down, left-right visual flow)
+    const flowPenalty = calculateFlowPenalty(sourceNode, targetNode, sourceHandle, targetHandle);
+
     // Check for collision
     const collision = detectEdgeCollision(sourcePos, targetPos, nodes, excludeIds);
     const collisionPenalty = collision ? 1000 : 0;
 
-    const finalScore = distanceScore + turnPenalty - geoBonus + collisionPenalty;
+    // Final score: distance + turns + flow penalty - geometry bonus + collision penalty
+    const finalScore = distanceScore + turnPenalty + flowPenalty - geoBonus + collisionPenalty;
 
     return {
         sourceHandle,
@@ -1001,36 +1069,63 @@ function generateDetourRoute(
     }
 }
 
+// =============================================================================
+// WAYPOINT OPTIMIZATION - Clean geometry with grid snap
+// =============================================================================
+
+const WAYPOINT_GRID_SIZE = 8; // 8px grid for clean alignment
+
 /**
- * Optimize waypoints by removing redundant points on same line
+ * Snap a point to the grid
+ */
+function snapToGrid(point: XYPosition): XYPosition {
+    return {
+        x: Math.round(point.x / WAYPOINT_GRID_SIZE) * WAYPOINT_GRID_SIZE,
+        y: Math.round(point.y / WAYPOINT_GRID_SIZE) * WAYPOINT_GRID_SIZE,
+    };
+}
+
+/**
+ * Collapse redundant colinear points in path
+ * More aggressive than simple optimization - removes any point on a straight line
+ */
+export function collapseRedundantPoints(points: XYPosition[]): XYPosition[] {
+    if (points.length < 3) return points;
+
+    const simplified: XYPosition[] = [points[0]];
+
+    for (let i = 1; i < points.length - 1; i++) {
+        const prev = points[i - 1];
+        const curr = points[i];
+        const next = points[i + 1];
+
+        // Remove if on same horizontal or vertical line (tolerance: 2px)
+        const isColinear =
+            (Math.abs(prev.x - curr.x) < 2 && Math.abs(curr.x - next.x) < 2) ||
+            (Math.abs(prev.y - curr.y) < 2 && Math.abs(curr.y - next.y) < 2);
+
+        if (!isColinear) {
+            simplified.push(curr);
+        }
+    }
+
+    simplified.push(points[points.length - 1]);
+    return simplified;
+}
+
+/**
+ * Optimize waypoints by removing redundant points and snapping to grid
  */
 function optimizeWaypoints(waypoints: XYPosition[]): XYPosition[] {
     if (waypoints.length <= 2) return waypoints;
 
-    const optimized: XYPosition[] = [waypoints[0]];
+    // First: snap intermediate waypoints to grid (keep source/target exact)
+    const snapped = waypoints.map((wp, i) =>
+        (i === 0 || i === waypoints.length - 1) ? wp : snapToGrid(wp)
+    );
 
-    for (let i = 1; i < waypoints.length - 1; i++) {
-        const prev = waypoints[i - 1];
-        const curr = waypoints[i];
-        const next = waypoints[i + 1];
-
-        // Check if curr is on the same horizontal line between prev and next
-        const isHorizontalLine =
-            Math.abs(prev.y - curr.y) < 5 && Math.abs(curr.y - next.y) < 5;
-
-        // Check if curr is on the same vertical line between prev and next
-        const isVerticalLine =
-            Math.abs(prev.x - curr.x) < 5 && Math.abs(curr.x - next.x) < 5;
-
-        // Skip redundant waypoint
-        if (isHorizontalLine || isVerticalLine) continue;
-
-        optimized.push(curr);
-    }
-
-    optimized.push(waypoints[waypoints.length - 1]);
-
-    return optimized;
+    // Then: collapse colinear points
+    return collapseRedundantPoints(snapped);
 }
 
 /**

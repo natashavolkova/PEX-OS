@@ -136,14 +136,76 @@ function pathLength(points: XYPosition[]): number {
     return total;
 }
 
-// =============================================================================
-// ALIGNMENT DETECTION - Using 50px threshold as specified
+// STRICT ALIGNMENT DETECTION - Based on snap-to-grid tolerance
 // =============================================================================
 
-const ALIGNMENT_THRESHOLD = 50; // pixels
+// STRICT tolerance: Only consider aligned if within snap tolerance
+const STRICT_ALIGNMENT_TOLERANCE = 12; // pixels - matches snap-to-grid  
+// LOOSE tolerance for legacy functions
+const ALIGNMENT_THRESHOLD = 50; // pixels - kept for backward compatibility
 
 /**
- * Check if cards are vertically aligned (same column)
+ * STRICT: Check if two nodes are aligned within snap tolerance
+ * This is the ONLY function that determines if straight lines are allowed
+ */
+export function areNodesStrictlyAligned(
+    sourceNode: Node,
+    targetNode: Node,
+    tolerance: number = STRICT_ALIGNMENT_TOLERANCE
+): { aligned: boolean; axis: 'horizontal' | 'vertical' | 'none' } {
+    const sourceCenter = getNodeCenter(sourceNode);
+    const targetCenter = getNodeCenter(targetNode);
+
+    const deltaX = Math.abs(targetCenter.x - sourceCenter.x);
+    const deltaY = Math.abs(targetCenter.y - sourceCenter.y);
+
+    // Vertically aligned = same X column (horizontal line possible)
+    if (deltaX <= tolerance) {
+        return { aligned: true, axis: 'vertical' };
+    }
+
+    // Horizontally aligned = same Y row (vertical line possible)
+    if (deltaY <= tolerance) {
+        return { aligned: true, axis: 'horizontal' };
+    }
+
+    return { aligned: false, axis: 'none' };
+}
+
+/**
+ * STRICT: Determine if straight line should be used
+ * Only returns true if:
+ * 1. Nodes are strictly aligned within snap tolerance
+ * 2. No obstacles between them
+ */
+export function shouldUseStraightLine(
+    sourceNode: Node,
+    targetNode: Node,
+    allNodes: Node[]
+): boolean {
+    const alignment = areNodesStrictlyAligned(sourceNode, targetNode);
+
+    if (!alignment.aligned) {
+        console.log(`[StraightLine] ${sourceNode.id} → ${targetNode.id}: NOT ALIGNED - forcing orthogonal`);
+        return false;
+    }
+
+    // Check for obstacles
+    const sourceCenter = getNodeCenter(sourceNode);
+    const targetCenter = getNodeCenter(targetNode);
+    const collisions = findCollisions(sourceCenter, targetCenter, allNodes, [sourceNode.id, targetNode.id]);
+
+    if (collisions.length > 0) {
+        console.log(`[StraightLine] ${sourceNode.id} → ${targetNode.id}: BLOCKED by ${collisions.map(n => n.id).join(', ')}`);
+        return false;
+    }
+
+    console.log(`[StraightLine] ${sourceNode.id} → ${targetNode.id}: ALLOWED (${alignment.axis} alignment)`);
+    return true;
+}
+
+/**
+ * Check if cards are vertically aligned (same column) - LEGACY
  * |deltaX| < 50px means they are in the same column
  */
 export function isVerticallyAligned(source: XYPosition, target: XYPosition): boolean {
@@ -152,7 +214,7 @@ export function isVerticallyAligned(source: XYPosition, target: XYPosition): boo
 }
 
 /**
- * Check if cards are horizontally aligned (same row)
+ * Check if cards are horizontally aligned (same row) - LEGACY
  * |deltaY| < 50px means they are in the same row
  */
 export function isHorizontallyAligned(source: XYPosition, target: XYPosition): boolean {
@@ -177,19 +239,18 @@ export function isAlignedConnection(source: XYPosition, target: XYPosition): boo
 }
 
 /**
- * Get the OPTIMAL edge type based on connection geometry
- * This is used for auto-selection when creating new connections
- * 
- * Rules:
- * - Vertically aligned (same column): STRAIGHT
- * - Horizontally aligned (same row): STRAIGHT
- * - Diagonal: SMOOTHSTEP (never straight!)
+ * Get the OPTIMAL edge type based on STRICT alignment
+ * Only returns 'straight' if nodes are strictly aligned (within snap tolerance)
  */
 export function getOptimalEdgeType(source: XYPosition, target: XYPosition): 'smoothstep' | 'straight' {
-    if (isAlignedConnection(source, target)) {
-        return 'straight'; // Clean straight line for aligned cards
+    const dx = Math.abs(target.x - source.x);
+    const dy = Math.abs(target.y - source.y);
+
+    // STRICT: Only straight if within snap tolerance
+    if (dx <= STRICT_ALIGNMENT_TOLERANCE || dy <= STRICT_ALIGNMENT_TOLERANCE) {
+        return 'straight';
     }
-    return 'smoothstep'; // Angular routing for diagonals
+    return 'smoothstep';
 }
 
 /**
@@ -204,10 +265,13 @@ export function getSuggestedEdgeType(
 }
 
 /**
- * Check if straight line is appropriate for this connection
+ * STRICT: Check if straight line is appropriate
+ * Uses snap tolerance, not loose threshold
  */
 export function isStraightLineAppropriate(source: XYPosition, target: XYPosition): boolean {
-    return isAlignedConnection(source, target);
+    const dx = Math.abs(target.x - source.x);
+    const dy = Math.abs(target.y - source.y);
+    return dx <= STRICT_ALIGNMENT_TOLERANCE || dy <= STRICT_ALIGNMENT_TOLERANCE;
 }
 
 // =============================================================================
@@ -451,17 +515,19 @@ export interface NormalizedEdge {
 }
 
 /**
- * HANDLE-ONLY NORMALIZATION - Adjusts handles based on node positions
- * This function runs for EVERY edge BEFORE rendering!
+ * STRICT EDGE NORMALIZATION - Enforces alignment rules and collision detection
  * 
- * CRITICAL: This function does NOT change the edge TYPE!
- * The user's selection (straight/smoothstep/bezier) is ALWAYS respected.
- * We ONLY adjust handles for optimal routing.
+ * This function now DOES change edge type in specific cases:
+ * - If user selected 'straight' but nodes are NOT strictly aligned → force 'smoothstep'
+ * - If there's a collision on the path → force 'smoothstep'
+ * 
+ * Handles are ALWAYS optimized based on node positions.
  */
 export function normalizeEdge(
     edge: NormalizedEdge,
     sourceNode: Node | undefined,
-    targetNode: Node | undefined
+    targetNode: Node | undefined,
+    allNodes?: Node[]
 ): NormalizedEdge {
     // If nodes not found, return as-is
     if (!sourceNode || !targetNode) {
@@ -469,58 +535,75 @@ export function normalizeEdge(
         return edge;
     }
 
-    // Calculate alignment
+    // Calculate centers
     const sourceCenter = getNodeCenter(sourceNode);
     const targetCenter = getNodeCenter(targetNode);
-
     const deltaX = Math.abs(targetCenter.x - sourceCenter.x);
     const deltaY = Math.abs(targetCenter.y - sourceCenter.y);
 
-    // CRITICAL: Calculate OPTIMAL HANDLES based on node positions
-    // Horizontal: right → left or left → right
-    // Vertical: bottom → top or top → bottom
+    // Determine strict alignment
+    const alignment = areNodesStrictlyAligned(sourceNode, targetNode);
+
+    // Calculate OPTIMAL HANDLES based on dominant axis
     const isHorizontalDominant = deltaX > deltaY;
     let optimalSourceHandle: string;
     let optimalTargetHandle: string;
 
     if (isHorizontalDominant) {
-        // Horizontal connection
         if (targetCenter.x > sourceCenter.x) {
-            // Target is to the RIGHT of source
             optimalSourceHandle = 'r';
             optimalTargetHandle = 'l';
         } else {
-            // Target is to the LEFT of source
             optimalSourceHandle = 'l';
             optimalTargetHandle = 'r';
         }
     } else {
-        // Vertical connection
         if (targetCenter.y > sourceCenter.y) {
-            // Target is BELOW source
             optimalSourceHandle = 'b';
             optimalTargetHandle = 't';
         } else {
-            // Target is ABOVE source
             optimalSourceHandle = 't';
             optimalTargetHandle = 'b';
+        }
+    }
+
+    // STRICT TYPE ENFORCEMENT:
+    // If edge type is 'straight' but nodes are NOT aligned, FORCE smoothstep
+    let finalType = edge.type;
+    let normalizationReason = 'handles_optimized';
+
+    if (edge.type === 'straight' && !alignment.aligned) {
+        console.warn(`[NormalizeEdge] Edge ${edge.id}: BLOCKING straight - nodes NOT aligned (dx=${deltaX.toFixed(0)}, dy=${deltaY.toFixed(0)})`);
+        finalType = 'smoothstep';
+        normalizationReason = 'forced_smoothstep_misaligned';
+    }
+
+    // Check for collision if we have allNodes
+    if (finalType === 'straight' && allNodes && allNodes.length > 0) {
+        const collisions = findCollisions(sourceCenter, targetCenter, allNodes, [sourceNode.id, targetNode.id]);
+        if (collisions.length > 0) {
+            console.warn(`[NormalizeEdge] Edge ${edge.id}: BLOCKING straight - COLLISION with ${collisions.map(n => n.id).join(', ')}`);
+            finalType = 'smoothstep';
+            normalizationReason = 'forced_smoothstep_collision';
         }
     }
 
     console.log(`[NormalizeEdge] Edge ${edge.id}:`, {
         deltaX: deltaX.toFixed(0),
         deltaY: deltaY.toFixed(0),
-        type: edge.type, // PRESERVED - never changed!
-        optimalHandles: `${optimalSourceHandle} → ${optimalTargetHandle}`,
+        aligned: alignment.aligned,
+        originalType: edge.type,
+        finalType,
+        handles: `${optimalSourceHandle} → ${optimalTargetHandle}`,
     });
 
-    // ONLY adjust handles - TYPE IS NEVER CHANGED
     return {
         ...edge,
+        type: finalType,
         sourceHandle: optimalSourceHandle,
         targetHandle: optimalTargetHandle,
         _normalized: true,
-        _normalizationReason: 'handles_optimized',
+        _normalizationReason: normalizationReason,
     };
 }
 
@@ -528,23 +611,24 @@ export function normalizeEdge(
  * Normalize ALL edges in a diagram
  * This is called during diagram loading, BEFORE rendering!
  * 
- * CRITICAL: This function NEVER deletes edges or changes types!
- * Multiple edges from same handle to different targets are ALLOWED.
- * User's edge type selection is ALWAYS respected.
+ * NOW ENFORCES:
+ * - Strict alignment validation (12px tolerance)
+ * - Collision detection (forces smoothstep if line would cross a card)
+ * - Optimal handle selection based on node positions
  */
 export function normalizeAllEdges(
     edges: NormalizedEdge[],
     nodes: Node[]
 ): NormalizedEdge[] {
-    console.log(`[NormalizeAllEdges] Processing ${edges.length} edges (types preserved)...`);
+    console.log(`[NormalizeAllEdges] Processing ${edges.length} edges with strict validation...`);
 
-    // Simply normalize each edge (handle optimization only)
+    // Normalize each edge with collision detection
     return edges.map(edge => {
         const sourceNode = nodes.find(n => n.id === edge.source);
         const targetNode = nodes.find(n => n.id === edge.target);
 
-        // normalizeEdge only adjusts handles, never changes type
-        return normalizeEdge(edge, sourceNode, targetNode);
+        // Pass allNodes for collision detection
+        return normalizeEdge(edge, sourceNode, targetNode, nodes);
     });
 }
 

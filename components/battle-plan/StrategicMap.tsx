@@ -137,29 +137,16 @@ function configToEdgeProps(config: EdgeConfig) {
         markerEnd = { type: MarkerType.Arrow, color: '#64748b' };
     }
 
-    // 3 EDGE TYPES - ALL USE SMOOTHSTEP EXCEPT STRAIGHT:
-    // This gives us: ——╭——╮—— (straight segments with rounded corners)
-    // NOT: ~~~~~~~ (wavy bezier)
-    let edgeType: string;
-    let borderRadius = 0;
-
-    switch (config.type) {
-        case 'bezier':
-            // "Curva Suave" - smoothstep with VERY rounded corners (looks curved)
-            edgeType = 'smoothstep';
-            borderRadius = 50; // High radius = very smooth curves
-            break;
-        case 'smoothstep':
-            // "Ortogonal" - smoothstep with slight rounding
-            edgeType = 'smoothstep';
-            borderRadius = 15; // Lower radius = more angular
-            break;
-        case 'straight':
-        default:
-            edgeType = 'straight';
-            borderRadius = 0;
-            break;
-    }
+    // ALL EDGES USE 'SMART' TYPE
+    // This ensures all edges go through our CustomSmartEdge with:
+    // - Collision detection
+    // - Multi-candidate path generation
+    // - Proper scoring and selection
+    // - Smooth bezier corners
+    // 
+    // React Flow's native smoothstep/straight types are NO LONGER USED
+    // because they don't respect our collision detection or handle selection.
+    const edgeType = 'smart';
 
     return {
         type: edgeType,
@@ -168,12 +155,11 @@ function configToEdgeProps(config: EdgeConfig) {
             strokeWidth: 2,
             strokeDasharray,
         },
-        pathOptions: { borderRadius },
         markerStart,
         markerEnd,
         animated: config.animated,
         className: config.animated ? 'animated-edge' : '',
-        zIndex: 0, // Edges render behind nodes (z-50) for visual masking
+        zIndex: 0,
     };
 }
 
@@ -186,10 +172,9 @@ const initialNodes: Node[] = [
 ];
 
 const initialEdges: Edge[] = [
-    // e1-2: Horizontal connection (X: 100->300) - smoothstep is appropriate
-    { id: 'e1-2', source: '1', target: '2', type: 'smoothstep', style: { stroke: '#64748b', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' } },
-    // e2-3: VERTICAL connection (same X: 300, Y: 100->250) - STRAIGHT is optimal!
-    { id: 'e2-3', source: '2', target: '3', type: 'straight', sourceHandle: 'b', targetHandle: 't', style: { stroke: '#64748b', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' } },
+    // All edges use 'smart' type for collision-validated routing
+    { id: 'e1-2', source: '1', target: '2', type: 'smart', style: { stroke: '#64748b', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' } },
+    { id: 'e2-3', source: '2', target: '3', type: 'smart', style: { stroke: '#64748b', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' } },
 ];
 
 interface StrategicMapProps {
@@ -200,9 +185,9 @@ interface StrategicMapProps {
     onGraphChange?: (nodes: Node[], edges: Edge[]) => void;
 }
 
-// Default edge configuration - smoothstep with borderRadius for smart routing
+// Default edge configuration - always uses 'smart' type for collision-validated routing
 const defaultEdgeConfig: EdgeConfig = {
-    type: 'smoothstep',
+    type: 'smoothstep', // User-facing label, actually renders as 'smart'
     strokeStyle: 'solid',
     markerStart: 'none',
     markerEnd: 'arrowClosed',

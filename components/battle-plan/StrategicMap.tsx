@@ -187,7 +187,7 @@ interface StrategicMapProps {
 
 // Default edge configuration - always uses 'smart' type for collision-validated routing
 const defaultEdgeConfig: EdgeConfig = {
-    type: 'smoothstep', // User-facing label, actually renders as 'smart'
+    type: 'smart', // CustomSmartEdge for collision-validated routing
     strokeStyle: 'solid',
     markerStart: 'none',
     markerEnd: 'arrowClosed',

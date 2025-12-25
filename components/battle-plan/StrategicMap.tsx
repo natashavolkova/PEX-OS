@@ -29,8 +29,8 @@ import dagre from 'dagre';
 import LibrarySidebar, { type EdgeConfig } from './LibrarySidebar';
 import StickyNoteNode from './nodes/StickyNoteNode';
 import ShapeNode from './nodes/ShapeNode';
-// SmartStepEdge: Uses A* pathfinding to route around nodes
-import { SmartStepEdge } from '@jalez/react-flow-smart-edge';
+// SmartPathEdge: Custom A* pathfinding edge with optimized configuration
+import SmartPathEdge from './edges/SmartPathEdge';
 import {
     isDiagonalConnection,
     isAlignedConnection,
@@ -51,9 +51,9 @@ const nodeTypes: NodeTypes = {
     shape: ShapeNode,
 };
 
-// Edge types - SmartStepEdge for A* pathfinding that routes around nodes
+// Edge types - SmartPathEdge for A* pathfinding that routes around nodes
 const edgeTypes = {
-    smart: SmartStepEdge,
+    smart: SmartPathEdge,
 };
 
 // SMART HANDLE CALCULATOR - Shared logic for optimal handle selection based on node positions

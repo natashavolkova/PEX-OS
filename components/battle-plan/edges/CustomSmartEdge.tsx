@@ -483,13 +483,52 @@ function CustomSmartEdge({
             return { path: '', pathType: 'fallback' as const, hasCollision: true };
         }
 
+        // ===== DIAGNOSTIC: Log node data with measured status =====
+        const sourceNode = nodes.find(n => n.id === source);
+        const targetNode = nodes.find(n => n.id === target);
+
+        console.group(`[RUNTIME_DIAG] Edge ${id}: ${source} → ${target}`);
+
+        console.log('📦 Source Node:', {
+            id: source,
+            position: sourceNode?.position,
+            measured: sourceNode?.measured,
+            hasMeasured: !!sourceNode?.measured?.width,
+            cardUsed: { x: sourceCard.x, y: sourceCard.y, w: sourceCard.width, h: sourceCard.height }
+        });
+
+        console.log('📦 Target Node:', {
+            id: target,
+            position: targetNode?.position,
+            measured: targetNode?.measured,
+            hasMeasured: !!targetNode?.measured?.width,
+            cardUsed: { x: targetCard.x, y: targetCard.y, w: targetCard.width, h: targetCard.height }
+        });
+
         const routing = routeEdge(sourceCard, targetCard, allCards);
+
+        // ===== DIAGNOSTIC: Log path points =====
+        console.log('📍 Path Points (verified for collision):', routing.path);
+        console.log('📍 Path Type:', routing.pathType);
+        console.log('📍 Has Collision:', routing.hasCollision);
+
         const svgPath = pathToSvg(routing.path, routing.pathType === 'straight');
 
-        console.log(`[EDGE] ${id}: type=${routing.pathType} collision=${routing.hasCollision}`);
+        // ===== DIAGNOSTIC: Compare path vs SVG =====
+        console.log('🎨 SVG Path (rendered):', svgPath);
+
+        // ===== DIAGNOSTIC: Log all obstacles =====
+        const obstacles = allCards.filter(c => c.id !== source && c.id !== target);
+        console.log('🚧 Obstacles checked:', obstacles.map(o => ({
+            id: o.id,
+            bounds: { x: o.x, y: o.y, w: o.width, h: o.height },
+            collisionBox: getCardBoundingBox(o).collisionBox
+        })));
+
+        console.groupEnd();
 
         return { ...routing, path: svgPath };
-    }, [sourceCard, targetCard, allCards, source, target, id]);
+    }, [sourceCard, targetCard, allCards, source, target, id, nodes]);
 
     // Visual styling based on path type
     let edgeStyle = style;

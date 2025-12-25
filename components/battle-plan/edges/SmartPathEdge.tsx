@@ -26,6 +26,11 @@ const SmartPathEdge = (props: EdgeProps) => {
     // Get all nodes for pathfinding collision detection
     const nodes = useNodes();
 
+    // DEBUG: Log inputs
+    console.log(`[SmartPathEdge] Edge ${id}: nodes count = ${nodes.length}`);
+    console.log(`[SmartPathEdge] Edge ${id}: source(${sourceX.toFixed(0)}, ${sourceY.toFixed(0)}) -> target(${targetX.toFixed(0)}, ${targetY.toFixed(0)})`);
+    console.log(`[SmartPathEdge] Edge ${id}: sourcePos=${sourcePosition}, targetPos=${targetPosition}`);
+
     // Call getSmartEdge with optimized pathfinding options
     const result = getSmartEdge({
         sourcePosition,
@@ -40,6 +45,12 @@ const SmartPathEdge = (props: EdgeProps) => {
             gridRatio: 5,     // Smaller grid cells for more accurate pathfinding
         }
     });
+
+    // DEBUG: Log result
+    console.log(`[SmartPathEdge] Edge ${id}: result = ${result ? 'PATH FOUND' : 'NULL (fallback)'}`);
+    if (result) {
+        console.log(`[SmartPathEdge] Edge ${id}: path = ${result.svgPathString.substring(0, 100)}...`);
+    }
 
     // Fallback to BezierEdge if getSmartEdge fails to find a valid path
     if (result === null) {

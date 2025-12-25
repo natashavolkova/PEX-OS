@@ -29,9 +29,10 @@ import dagre from 'dagre';
 import LibrarySidebar, { type EdgeConfig } from './LibrarySidebar';
 import StickyNoteNode from './nodes/StickyNoteNode';
 import ShapeNode from './nodes/ShapeNode';
-// SmartPathEdge: Custom A* pathfinding edge with optimized configuration
-import SmartPathEdge from './edges/SmartPathEdge';
-// NOTE: edgePathfinding.ts imports REMOVED - @jalez/react-flow-smart-edge now handles all routing
+import {
+    detectNearAlignment,
+    applySnapCorrection,
+} from '@/lib/edgePathfinding';
 
 // Node types
 const nodeTypes: NodeTypes = {
@@ -39,9 +40,12 @@ const nodeTypes: NodeTypes = {
     shape: ShapeNode,
 };
 
-// Edge types - SmartPathEdge for A* pathfinding that routes around nodes
+// Edge types - using native React Flow types
+// - smoothstep: Ortogonal lines with 90° angles
+// - default/bezier: Curved lines (smoothstep with high borderRadius gives cleaner results)
+// - straight: Direct line (only when nodes are aligned)
 const edgeTypes = {
-    smart: SmartPathEdge,
+    // No custom edge types needed - React Flow native types handle Curva/Ortogonal/Reta
 };
 
 // SMART HANDLE CALCULATOR - Shared logic for optimal handle selection based on node positions
@@ -100,10 +104,10 @@ function getLayoutedElements(nodes: Node[], edges: Edge[], direction: 'TB' | 'LR
 }
 
 // Helper: Convert EdgeConfig to React Flow edge properties
-// ALL CURVED TYPES NOW USE SMOOTHSTEP - No more wavy bezier!
-// - 'bezier' (Curva Suave): smoothstep with high borderRadius (50)
-// - 'smoothstep' (Ortogonal): smoothstep with medium borderRadius (15)
-// - 'straight' (Reta): straight line
+// 3 Types as per user requirement:
+// - 'bezier' (Curva): smoothstep with high borderRadius (50) for curved corners
+// - 'smoothstep' (Ortogonal): smoothstep with low borderRadius (8) for 90° angles
+// - 'straight' (Reta): straight line (only when nodes are aligned)
 function configToEdgeProps(config: EdgeConfig) {
     // Stroke style
     let strokeDasharray = '0';
@@ -126,19 +130,34 @@ function configToEdgeProps(config: EdgeConfig) {
         markerEnd = { type: MarkerType.Arrow, color: '#64748b' };
     }
 
-    // ALL EDGES USE 'SMART' TYPE
-    // This ensures all edges go through our CustomSmartEdge with:
-    // - Collision detection
-    // - Multi-candidate path generation
-    // - Proper scoring and selection
-    // - Smooth bezier corners
-    // 
-    // React Flow's native smoothstep/straight types are NO LONGER USED
-    // because they don't respect our collision detection or handle selection.
-    const edgeType = 'smart';
+    // Determine edge type and pathOptions based on config
+    let edgeType: string = 'smoothstep';
+    let pathOptions: { borderRadius?: number } = {};
+
+    switch (config.type) {
+        case 'bezier':
+            // Curva: smoothstep with high borderRadius for curved corners
+            edgeType = 'smoothstep';
+            pathOptions = { borderRadius: 50 };
+            break;
+        case 'smoothstep':
+            // Ortogonal: smoothstep with low borderRadius for sharp 90° angles
+            edgeType = 'smoothstep';
+            pathOptions = { borderRadius: 8 };
+            break;
+        case 'straight':
+            // Reta: straight line
+            edgeType = 'straight';
+            break;
+        default:
+            // Default to ortogonal
+            edgeType = 'smoothstep';
+            pathOptions = { borderRadius: 8 };
+    }
 
     return {
         type: edgeType,
+        pathOptions,
         style: {
             stroke: '#64748b',
             strokeWidth: 2,
@@ -485,16 +504,43 @@ function StrategicMapInner({
         }
     }, [edges.length]);
 
-    // Node drag stop handler - library handles routing automatically
+    // AUTO-SNAP: If card is within 5° of horizontal/vertical, snap to axis
     const onNodeDragStop = useCallback(
         (_event: React.MouseEvent, node: Node) => {
             console.log(`[onNodeDragStop] Node ${node.id} dropped at x=${node.position.x.toFixed(0)}, y=${node.position.y.toFixed(0)}`);
 
-            // Library (SmartPathEdge) now handles all routing automatically
-            // Just emit the change to sync with external state
-            emitChange(nodes, edges);
+            // Detect if node is "almost" aligned with any other node (< 5° angle)
+            const alignment = detectNearAlignment(node, nodes);
+
+            if (alignment) {
+                console.log(`[onNodeDragStop] SNAP: Aligning ${node.id} to ${alignment.axis}=${alignment.targetValue}`);
+
+                // Apply snap correction to node position
+                const correctedNode = applySnapCorrection(node, alignment);
+
+                // Update nodes with corrected position
+                setNodes(nds => {
+                    const updatedNodes = nds.map(n =>
+                        n.id === node.id ? correctedNode : n
+                    );
+                    emitChange(updatedNodes, edges);
+                    return updatedNodes;
+                });
+
+                // Visual feedback: add snap class to node element
+                const nodeElement = document.querySelector(`[data-id="${node.id}"]`);
+                if (nodeElement) {
+                    nodeElement.classList.add(`snap-${alignment.axis}`);
+                    setTimeout(() => {
+                        nodeElement.classList.remove(`snap-${alignment.axis}`);
+                    }, 300);
+                }
+            } else {
+                // No snap needed, just emit
+                emitChange(nodes, edges);
+            }
         },
-        [nodes, edges, emitChange]
+        [nodes, edges, setNodes, emitChange]
     );
 
     // Drag and Drop handlers

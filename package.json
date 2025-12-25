@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",
+    "@jalez/react-flow-smart-edge": "^4.0.0",
     "@libsql/client": "^0.15.15",
     "@monaco-editor/react": "^4.6.0",
     "@radix-ui/react-accordion": "^1.2.12",

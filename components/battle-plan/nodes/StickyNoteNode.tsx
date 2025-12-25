@@ -116,7 +116,7 @@ function StickyNoteNode({ id, data, selected }: NodeProps) {
                     style={{ clipPath: 'polygon(100% 0, 0 0, 100% 100%)' }}
                 />
 
-                {/* HANDLES - 1 per side (4 total) - Clean interface */}
+                {/* HANDLES - Source only (CustomSmartEdge calculates positions internally) */}
                 {/* Invisible by default, visible on hover */}
                 <Handle
                     type="source"

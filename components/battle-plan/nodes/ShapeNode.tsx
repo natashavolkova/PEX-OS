@@ -163,7 +163,7 @@ function ShapeNode({ id, data, selected }: NodeProps) {
             >
                 {renderShape()}
 
-                {/* HANDLES - 1 per side (4 total) - Clean interface */}
+                {/* HANDLES - Source only (CustomSmartEdge calculates positions internally) */}
                 <Handle
                     type="source"
                     position={Position.Top}

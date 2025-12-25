@@ -900,7 +900,7 @@ function StrategicMapInner({
                     selectionOnDrag
                     panOnDrag={[1, 2]}
                     defaultEdgeOptions={{
-                        type: 'smoothstep',
+                        type: 'smart',
                         markerEnd: { type: MarkerType.ArrowClosed, color: '#64748b' },
                         style: { strokeWidth: 2, stroke: '#64748b' },
                         animated: false,

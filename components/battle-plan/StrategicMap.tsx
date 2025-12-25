@@ -31,19 +31,7 @@ import StickyNoteNode from './nodes/StickyNoteNode';
 import ShapeNode from './nodes/ShapeNode';
 // SmartPathEdge: Custom A* pathfinding edge with optimized configuration
 import SmartPathEdge from './edges/SmartPathEdge';
-import {
-    isDiagonalConnection,
-    isAlignedConnection,
-    getOptimalEdgeType,
-    getNodeCenter,
-    findCollisions,
-    getOptimalHandles,
-    detectNearAlignment,
-    applySnapCorrection,
-    normalizeEdgesForNode,
-    normalizeDiagram,
-    type NormalizedEdge,
-} from '@/lib/edgePathfinding';
+// NOTE: edgePathfinding.ts imports REMOVED - @jalez/react-flow-smart-edge now handles all routing
 
 // Node types
 const nodeTypes: NodeTypes = {
@@ -381,15 +369,10 @@ function StrategicMapInner({
                     className: newAnimated ? 'animated-edge' : '',
                 };
             });
-
-            // CRITICAL: Normalize after geometry change
-            const normalizedEdges = normalizeDiagram(
-                updatedEdges as unknown as NormalizedEdge[],
-                nodes
-            ) as unknown as Edge[];
-            console.log(`[NORM] Geometry change: normalized ${normalizedEdges.length} edges`);
-            emitChange(nodes, normalizedEdges);
-            return normalizedEdges;
+            // Library now handles all routing - just return updated edges
+            console.log(`[ApplyToSelected] Updated ${updatedEdges.length} edges`);
+            emitChange(nodes, updatedEdges);
+            return updatedEdges;
         });
     }, [selectedEdges, edgeConfig, setEdges, nodes, emitChange]);
 
@@ -478,26 +461,14 @@ function StrategicMapInner({
                 prevEdgeSigRef.current = edgeSig;
                 console.log(`[EdgeSync] Syncing ${externalEdges.length} edges from external source`);
 
-                // Use externalNodes if available for normalization
-                const currentNodes = externalNodes && externalNodes.length > 0 ? externalNodes : nodes;
-
-                // Normalize edges BEFORE rendering
-                const normalizedEdges = normalizeDiagram(
-                    externalEdges as unknown as NormalizedEdge[],
-                    currentNodes
-                ) as unknown as Edge[];
-
-                // GUARD: Don't replace if normalized is empty but external had edges
-                if (normalizedEdges.length === 0 && externalEdges.length > 0) {
-                    console.error('[EdgeSync] BLOCKED: normalization returned empty array!');
-                    setEdges([...externalEdges]); // Use raw edges as fallback
-                    return;
-                }
-
-                // FORCE NEW ARRAY REFERENCE for React to detect change
-                const forcedNewArray = [...normalizedEdges];
-                console.log(`[NORM] External load: ${externalEdges.length} edges → ${forcedNewArray.length} normalized`);
-                setEdges(forcedNewArray);
+                // Library now handles routing - just set edges directly
+                // Ensure type is 'smart' for pathfinding
+                const smartEdges = externalEdges.map(e => ({
+                    ...e,
+                    type: 'smart' as const,
+                }));
+                console.log(`[EdgeSync] Set ${smartEdges.length} edges with type 'smart'`);
+                setEdges([...smartEdges]);
             }
         }
     }, [externalEdges, externalNodes, setEdges]); // REMOVED: nodes - causes race condition!
@@ -514,70 +485,16 @@ function StrategicMapInner({
         }
     }, [edges.length]);
 
-    // AUTO-SNAP: If card is within 5° of horizontal/vertical, snap to axis
+    // Node drag stop handler - library handles routing automatically
     const onNodeDragStop = useCallback(
         (_event: React.MouseEvent, node: Node) => {
             console.log(`[onNodeDragStop] Node ${node.id} dropped at x=${node.position.x.toFixed(0)}, y=${node.position.y.toFixed(0)}`);
 
-            // Detect if node is "almost" aligned with any other node (< 5° angle)
-            const alignment = detectNearAlignment(node, nodes);
-
-            if (alignment) {
-                console.log(`[onNodeDragStop] SNAP: Aligning ${node.id} to ${alignment.axis}=${alignment.targetValue}`);
-
-                // Apply snap correction to node position
-                const correctedNode = applySnapCorrection(node, alignment);
-
-                // Update nodes with corrected position
-                setNodes(nds => {
-                    const updatedNodes = nds.map(n =>
-                        n.id === node.id ? correctedNode : n
-                    );
-
-                    // Recalculate edges connected to this node with FORCE NEW ARRAY
-                    setTimeout(() => {
-                        setEdges(eds => {
-                            const normalizedEdges = normalizeDiagram(
-                                eds as unknown as NormalizedEdge[],
-                                updatedNodes
-                            ) as unknown as Edge[];
-
-                            // FORCE NEW ARRAY REFERENCE for React to detect change
-                            const forcedNewArray = [...normalizedEdges];
-                            console.log(`[NORM] Snap: normalized ${forcedNewArray.length} edges`);
-                            emitChange(updatedNodes, forcedNewArray);
-                            return forcedNewArray;
-                        });
-                    }, 16); // 16ms = 1 frame for smooth animation
-
-                    return updatedNodes;
-                });
-
-                // Visual feedback: add snap class to node element
-                const nodeElement = document.querySelector(`[data-id="${node.id}"]`);
-                if (nodeElement) {
-                    nodeElement.classList.add(`snap-${alignment.axis}`);
-                    setTimeout(() => {
-                        nodeElement.classList.remove(`snap-${alignment.axis}`);
-                    }, 300);
-                }
-            } else {
-                // No snap needed, just normalize and emit with FORCE NEW ARRAY
-                setEdges(eds => {
-                    const normalizedEdges = normalizeDiagram(
-                        eds as unknown as NormalizedEdge[],
-                        nodes
-                    ) as unknown as Edge[];
-
-                    // FORCE NEW ARRAY REFERENCE
-                    const forcedNewArray = [...normalizedEdges];
-                    console.log(`[NORM] Node drag: normalized ${forcedNewArray.length} edges`);
-                    emitChange(nodes, forcedNewArray);
-                    return forcedNewArray;
-                });
-            }
+            // Library (SmartPathEdge) now handles all routing automatically
+            // Just emit the change to sync with external state
+            emitChange(nodes, edges);
         },
-        [nodes, setNodes, setEdges, emitChange]
+        [nodes, edges, emitChange]
     );
 
     // Drag and Drop handlers
@@ -622,14 +539,11 @@ function StrategicMapInner({
     const handleLayout = useCallback((direction: 'TB' | 'LR') => {
         const { nodes: ln, edges: le } = getLayoutedElements(nodes, edges, direction);
         setNodes(ln);
-        // Normalize after layout
-        const normalizedEdges = normalizeDiagram(
-            le as unknown as NormalizedEdge[],
-            ln
-        ) as unknown as Edge[];
-        console.log(`[NORM] Auto-layout: normalized ${normalizedEdges.length} edges`);
-        setEdges(normalizedEdges);
-        emitChange(ln, normalizedEdges);
+        // Ensure all edges have type 'smart' for pathfinding
+        const smartEdges = le.map(e => ({ ...e, type: 'smart' as const }));
+        console.log(`[Layout] Set ${smartEdges.length} edges with type 'smart'`);
+        setEdges(smartEdges);
+        emitChange(ln, smartEdges);
         setShowLayoutMenu(false);
         requestAnimationFrame(() => { reactFlowInstance.fitView({ padding: 0.3 }); });
     }, [nodes, edges, setNodes, setEdges, emitChange, reactFlowInstance]);
@@ -779,27 +693,10 @@ function StrategicMapInner({
                 // ALWAYS use spread to create new array reference
                 const newEdges = [...addEdge(smartEdge, eds)];
 
-                // Normalize entire diagram including new edge
-                const normalizedEdges = normalizeDiagram(
-                    newEdges as unknown as NormalizedEdge[],
-                    nodes
-                ) as unknown as Edge[];
-
-                // SANITY CHECK: normalized should have at least edgeCountBefore + 1
-                const edgeCountAfter = normalizedEdges.length;
-                if (edgeCountAfter < edgeCountBefore) {
-                    console.error(`[onConnect] STATE CORRUPTION: edges went from ${edgeCountBefore} to ${edgeCountAfter}!`);
-                    // Fallback: use newEdges without normalization
-                    emitChange(nodes, newEdges);
-                    return newEdges;
-                }
-
-                console.log(`[NORM] New connection: ${edgeCountBefore} → ${edgeCountAfter} edges`);
-
-                // FORCE NEW ARRAY REFERENCE
-                const forcedNewArray = [...normalizedEdges];
-                emitChange(nodes, forcedNewArray);
-                return forcedNewArray;
+                // Library handles all routing - just emit
+                console.log(`[onConnect] Added edge, new count: ${newEdges.length}`);
+                emitChange(nodes, newEdges);
+                return newEdges;
             });
 
             // CLEAR LOCAL EDIT FLAG after a delay (allows state to settle)

@@ -90,7 +90,7 @@ function convertToReactFlow(data: DiagramData): { nodes: Node[]; edges: Edge[] }
         // CRITICAL: Validate and preserve edge type EXACTLY as saved
         // Allowed types: 'straight', 'smoothstep', 'step'
         // Default fallback: 'straight' (NOT smoothstep!)
-        const validTypes = ['straight', 'smoothstep', 'step'];
+        const validTypes = ['straight', 'smoothstep', 'step', 'smart'];
         let edgeType: string;
 
         if (edge.type && validTypes.includes(edge.type)) {

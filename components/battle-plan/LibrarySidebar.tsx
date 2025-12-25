@@ -26,7 +26,7 @@ type PanelType = 'shapes' | 'sticky' | 'connectors' | null;
 
 // Edge configuration types
 export interface EdgeConfig {
-    type: 'bezier' | 'smoothstep' | 'straight';  // 3 TYPES: Curva, Ortogonal, Reta
+    type: 'bezier' | 'smoothstep' | 'straight' | 'smart';  // 4 TYPES: Curva, Ortogonal, Reta, Smart (collision detection)
     strokeStyle: 'solid' | 'dashed' | 'dotted';
     markerStart: 'none' | 'arrow' | 'circle';
     markerEnd: 'none' | 'arrowClosed' | 'arrowOpen';
